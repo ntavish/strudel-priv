@@ -125,6 +125,81 @@ export function useReplContext() {
     });
     window.strudelMirror = editor;
 
+    const initWebSocket = () => {
+      if (window.strudelWebSocket) {
+        return; 
+      }
+      
+      try {
+        const ws = new WebSocket('ws://localhost:8080');
+        
+        ws.addEventListener('open', (event) => {
+          console.log('Connected to Strudel WebSocket');
+          window.strudelWebSocket = ws;
+        });
+        
+        ws.addEventListener('close', (event) => {
+          console.log('Disconnected from WebSocket:', event.reason);
+          window.strudelWebSocket = null;
+          setTimeout(initWebSocket, 3000);
+        });
+        
+        ws.addEventListener('error', (event) => {
+          console.warn('WebSocket connection failed');
+          window.strudelWebSocket = null;
+        });
+        
+        ws.addEventListener('message', (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            console.log('Received command from websocket:', message.command);
+            
+            switch(message.command) {
+              case 'update':
+                console.log('Updating');
+                editor.setCode(message.code);
+                break;
+                
+              case 'play':
+                console.log('▶️ Playing');
+                editor.setCode(message.code);
+                editor.evaluate();
+                break;
+                
+              case 'stop':
+                console.log('⏹️ Stopping');
+                editor.stop();
+                break;
+                
+              case 'evaluate':
+                console.log('Evaluating...');
+                editor.evaluate();
+                break;
+                
+              case 'toggle':
+                console.log('toggling playback...');
+                editor.toggle();
+                break;
+                
+              case 'welcome':
+                console.log(message.message);
+                break;
+                
+              default:
+                console.log('Unknown command:', message.command);
+            }
+          } catch (e) {
+            console.error('Error parsing WebSocket message:', e);
+          }
+        });
+        
+      } catch (error) {
+        console.warn('WebSocket not available');
+      }
+    };
+    
+    initWebSocket();
+
     // init settings
     initCode().then(async (decoded) => {
       let code, msg;
