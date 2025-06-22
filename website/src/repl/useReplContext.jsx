@@ -71,10 +71,8 @@ const recordingOutput = useMemo(() => {
   const ctx = getAudioContext();
   if (!ctx._recordDest) {
     ctx._recordDest = ctx.createMediaStreamDestination();
-    console.log("🎤 recordDest created");
   }
   return (hap, deadline, dur, cps, t) => {
-    console.log("🎧 recordingOutput — hap =", hap);
     const node = origWebaudioOutput(hap, deadline, dur, cps, t);
     if (node?.connect) node.connect(ctx._recordDest);
     return node;
@@ -189,7 +187,6 @@ const recordingOutput = useMemo(() => {
       // b) create your recording tap
       if (!ctx._recordDest) {
         ctx._recordDest = ctx.createMediaStreamDestination();
-        console.log('🎤 recordDest created');
       }
 
       // c) monkey-patch ALL AudioNode.connect calls
@@ -209,11 +206,11 @@ const recordingOutput = useMemo(() => {
         mimeType: 'audio/webm;codecs=opus'
       });
       rec.ondataavailable = e => {
-        console.log('📥 dataavailable, bytes=', e.data.size);
+        
         if (e.data.size) recordedChunksRef.current.push(e.data);
       };
       rec.onstop = () => {
-        console.log('⏹️ Recorder stopped, chunks=', recordedChunksRef.current.length);
+        
         const blob = new Blob(recordedChunksRef.current, { type: rec.mimeType });
         recordedChunksRef.current = [];
         const url = URL.createObjectURL(blob);
@@ -227,7 +224,6 @@ const recordingOutput = useMemo(() => {
 
       if (!cancelled) {
         mediaRecorderRef.current = rec;
-        console.log('📂 MediaRecorder ready');
       }
     })();
 
@@ -297,12 +293,10 @@ const recordingOutput = useMemo(() => {
     }
     if (rec.state === 'inactive') {
       recordedChunksRef.current = [];
-      console.log('▶️ rec.start()');
       rec.start();
       setIsRecording(true);
       handleTogglePlay();    // your existing function that starts the REPL
     } else {
-      console.log('⏸ rec.stop()');
       handleTogglePlay();    // stop playback first
       rec.stop();
     }
