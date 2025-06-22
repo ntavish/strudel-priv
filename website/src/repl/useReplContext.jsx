@@ -13,11 +13,13 @@ import {
   resetGlobalEffects,
   resetLoadedSounds,
   initAudioOnFirstClick,
+  webaudioOutput as origWebaudioOutput,
+    getAudioContext,
 } from '@strudel/webaudio';
 import { setVersionDefaultsFrom } from './util.mjs';
 import { StrudelMirror, defaultSettings } from '@strudel/codemirror';
 import { clearHydra } from '@strudel/hydra';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { parseBoolean, settingsMap, useSettings } from '../settings.mjs';
 import {
   setActivePattern,
@@ -64,8 +66,30 @@ const initialCode = `// LOADING`;
 export function useReplContext() {
   const { isSyncEnabled, audioEngineTarget } = useSettings();
   const shouldUseWebaudio = audioEngineTarget !== audioEngineTargets.osc;
-  const defaultOutput = shouldUseWebaudio ? webaudioOutput : superdirtOutput;
+
+const recordingOutput = useMemo(() => {
+  const ctx = getAudioContext();
+  if (!ctx._recordDest) {
+    ctx._recordDest = ctx.createMediaStreamDestination();
+    console.log("🎤 recordDest created");
+  }
+  return (hap, deadline, dur, cps, t) => {
+    console.log("🎧 recordingOutput — hap =", hap);
+    const node = origWebaudioOutput(hap, deadline, dur, cps, t);
+    if (node?.connect) node.connect(ctx._recordDest);
+    return node;
+  };
+}, []);
+
+  const defaultOutput = shouldUseWebaudio
+  ? recordingOutput
+  : superdirtOutput;
   const getTime = shouldUseWebaudio ? getAudioContextCurrentTime : getPerformanceTimeSeconds;
+
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+  // 1) build our special “recordingOutput” once
+
 
   const init = useCallback(() => {
     const drawTime = [-2, 2];
@@ -124,7 +148,7 @@ export function useReplContext() {
       bgFill: false,
     });
     window.strudelMirror = editor;
-
+  
     // init settings
     initCode().then(async (decoded) => {
       let code, msg;
@@ -149,9 +173,70 @@ export function useReplContext() {
   }, []);
 
   const [replState, setReplState] = useState({});
+  const [isRecording, setIsRecording] = useState(false);
   const { started, isDirty, error, activeCode, pending } = replState;
   const editorRef = useRef();
   const containerRef = useRef();
+
+   // — 1) One effect to set up the MediaRecorder once —
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // a) wait for the user to unlock the context
+      await initAudioOnFirstClick();
+      const ctx  = getAudioContext();
+
+      // b) create your recording tap
+      if (!ctx._recordDest) {
+        ctx._recordDest = ctx.createMediaStreamDestination();
+        console.log('🎤 recordDest created');
+      }
+
+      // c) monkey-patch ALL AudioNode.connect calls
+      const orig = AudioNode.prototype.connect;
+      AudioNode.prototype.connect = function (destination, ...args) {
+        // always do the normal connection…
+        const result = orig.call(this, destination, ...args);
+        // …and ALSO, if it's going to the real speakers, tap it:
+        if (destination === ctx.destination) {
+          orig.call(this, ctx._recordDest, ...args);
+        }
+        return result;
+      };
+
+      // d) build your recorder once
+      const rec = new MediaRecorder(ctx._recordDest.stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      rec.ondataavailable = e => {
+        console.log('📥 dataavailable, bytes=', e.data.size);
+        if (e.data.size) recordedChunksRef.current.push(e.data);
+      };
+      rec.onstop = () => {
+        console.log('⏹️ Recorder stopped, chunks=', recordedChunksRef.current.length);
+        const blob = new Blob(recordedChunksRef.current, { type: rec.mimeType });
+        recordedChunksRef.current = [];
+        const url = URL.createObjectURL(blob);
+        Object.assign(document.createElement('a'), {
+          href:     url,
+          download: 'strudel-recording.webm'
+        }).click();
+        URL.revokeObjectURL(url);
+        setIsRecording(false);
+      };
+
+      if (!cancelled) {
+        mediaRecorderRef.current = rec;
+        console.log('📂 MediaRecorder ready');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+
 
   // this can be simplified once SettingsTab has been refactored to change codemirrorSettings directly!
   // this will be the case when the main repl is being replaced
@@ -201,6 +286,30 @@ export function useReplContext() {
   const handleEvaluate = () => {
     editorRef.current.evaluate();
   };
+
+  // 4) your record button
+ // 2) Your unified record/play toggle
+  const handleRecord = () => {
+    const rec = mediaRecorderRef.current;
+    if (!rec) {
+      console.warn('Recorder not ready yet');
+      return;
+    }
+    if (rec.state === 'inactive') {
+      recordedChunksRef.current = [];
+      console.log('▶️ rec.start()');
+      rec.start();
+      setIsRecording(true);
+      handleTogglePlay();    // your existing function that starts the REPL
+    } else {
+      console.log('⏸ rec.stop()');
+      handleTogglePlay();    // stop playback first
+      rec.stop();
+    }
+  };
+
+
+  // Shuffle a random tune from the example patterns
   const handleShuffle = async () => {
     const patternData = await getRandomTune();
     const code = patternData.code;
@@ -223,6 +332,8 @@ export function useReplContext() {
     handleShuffle,
     handleShare,
     handleEvaluate,
+    handleRecord,
+    isRecording, 
     init,
     error,
     editorRef,

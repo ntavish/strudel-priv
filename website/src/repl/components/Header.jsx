@@ -1,6 +1,8 @@
 import PlayCircleIcon from '@heroicons/react/20/solid/PlayCircleIcon';
 import StopCircleIcon from '@heroicons/react/20/solid/StopCircleIcon';
+import MicrophoneIcon from '@heroicons/react/20/solid/MicrophoneIcon';
 import cx from '@src/cx.mjs';
+import { useState } from 'react';
 import { useSettings, setIsZen } from '../../settings.mjs';
 import '../Repl.css';
 
@@ -8,7 +10,9 @@ const { BASE_URL } = import.meta.env;
 const baseNoTrailing = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
 
 export function Header({ context, embedded = false }) {
-  const { started, pending, isDirty, activeCode, handleTogglePlay, handleEvaluate, handleShuffle, handleShare } =
+  
+  // Context found in useReplContext.jsx
+  const { started, pending, isDirty, activeCode, handleRecord, isRecording, handleTogglePlay, handleEvaluate, handleShuffle, handleShare } =
     context;
   const isEmbedded = typeof window !== 'undefined' && (embedded || window.location !== window.parent.location);
   const { isZen, isButtonRowHidden, isCSSAnimationDisabled, fontFamily } = useSettings();
@@ -93,6 +97,34 @@ export function Header({ context, embedded = false }) {
           >
             {!isEmbedded && <span>update</span>}
           </button>
+
+
+         {/* Handle Record */}
+         {!isEmbedded && (
+          <button
+            onClick={handleRecord}
+            title="record"
+            className={cx(
+              'flex items-center space-x-1',
+              !isEmbedded ? 'p-2' : 'px-2',
+              started
+                ? ' text-white'   // recording state
+                : 'text-white'   // idle state
+            )}
+          >
+          {isRecording ? (
+          // filled circle
+            <span className="w-3 h-3 rounded-full bg-red-600 block" />
+          ) : (
+            // outline circle
+            <span className="w-3 h-3 rounded-full border-2 border-current block" />
+          )}
+
+          {!isEmbedded && (
+            <span>{isRecording ? 'Stop' : 'Record'}</span>
+          )}
+          </button>
+          )}
           {/* !isEmbedded && (
             <button
               title="shuffle"
