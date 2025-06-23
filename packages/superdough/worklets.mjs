@@ -894,3 +894,54 @@ class ByteBeatProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('byte-beat-processor', ByteBeatProcessor);
+
+/** Recording Processor. Acts as an audio passthrough that stores a copy of the audio for export if recording is enabled. */
+class RecorderProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.buffers = [];
+    this.recording = false;
+    this.port.onmessage = (e) => {
+      if (!e || !e.data || !e.data.name) {
+        return;
+      }
+      switch (e.data.name) {
+        case 'start':
+          this.buffers = [];
+          this.recording = true;
+          break;
+        case 'stop':
+          this.port.postMessage({ buffers: this.buffers, fileName: e.data.fileName || 'strudel-recording' });
+          this.recording = false;
+          break;
+        default:
+          console.warn(`Unknown message name: ${e.data.name}`);
+          break;
+      }
+    };
+  }
+  static get parameterDescriptors() {
+    return [];
+  }
+  process(inputs, outputs) {
+    try {
+      if (this.recording) {
+        const input = inputs[0];
+        for (let c = 0; c < input.length; c++) {
+          if (!this.buffers[c]) this.buffers[c] = [];
+          this.buffers[c].push(new Float32Array(input[c]));
+        }
+      }
+      // Pass-through
+      for (let c = 0; c < outputs[0].length; c++) {
+        outputs[0][c].set(inputs[0][c]);
+      }
+      return true;
+    } catch (error) {
+      console.error('Error in RecorderProcessor:', error);
+      return false; // Stop processing if an error occurs
+      // return true;
+    }
+  }
+}
+registerProcessor('recorder-processor', RecorderProcessor);

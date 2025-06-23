@@ -64,6 +64,25 @@ export function Header({ context, embedded = false }) {
       </div>
       {!isZen && !isButtonRowHidden && (
         <div className="flex max-w-full overflow-auto text-foreground px-1 md:px-2">
+          <span className={cx('flex items-center space-x-2')}>RECORDING FILE NAME:&nbsp;</span>
+          <input
+            type="text"
+            id="recordingFileName"
+            defaultValue="strudel-recording"
+            title="File name used for recording (optional), will be appended with a timestamp and .wav extension"
+            className={cx('flex items-center space-x-2')}
+            style={{ width: '200px', alignSelf: 'center', height: '1.5rem', color: 'black' }}
+          />
+          <span className={cx('flex items-center space-x-2')}>&nbsp;RECORDING:&nbsp;</span>
+          <input
+            type="checkbox"
+            defaultChecked
+            id="recordingCheckbox"
+            title="RECORDING"
+            style={{ alignSelf: 'center' }}
+            className={cx('flex items-center space-x-2')}
+          />
+          <span className={cx('flex items-center space-x-2')}>&nbsp;</span>
           <button
             onClick={handleTogglePlay}
             title={started ? 'stop' : 'play'}

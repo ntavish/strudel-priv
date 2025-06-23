@@ -263,7 +263,7 @@ export async function initAudioOnFirstClick(options) {
 let delays = {};
 const maxfeedback = 0.98;
 
-let channelMerger, destinationGain;
+let channelMerger, destinationGain, recorderNode;
 //update the output channel configuration to match user's audio device
 export function initializeAudioOutput() {
   const audioContext = getAudioContext();
@@ -275,7 +275,33 @@ export function initializeAudioOutput() {
   destinationGain.connect(audioContext.destination);
 }
 
-// input: AudioNode, channels: ?Array<int>
+/** Called by startRecording(), ensures the recording node is properly initialized when play is pressed. */
+function insertRecorderNode(audioContext) {
+  // Ensure output chain is initialized
+  if (!channelMerger || !destinationGain) {
+    initializeAudioOutput();
+  }
+
+  recorderNode?.disconnect();
+  recorderNode = null;
+
+  recorderNode = new AudioWorkletNode(audioContext, 'recorder-processor', {
+    numberOfInputs: 1,
+    numberOfOutputs: 1,
+    channelCount: audioContext.destination.channelCount,
+  });
+  recorderNode.port.onmessage = (e) => {
+    recorderNodeOnMessage(e);
+  };
+
+  // Insert recorderNode between channelMerger and destinationGain
+  channelMerger.disconnect();
+  destinationGain.disconnect();
+  channelMerger.connect(recorderNode);
+  recorderNode.connect(destinationGain);
+  destinationGain.connect(audioContext.destination);
+}
+
 export const connectToDestination = (input, channels = [0, 1]) => {
   const ctx = getAudioContext();
   if (channelMerger == null) {
@@ -757,3 +783,227 @@ export const superdough = async (value, t, hapDuration, cps) => {
 export const superdoughTrigger = (t, hap, ct, cps) => {
   superdough(hap, t - ct, hap.duration / cps, cps);
 };
+
+/** Called when Play is pressed, initializes and configures recording node if recording is enabled. */
+export async function startRecording(recordingEnabled = true) {
+  if (!recordingEnabled) {
+    return null;
+  }
+  const audioContext = getAudioContext();
+  if (!audioContext) {
+    console.error(
+      "[superdough] Start Recording Failed: 'audioContext' is not initialized, unable to create 'recorderNode'",
+    );
+    return null;
+  }
+  insertRecorderNode(audioContext);
+  if (!recorderNode) {
+    console.error("[superdough] Start Recording Failed: 'recorderNode' failed to initialize");
+    return null;
+  }
+  console.info('[superdough] Starting Recording');
+  recorderNode.port.postMessage({ name: 'start' });
+}
+
+/** Called when Stop is pressed, triggers recording export and passes filename if recording is enabled. */
+export function stopRecording(recordingEnabled = false, fileName = 'strudel-recording') {
+  if (!recordingEnabled) {
+    return null;
+  }
+  if (!recorderNode) {
+    console.warn("[superdough] Stop Recording Failed: 'recorderNode' is not initialized");
+    return null;
+  }
+  console.info('[superdough] Stopping Recording');
+  recorderNode.port.postMessage({ name: 'stop', fileName: fileName });
+}
+
+/** Handles audio processing and export. Triggered when Stop is pressed (if recording is enabled). */
+function recorderNodeOnMessage(e) {
+  if (!e || !e.data || !e.data.buffers) {
+    return null;
+  }
+
+  const debugOutputs = false;
+
+  // Immediately process and export recording
+  let recordingBuffers = e.data.buffers;
+  if (!recordingBuffers || recordingBuffers.length === 0) {
+    console.error('[superdough] Recording Export Failure: No buffers received');
+    return null;
+  }
+  if (recordingBuffers.length != 2) {
+    console.error('[superdough] Recording Export Failure: Not enough channels to interleave');
+    return null;
+  }
+  if (debugOutputs) {
+    console.log('[superdough] Raw Recording Buffers: ', recordingBuffers);
+  }
+
+  const channelCount = recordingBuffers.length;
+  // The number of channels is the length of the recordingBuffers array.
+  // Due to the nature of the current implementation, this should always be 2.
+  const sampleRate = getAudioContext().sampleRate;
+  // The sample rate is the number of samples per second,
+  // which is typically 44100 or 48000 for audio worklets.
+  // In this case, 48000 has been observed.
+  const bitDepth = 32;
+  // WAV format supports 16, 24, and 32 bit depths,
+  // So far 32 is the only tested and working value
+  const wavFormat = 3; // 1 = PCM, 3 = IEEE Float
+
+  // recordingBuffers Format:
+  // [[[128],[128],...],[[128],[128],...]]
+  //
+  //               Outer Array containing L & R Channel Arrays
+  // [                                                                       ]
+  //   [[128xFloat32],[128xFloat32],...],  [[128xFloat32],[128xFloat32],...]
+  //
+  //      L-Channel Values 2D Array           R-Channel Values 2D Array
+  //
+  // Inside the main array, there are two sub-arrays:
+  // The first is for the left channel, the second is for the right channel.
+  // Inside each channel array, every element is an array of 128 Float32 values.
+  //
+  // In order for this data to work properly with encodeWAV,
+  // we need to interleave the two channels into a single Float32Array.
+  //
+  // This is done by taking the first value from the left channel,
+  // then the first value from the right channel, and so on.
+
+  let interleaved = new Float32Array(recordingBuffers[0].length * 128 + recordingBuffers[1].length * 128);
+
+  let index = 0,
+    inputIndex = 0,
+    totalLength = interleaved.length;
+  while (index < totalLength) {
+    interleaved[index++] = recordingBuffers[0][Math.floor(inputIndex / 128)][inputIndex % 128];
+    interleaved[index++] = recordingBuffers[1][Math.floor(inputIndex / 128)][inputIndex % 128];
+    inputIndex++;
+  }
+  if (debugOutputs) {
+    console.log('[superdough] Interleaved recording buffers:', interleaved);
+  }
+
+  // Encode as WAV
+  const encodedWAV = encodeWAV(interleaved, wavFormat, sampleRate, channelCount, bitDepth);
+  if (debugOutputs) {
+    console.log('[superdough] Encoded WAV Buffer:', encodedWAV);
+  }
+  if (!encodedWAV) {
+    console.error('[superdough] Recording Failure: WAV encoding failed');
+    return null;
+  } else {
+    console.log('[superdough] Recording Success: WAV encoded successfully');
+  }
+
+  // get and santize the download name to use only valid filename characters
+  let downloadName = e.data.fileName || 'strudel-recording';
+  downloadName = downloadName
+    .replace('\\', '-') // Replace backslashes with dashes
+    .replace('/', '-') // Replace forward slashes with dashes
+    .replace(/[^a-zA-Z0-9-_ ]/g, '') // Remove other invalid characters
+    .replace(/\s+/g, '-') // Replace spaces with dashes
+    .toLowerCase(); // Convert to lowercase
+  if (debugOutputs) {
+    console.log('[superdough] Download Name:', downloadName);
+  }
+
+  try {
+    // Create blob from WAV file for download
+    const blob = new Blob([encodedWAV], { type: 'audio/wav' });
+    if (!blob) {
+      console.error('[superdough] Recording Failure: Could not create Blob');
+      return null;
+    } else {
+      console.log('[superdough] Recording Success: Blob created successfully');
+    }
+
+    // Create a download link and trigger download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    // remove leading dash if they want an empty download name
+    if (downloadName == '') {
+      downloadName = `${new Date().toISOString()}.wav`;
+    } else {
+      downloadName = downloadName + `-${new Date().toISOString()}.wav`;
+    }
+    a.download = `${downloadName}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('[superdough] Recording Failure: Error creating blob download', error);
+    return null;
+  }
+
+  console.log('[superdough] Recording Export Triggered Successfully: ', downloadName);
+}
+
+/** WAV encoding stuff, borrowed from https://github.com/Experience-Monks/audiobuffer-to-wav under the MIT license */
+function encodeWAV(samples, format, sampleRate, numChannels, bitDepth) {
+  var bytesPerSample = bitDepth / 8;
+  var blockAlign = numChannels * bytesPerSample;
+
+  var buffer = new ArrayBuffer(44 + samples.length * bytesPerSample);
+  var view = new DataView(buffer);
+
+  /* RIFF identifier */
+  writeString(view, 0, 'RIFF');
+  /* RIFF chunk length */
+  view.setUint32(4, 36 + samples.length * bytesPerSample, true);
+  /* RIFF type */
+  writeString(view, 8, 'WAVE');
+  /* format chunk identifier */
+  writeString(view, 12, 'fmt ');
+  /* format chunk length */
+  view.setUint32(16, 16, true);
+  /* sample format (raw) */
+  view.setUint16(20, format, true);
+  /* channel count */
+  view.setUint16(22, numChannels, true);
+  /* sample rate */
+  view.setUint32(24, sampleRate, true);
+  /* byte rate (sample rate * block align) */
+  view.setUint32(28, sampleRate * blockAlign, true);
+  /* block align (channel count * bytes per sample) */
+  view.setUint16(32, blockAlign, true);
+  /* bits per sample */
+  view.setUint16(34, bitDepth, true);
+  /* data chunk identifier */
+  writeString(view, 36, 'data');
+  /* data chunk length */
+  view.setUint32(40, samples.length * bytesPerSample, true);
+  if (format === 1) {
+    // Raw PCM
+    floatTo16BitPCM(view, 44, samples);
+  } else {
+    writeFloat32(view, 44, samples);
+  }
+
+  return buffer;
+}
+
+/** WAV encoding stuff, borrowed from https://github.com/Experience-Monks/audiobuffer-to-wav under the MIT license */
+function writeFloat32(output, offset, input) {
+  for (var i = 0; i < input.length; i++, offset += 4) {
+    output.setFloat32(offset, input[i], true);
+  }
+}
+
+/** WAV encoding stuff, borrowed from https://github.com/Experience-Monks/audiobuffer-to-wav under the MIT license */
+function floatTo16BitPCM(output, offset, input) {
+  for (var i = 0; i < input.length; i++, offset += 2) {
+    var s = Math.max(-1, Math.min(1, input[i]));
+    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+}
+
+/** WAV encoding stuff, borrowed from https://github.com/Experience-Monks/audiobuffer-to-wav under the MIT license */
+function writeString(view, offset, string) {
+  for (var i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
+  }
+}

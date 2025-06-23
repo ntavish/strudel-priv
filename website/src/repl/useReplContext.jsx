@@ -32,6 +32,7 @@ import { audioEngineTargets } from '../settings.mjs';
 import { useStore } from '@nanostores/react';
 import { prebake } from './prebake.mjs';
 import { getRandomTune, initCode, loadModules, shareCode } from './util.mjs';
+import { startRecording, stopRecording } from '../../../packages/superdough/superdough.mjs';
 import './Repl.css';
 import { setInterval, clearInterval } from 'worker-timers';
 import { getMetadata } from '../metadata_parser';
@@ -88,8 +89,26 @@ export function useReplContext() {
         setReplState({ ...state });
       },
       onToggle: (playing) => {
+        let fileName = 'strudel-recording';
+        let recordingEnabled = false; // Get the recording checkbox value
+        try {
+          const recordingCheckbox = document.querySelector('#recordingCheckbox');
+          recordingEnabled = recordingCheckbox ? recordingCheckbox.checked : false;
+          if (recordingEnabled) {
+            // Get the file name from the input field
+            const recordingFileNameInput = document.querySelector('#recordingFileName');
+            if (recordingFileNameInput) {
+              fileName = recordingFileNameInput.value || 'strudel-recording';
+            }
+          }
+        } catch (e) {
+          /*logger("Error getting 'recordingCheckbox' value\n", e);*/
+        }
         if (!playing) {
           clearHydra();
+          stopRecording(recordingEnabled, fileName);
+        } else {
+          startRecording(recordingEnabled);
         }
       },
       beforeEval: () => audioReady,
