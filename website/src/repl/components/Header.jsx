@@ -63,26 +63,90 @@ export function Header({ context, embedded = false }) {
         </h1>
       </div>
       {!isZen && !isButtonRowHidden && (
-        <div className="flex max-w-full overflow-auto text-foreground px-1 md:px-2">
-          <span className={cx('flex items-center space-x-2')}>RECORDING FILE NAME:&nbsp;</span>
-          <input
-            type="text"
-            id="recordingFileName"
-            defaultValue="strudel-recording"
-            title="File name used for recording (optional), will be appended with a timestamp and .wav extension"
-            className={cx('flex items-center space-x-2')}
-            style={{ width: '200px', alignSelf: 'center', height: '1.5rem', color: 'black' }}
-          />
-          <span className={cx('flex items-center space-x-2')}>&nbsp;RECORDING:&nbsp;</span>
-          <input
-            type="checkbox"
-            defaultChecked
-            id="recordingCheckbox"
-            title="RECORDING"
-            style={{ alignSelf: 'center' }}
-            className={cx('flex items-center space-x-2')}
-          />
-          <span className={cx('flex items-center space-x-2')}>&nbsp;</span>
+        <div className="flex max-w-full overflow-auto text-foreground px-1 md:px-2 items-center">
+          {/* Recording controls group */}
+          <div
+            className="flex flex-col self-center border border-gray-100 my-0 px-2 mr-2"
+            style={{
+              gap: '0px',
+              paddingBottom: '4px',
+              paddingRight: '0.5rem',
+              borderLeft: '0px',
+              borderTop: '0px',
+              borderBottom: '0px',
+              borderRight: '2px solid gray-100',
+            }}
+          >
+            {/* First row: label and toggle */}
+            <div
+              className="flex self-end items-center"
+              style={{ alignContent: 'space-between', width: 'auto', marginRight: '0.5rem', gap: '0.1rem' }}
+            >
+              <span
+                style={{
+                  fontSize: '0.9rem',
+                  textTransform: 'lowercase',
+                  letterSpacing: '0.05em',
+                  opacity: 0.7,
+                  marginBottom: '0px',
+                  paddingBottom: '1px',
+                }}
+                title={
+                  'Click the button to the right to toggle recording.\n' +
+                  "When recording is enabled (ON 🔴), audio will begin recording when you press 'play'.\n" +
+                  "When you press 'stop' the recorded audio will automatically be saved to a .wav file.\n" +
+                  'If you provide a file name in the text box below it will be used to prefix the file name.'
+                }
+              >
+                recording
+              </span>
+              {/* Recording toggle button */}
+              <button
+                id="recordingCheckbox"
+                type="button"
+                aria-pressed={false}
+                defaultChecked={false}
+                data-checked="false"
+                title={
+                  typeof window !== 'undefined' &&
+                  document?.getElementById('recordingCheckbox')?.dataset.checked !== 'false'
+                    ? 'Recording is enabled'
+                    : 'Recording is disabled'
+                }
+                className={cx(
+                  'ml-1 text-sm focus:outline-none select-none',
+                  'transition-colors duration-100',
+                  'flex items-center justify-center',
+                )}
+                style={{ padding: 0, marginLeft: '8px' }}
+                onClick={(e) => {
+                  const btn = e.currentTarget;
+                  const checked = btn.dataset.checked !== 'false';
+                  btn.dataset.checked = checked ? 'false' : 'true';
+                  btn.innerText = checked ? 'OFF⚪' : 'ON 🔴';
+                  btn.title = checked ? 'Recording is disabled' : 'Recording is enabled';
+                }}
+              >
+                OFF⚪
+              </button>
+            </div>
+            {/* File Name Input */}
+            <input
+              type="text"
+              id="recordingFileName"
+              placeholder="file name (optional)"
+              title="File name used for recording (optional), will be appended with a timestamp and .wav extension"
+              className={cx('border border-gray-300 rounded px-1 py-0 text-xs')}
+              style={{
+                marginRight: '0.5rem',
+                width: '140px',
+                height: '1rem',
+                color: 'black',
+                marginTop: 0,
+                marginBottom: 0,
+              }}
+            />
+          </div>
           <button
             onClick={handleTogglePlay}
             title={started ? 'stop' : 'play'}

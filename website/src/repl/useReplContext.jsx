@@ -90,10 +90,10 @@ export function useReplContext() {
       },
       onToggle: (playing) => {
         let fileName = 'strudel-recording';
-        let recordingEnabled = false; // Get the recording checkbox value
+        let recordingEnabled = false; // Get the recording toggle button value
         try {
           const recordingCheckbox = document.querySelector('#recordingCheckbox');
-          recordingEnabled = recordingCheckbox ? recordingCheckbox.checked : false;
+          recordingEnabled = recordingCheckbox ? parseBoolean(recordingCheckbox.dataset.checked) : false;
           if (recordingEnabled) {
             // Get the file name from the input field
             const recordingFileNameInput = document.querySelector('#recordingFileName');
