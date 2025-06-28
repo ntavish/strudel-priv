@@ -11,6 +11,45 @@ import { Pitches } from './pitches.mjs';
 
 const pitchesCache = new Map();
 
+/**
+ * Turns numbers into notes in the given EDO scale (zero indexed).
+ *
+ * An EDO scale definition looks like this:
+ *
+ * e.g. C:LLsLLLs:2:1 <- this is the C major scale, 12 EDO
+ *
+ * e.g. C:LLsLLL:3:1 <- this is the Gorgo 6 note scale, 16 EDO
+ *
+ * An EDO scale, e.g. C:LLsLLLs:2:1, consists of a root note (e.g. C)
+ * followed by semicolon (':')
+ * and then a [Large/small step notation sequence](https://en.xen.wiki/w/MOS_scale)
+ * (e.g. LLsLLLs)
+ * followed by semicolon, then the large step size (e.g. 2)
+ * followed by semicolon, then the small step size (e.g. 1).
+ *
+ * The number of divisions of the octave is calculated as the sum
+ * of the steps in the EDO scale definition.
+ *
+ * e.g. C:LLsLLLs:2:1 is 2+2+1+2+2+2+1 = 12 EDO, 7 note scale
+ *
+ * e.g. C:LLsLLL:3:1 is 3+3+1+3+3+3 = 16 EDO, 6 note scale
+ *
+ * The root note defaults to octave 3, if no octave number is given.
+ *
+ * @name edoScale
+ * @param {string} scale Definition of EDO scale.
+ * @returns Pattern
+ * @example
+ * n("0 2 4 6 4 2").edoScale("C:LLsLLLs:2:1")
+ * @example
+ * n("[0,7] 4 [2,7] 4")
+ * .edoScale("G2:<LLsLLL LLLLsL>:3:1")
+ * .s("piano")._pitchwheel()
+ * @example
+ * n(rand.range(0,5).segment(6))
+ * .edoScale("<G2 C3>:LLsLL:3:1")
+ * .s("piano")._pitchwheel()
+ */
 export const edoScale = register(
   'edoScale',
   function (scaleDefinition, pat) {
@@ -51,7 +90,7 @@ export const edoScale = register(
           // legacy..
           return pure(n);
         }
-        const deg = (typeof n === 'string' ? parseInt(n, 10) : n) + 1;
+        const deg = (typeof n === 'string' ? parseInt(n, 10) : Number.isInteger(n) ? n : Math.round(n)) + 1;
 
         const [oct, degree] = pitches.octdeg(deg);
         const freq = pitches.octdegfreq(oct, degree);

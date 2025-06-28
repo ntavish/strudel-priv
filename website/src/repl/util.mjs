@@ -71,6 +71,7 @@ export function loadModules() {
   let modules = [
     import('@strudel/core'),
     import('@strudel/draw'),
+    import('@strudel/edo'),
     import('@strudel/tonal'),
     import('@strudel/mini'),
     import('@strudel/xen'),

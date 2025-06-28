@@ -76,7 +76,7 @@ export class Pitches {
     const higherOcatve = deg > this.scale.length;
     const octave = this.root_octave + (higherOcatve ? Math.floor((deg - 1) / this.scale.length) : 0);
     const degree = higherOcatve ? (deg % this.scale.length === 0 ? this.scale.length : deg % this.scale.length) : deg;
-    console.log([octave, degree]);
+    // console.log([octave, degree]);
     return [octave, degree];
   }
 
