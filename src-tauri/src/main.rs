@@ -31,7 +31,7 @@ fn main() {
     })
     .invoke_handler(tauri::generate_handler![midibridge::sendmidi, oscbridge::sendosc])
     .setup(|app| {
-      let window = Arc::new(app.get_window("main").unwrap());
+      let window = Arc::new(app.get_webview_window("main").unwrap());
       let logger = Logger { window };
       midibridge::init(
         logger.clone(),
