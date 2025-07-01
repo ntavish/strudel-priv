@@ -2928,7 +2928,7 @@ export const drop = stepRegister('drop', function (i, pat) {
  * ).pace(8)
  */
 export const extend = stepRegister('extend', function (factor, pat) {
-  return pat.fast(factor).expand(factor);
+  return pat.repeatCycles(factor).fast(factor).expand(factor);
 });
 
 /**
