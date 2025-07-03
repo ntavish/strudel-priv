@@ -14,6 +14,7 @@ export * from './controls.mjs';
 export * from './hap.mjs';
 export * from './pattern.mjs';
 export * from './signal.mjs';
+export * from './smooth.mjs';
 export * from './pick.mjs';
 export * from './state.mjs';
 export * from './timespan.mjs';
