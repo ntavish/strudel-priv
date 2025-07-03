@@ -3,6 +3,7 @@ import { Hap } from './hap.mjs';
 import TimeSpan from './timespan.mjs';
 import { Fraction, signal } from './index.mjs';
 
+// come constants for the easing functions
 const c1 = 1.70158;
 const c2 = c1 * 1.525;
 const c3 = c1 + 1;
@@ -11,7 +12,13 @@ const c5 = (2 * Math.PI) / 4.5;
 const n1 = 7.5625;
 const d1 = 2.75;
 
-/* derived from https://github.com/ai/easings.net/blob/master/src/easings.yml [GPL-3.0] */
+/* derived from [https://github.com/ai/easings.net/blob/master/src/easings.yml]
+ * the curves are visualized at [https://easings.net/]
+ *
+ * Avalable easing functions are:
+ * Sine, Quad, Cubic, Quart, Quint, Expo, Circ, Back, Elastic, Bounce
+ * each with prefix ( easIn | easeOut | easeInOut )
+ */
 export const easing = {
   linear: x => x,
 
@@ -120,6 +127,9 @@ export const easing = {
       : (1 + easing.easeOutBounce(2 * x - 1)) / 2,
 }
 
+/* unused utility function 
+ * does the same as Signal(func).segment(steps)
+ */
 const discreteSignal = (func, steps = 128) => {
   const query = (state) => {
     //if (steps instanceof Pattern) {
@@ -142,21 +152,40 @@ const discreteSignal = (func, steps = 128) => {
   return new Pattern(query);
 };
 
-const interpolate = (p, ease = 'linear') => (t) => {
+/* sampling function
+ *
+ * @callback dT
+ * @param {Fraction} t cycle time
+ * @return {number}
+ */
+
+/**
+ * creates a sampling function that interpolates over a pattern, array or string of numbers
+ *
+ * Available easing functions (second optional param):
+ * Sine, Quad, Cubic, Quart, Quint, Expo, Circ, Back, Elastic, Bounce
+ * each with prefix [ easIn | easeOut | easeInOut ]
+ * or just linear, the default
+ *
+ * @param {(Pattern|number[]|string)} pat input pattern to interpolate
+ * @param {string} [ease=linear] Name of easing function (case sensitive)
+ * @return {dT} a sampling function
+ */
+const sampleFactory = (pat, ease = 'linear') => (t) => {
   const fracT = t%1;
   let steps = [];
   let begin, end, fraction;
 
-  if (p instanceof Pattern) {
-    steps = p.queryArc(t.sub(1), t.add(1))
+  if (pat instanceof Pattern) {
+    steps = pat.queryArc(t.sub(1), t.add(1))
     .map(step => ({ time: +(step.part.begin) - t.sam(), value: +step.value}))
     .sort((a,b) => a.time - b.time);
   } else {
-    if (typeof p === 'string') {
-      steps = p.split(' ');
+    if (typeof pat === 'string') {
+      steps = pat.split(' ');
     } else {
-      if (p.constructor.name !== 'Array') return 0;
-      steps = p;
+      if (pat.constructor.name !== 'Array') return 0;
+      steps = pat;
     }
 
     const numSteps = Math.max(1, steps.length - 1);
@@ -180,32 +209,90 @@ const interpolate = (p, ease = 'linear') => (t) => {
   return begin.value + (end.value - begin.value) * fraction;
 };
 
-const camelize = (str) => `${str.at(0).toUpperCase()}${str.slice(1).toLowerCase()}`;
+/**
+ * creates a signal by interpolating over a pattern, array or string of numbers
+ * $: n("[13]*32").s("pink").bpf(smooth("[25000 2000]").slow(4))
+ * $: n("[13]*32").s("pink").bpf(smooth([25000 2000]).slow(4))
+ * $: n("[13]*32").s("pink").bpf(smooth('25000 2000').slow(4))
+ *
+ * Available easing functions (second optional param):
+ * Sine, Quad, Cubic, Quart, Quint, Expo, Circ, Back, Elastic, Bounce
+ * each with prefix [ easIn | easeOut | easeInOut ]
+ * or just linear, the default
+ *
+ * $: n("[13]*32").s("pink").bpf(smooth("[25000 2000]", "linear").slow(4))
+ * $: n("[13]*32").s("pink").bpf(smooth("[25000 2000]", "easeInCubic").slow(4))
+ *
+ * @param {(Pattern|number[]|string)} pat input pattern to interpolate
+ * @param {string} [ease=linear] Name of easing function (case sensitive)
+ * @return {Pattern} a signal pattern
+ */
+export const smooth = (pat, ease = 'linear') => signal(sampleFactory(pat, ease));
 
-//$: n("[13]*32").s("pink").bpf(smooth("[25000*16 2000]").slow(4))
-export const smooth = (p, ease = 'linear') => signal(interpolate(p, ease));
-
-//$: n("[13]*32").s("pink").bpf("[25000*16 2000]".linear().slow(4))
+/**
+ * creates a signal that interpolates linear over the pattern
+ * $: n("[13]*32").s("pink").bpf("[25000 2000]".linear().slow(4))
+ * 
+ * @param {Pattern} pat input pattern
+ * @return {Pattern} a signal pattern
+ */
 export const { linear } = register(
   ['linear'],
-  (pat) => signal(interpolate(pat, 'linear')),
+  (pat) => signal(sampleFactory(pat, 'linear')),
 );
 
-//$: n("[13]*32").s("pink").bpf("[25000*16 2000]".ease("sine").slow(4))
+/**
+ * turns any string's first letter uppcase and the rest lowercase
+ *
+ * @param {string} str input string
+ * @return {string} 
+ */
+const camelize = (str) => `${str.at(0).toUpperCase()}${str.slice(1).toLowerCase()}`;
+
+/**
+ * creates a signal that interpolates easing in and out over the pattern
+ * $: n("[13]*32").s("pink").bpf("[25000 2000]".ease("quart").slow(4))
+ * $: n("[13]*32").s("pink").bpf("[25000 2000]".easeInOut("quart").slow(4))
+ * 
+ * Available easing functions:
+ * Sine, Quad, Cubic, Quart, Quint, Expo, Circ, Back, Elastic, Bounce
+ *
+ * @param {string} ease easing function (case insensitive)
+ * @param {Pattern} pat input pattern
+ * @return {Pattern} a signal pattern
+ */
 export const { ease, easeinout, easeInOut } = register(
   ['ease', 'easeinout', 'easeInOut'],
-  (ease, pat) => signal(interpolate(pat, `easeInOut${camelize(ease)}`)),
+  (ease, pat) => signal(sampleFactory(pat, `easeInOut${camelize(ease)}`)),
 );
 
-//$: n("[13]*32").s("pink").bpf("[25000*16 2000]".easeIn("sine").slow(4))
+/* creates a signal that interpolates easing in over the pattern
+ * $: n("[13]*32").s("pink").bpf("[25000 2000]".easeIn("back").slow(4))
+ * 
+ * Available easing functions:
+ * Sine, Quad, Cubic, Quart, Quint, Expo, Circ, Back, Elastic, Bounce
+ *
+ * @param {string} ease easing function (case insensitive)
+ * @param {Pattern} pat input pattern
+ * @return {Pattern} a signal pattern
+ */
 export const { easeIn, easein } = register(
   ['easeIn', 'easein'],
-  (ease, pat) => signal(interpolate(pat, `easeIn${camelize(ease)}`)),
+  (ease, pat) => signal(sampleFactory(pat, `easeIn${camelize(ease)}`)),
 );
 
-//$: n("[13]*32").s("pink").bpf("[25000*16 2000]".easeOut("sine").slow(4))
+/* creates a signal that interpolates easing out over the pattern
+ * $: n("[13]*32").s("pink").bpf("[25000 2000]".easeOut("bounce").slow(4))
+ * 
+ * Available easing functions:
+ * Sine, Quad, Cubic, Quart, Quint, Expo, Circ, Back, Elastic, Bounce
+ *
+ * @param {string} ease easing function (case insensitive)
+ * @param {Pattern} pat input pattern
+ * @return {Pattern} a signal pattern
+ */
 export const { easeOut, easeout } = register(
   ['easeOut', 'easeout'],
-  (ease, pat) => signal(interpolate(pat, `easeOut${camelize(ease)}`)),
+  (ease, pat) => signal(sampleFactory(pat, `easeOut${camelize(ease)}`)),
 );
 
