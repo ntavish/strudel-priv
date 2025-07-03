@@ -8,6 +8,10 @@ import { createClient } from '@supabase/supabase-js';
 import { nanoid } from 'nanoid';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { $featuredPatterns /* , loadDBPatterns */ } from '@src/user_pattern_utils.mjs';
+import brotliPromise from 'brotli-wasm';
+import { decode as base64urldecode } from 'base64url-universal';
+
+const brotli = await brotliPromise; // Import is async in browsers due to wasm requirements!
 
 // Create a single supabase client for interacting with your database
 export const supabase = createClient(
@@ -27,6 +31,19 @@ export async function initCode() {
     const hash = initialUrl.split('?')[1]?.split('#')?.[0]?.split('&')[0];
     const codeParam = window.location.href.split('#')[1] || '';
     if (codeParam) {
+      if (codeParam[0] === '~')
+      {
+        // Encoded using base64url and Compressed by brotli 
+        const baseurled = codeParam.substring(1);
+        //console.log('baseurled', baseurled);
+        const brotlized = base64urldecode(baseurled);
+        //console.log('brotlized', brotlized);
+        const encoded = brotli.decompress(brotlized);
+        //console.log('encoded', encoded);
+        const decoded = new TextDecoder().decode(encoded);
+        //console.log('decoded', decoded);
+        return decoded;
+      }  
       // looking like https://strudel.cc/#ImMzIGUzIg%3D%3D (hash length depends on code length)
       return hash2code(codeParam);
     } else if (hash) {

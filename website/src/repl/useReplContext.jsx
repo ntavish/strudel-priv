@@ -35,6 +35,10 @@ import { getRandomTune, initCode, loadModules, shareCode } from './util.mjs';
 import './Repl.css';
 import { setInterval, clearInterval } from 'worker-timers';
 import { getMetadata } from '../metadata_parser';
+import brotliPromise from 'brotli-wasm';
+import { encode as base64urlencode } from 'base64url-universal';
+
+const brotli = await brotliPromise; // Import is async in browsers due to wasm requirements!
 
 const { latestCode, maxPolyphony, audioDeviceName, multiChannelOrbits } = settingsMap.get();
 let modulesLoading, presets, drawContext, clearCanvas, audioReady;
@@ -99,7 +103,17 @@ export function useReplContext() {
         window.parent?.postMessage(code);
 
         setLatestCode(code);
-        window.location.hash = '#' + code2hash(code);
+        //window.location.hash = '#' + code2hash(code);
+
+        // Compress the script with brotli and encode it with base64url
+        const encoded = new TextEncoder().encode(code);
+        //console.log('encoded',encoded);
+        const brotlized = brotli.compress(encoded, { mode: 1, quality: 11 });
+        //console.log('brotlized',brotlized);
+        const baseurled = base64urlencode(brotlized);
+        //console.log('baseurled',baseurled);
+        window.location.hash = '#~' + baseurled;
+
         setDocumentTitle(code);
         const viewingPatternData = getViewingPatternData();
         setVersionDefaultsFrom(code);
