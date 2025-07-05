@@ -41,7 +41,23 @@ export async function initCode() {
         const decoded = new TextDecoder().decode(encoded);
         //console.log('decoded', decoded);
         return decoded;
-      }  
+      } 
+      if (codeParam[0] === '_')
+      {
+        const url = decodeURIComponent(codeParam.substring(1));
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`Response status: ${response.status}`);
+          }
+          console.log('Response', response);
+          return await response.text();
+        }
+        catch (error) {
+          return `/* ERROR LOADING SCRIPT. ${error.message} */`;
+        }
+      }
+
       // looking like https://strudel.cc/#ImMzIGUzIg%3D%3D (hash length depends on code length)
       return hash2code(codeParam);
     } else if (hash) {
