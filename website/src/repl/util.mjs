@@ -8,10 +8,8 @@ import { createClient } from '@supabase/supabase-js';
 import { nanoid } from 'nanoid';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { $featuredPatterns /* , loadDBPatterns */ } from '@src/user_pattern_utils.mjs';
-import brotliPromise from 'brotli-wasm';
+import { decompress as brotlidecompress } from 'brotli-compress';
 import { decode as base64urldecode } from 'base64url-universal';
-
-const brotli = await brotliPromise; // Import is async in browsers due to wasm requirements!
 
 // Create a single supabase client for interacting with your database
 export const supabase = createClient(
@@ -38,7 +36,7 @@ export async function initCode() {
         //console.log('baseurled', baseurled);
         const brotlized = base64urldecode(baseurled);
         //console.log('brotlized', brotlized);
-        const encoded = brotli.decompress(brotlized);
+        const encoded = await brotlidecompress(brotlized);
         //console.log('encoded', encoded);
         const decoded = new TextDecoder().decode(encoded);
         //console.log('decoded', decoded);
