@@ -52,6 +52,7 @@ import {
   stackCentre,
   stepcat,
   sometimes,
+  expand,
 } from '../index.mjs';
 
 import { steady } from '../signal.mjs';
@@ -1001,7 +1002,7 @@ describe('Pattern', () => {
   });
   describe('hurry', () => {
     it('Can speed up patterns and sounds', () => {
-      sameFirst(s('a', 'b').hurry(2), s('a', 'b').fast(2).speed(2));
+      sameFirst(s(sequence('a', 'b')).hurry(2), s(sequence('a', 'b')).fast(2).speed(2));
     });
   });
   /*describe('composable functions', () => {
@@ -1179,6 +1180,9 @@ describe('Pattern', () => {
     it('calculates undefined steps as the average', () => {
       expect(sameFirst(stepcat(pure(1), pure(2), pure(3).setSteps(undefined)), fastcat(1, 2, 3)));
     });
+    it('works with auto-reified values', () => {
+      expect(sameFirst(stepcat(expand(3, 'bd'), 'rim'), stepcat(expand(3, 'bd'), pure('rim'))));
+    });
   });
   describe('shrink', () => {
     it('can shrink', () => {
@@ -1264,6 +1268,41 @@ describe('Pattern', () => {
           .bite(2, stepcat(pure(0), pure(1).expand(2)))
           .fast(5),
         stepcat(slowcat('a', 'b', 'c', 'd', 'e'), slowcat(1, 2, 3, 4, 5).expand(2)).fast(5),
+      );
+    });
+  });
+  describe('unjoin', () => {
+    it('destructures a pattern into subcycles', () => {
+      sameFirst(
+        fastcat('a', 'b', 'c', 'd')
+          .unjoin(fastcat(true, fastcat(true, true)))
+          .fmap(fast(2))
+          .join(),
+        fastcat('a', 'b', 'a', 'b', 'c', 'c', 'd', 'd'),
+      );
+    });
+  });
+  describe('into', () => {
+    it('applies a function to subcycles of a pattern', () => {
+      sameFirst(
+        fastcat('a', 'b', 'c', 'd').into(fastcat(fastcat('true', 'true'), 'true'), fast(2)),
+        fastcat('a', 'a', 'b', 'b', 'c', 'd', 'c', 'd'),
+      );
+    });
+  });
+  describe('chunkinto', () => {
+    it('chunks into subcycles', () => {
+      sameFirst(
+        fastcat('a', 'b', 'c').chunkInto(3, fast(2)).fast(3),
+        fastcat(fastcat('a', 'a'), 'b', 'c', 'a', fastcat('b', 'b'), 'c', 'a', 'b', fastcat('c', 'c')),
+      );
+    });
+  });
+  describe('chunkbackinto', () => {
+    it('chunks into subcycles backwards', () => {
+      sameFirst(
+        fastcat('a', 'b', 'c').chunkBackInto(3, fast(2)).fast(3),
+        fastcat('a', 'b', fastcat('c', 'c'), 'a', fastcat('b', 'b'), 'c', fastcat('a', 'a'), 'b', 'c'),
       );
     });
   });
