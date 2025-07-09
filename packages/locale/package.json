@@ -1,0 +1,38 @@
+{
+  "name": "@strudel/locale",
+  "version": "1.0.0",
+  "description": "Locale and aliasing support for Strudel live coding environment.",
+  "main": "index.mjs",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "bench": "vitest bench",
+    "build": "vite build",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://codeberg.org/uzu/strudel.git"
+  },
+  "keywords": [
+    "tidalcycles",
+    "strudel",
+    "pattern",
+    "livecoding",
+    "locale",
+    "alias"
+  ],
+  "author": "Felix Roos <flix91@gmail.com>",
+  "license": "AGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://codeberg.org/uzu/strudel/issues"
+  },
+  "homepage": "https://codeberg.org/uzu/strudel/blob/main/packages/locale/README.md",
+  "devDependencies": {
+    "vite": "^6.0.11",
+    "vitest": "^3.0.4"
+  },
+  "dependencies": {
+    "@strudel/core": "workspace:*"
+  }
+}

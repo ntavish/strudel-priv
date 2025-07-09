@@ -3344,3 +3344,85 @@ export const { beat } = register(
   ['beat'],
   __beat((x) => x.innerJoin()),
 );
+
+/**
+ * Registers an alias for a Pattern method and its standalone function.
+ * @param {string|string[]|object} source - The existing method/function name(s), as a string, array of strings, or object (with string keys and string values).
+ * @param {string|string[]|undefined} target - The new alias name(s) (undefined when source is an object).
+ * @example
+ * alias('fast', 'schnell');
+ * s('bd').schnell(2); // same as s('bd').fast(2)
+ * @example
+ * alias('fast', ['schnell', 'rapide']);
+ * $: s('bd').schnell(2); // same as s('bd').fast(2)
+ * $: s('bd').rapide(2); // same as s('bd').fast(2)
+ * @example
+ * alias(['fast', 'slow'], ['vite', 'lent']);
+ * $: s('bd').vite(2); // same as s('bd').fast(2)
+ * $: s('bd').lent(2); // same as s('bd').slow(2)
+ * @example
+ * alias({ fast: 'schnell', slow: 'lent' });
+ * $: s('bd').schnell(2); // same as s('bd').fast(2)
+ * $: s('bd').lent(2); // same as s('bd').slow(2)
+ */
+export function alias(source, target) {
+  // If source is a dictionary/object and target is undefined, batch alias
+  if (typeof source === 'object' && source !== null && !Array.isArray(source) && target === undefined) {
+    for (const [k, v] of Object.entries(source)) {
+      alias(k, v);
+    }
+    return;
+  }
+  // Support batch aliasing
+  if (Array.isArray(source) && Array.isArray(target)) {
+    if (source.length !== target.length) {
+      throw new Error('alias: source and target arrays must have the same length');
+    }
+    for (let i = 0; i < source.length; ++i) {
+      alias(source[i], target[i]);
+    }
+    return;
+  } else if (Array.isArray(source)) {
+    for (const s of source) {
+      alias(s, target);
+    }
+    return;
+  } else if (Array.isArray(target)) {
+    for (const t of target) {
+      alias(source, t);
+    }
+    return;
+  }
+
+  let methodAliased = false;
+  // Add method alias to Pattern.prototype if it exists
+  if (typeof Pattern.prototype[source] === 'function') {
+    Pattern.prototype[target] = Pattern.prototype[source];
+    methodAliased = true;
+  }
+
+  // Add standalone function alias if it exists, cross-environment
+  let functionAliased = false;
+  try {
+    if (typeof exports !== 'undefined' && typeof exports[source] === 'function') {
+      exports[target] = exports[source];
+      functionAliased = true;
+    } else if (typeof globalThis !== 'undefined' && typeof globalThis[source] === 'function') {
+      globalThis[target] = globalThis[source];
+      functionAliased = true;
+    }
+  } catch (e) {
+    // Ignore if not possible in this environment
+  }
+
+  if (!methodAliased && functionAliased) {
+    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+      console.warn(`alias: source method '${source}' does not exist on Pattern.prototype, but standalone function was aliased.`);
+    }
+    return;
+  }
+
+  if (!methodAliased && !functionAliased) {
+    throw new Error(`alias: source method or function '${source}' does not exist on Pattern.prototype or as a standalone function`);
+  }
+}
