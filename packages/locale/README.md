@@ -2,11 +2,14 @@
 
 Locale and aliasing support for the Strudel live coding environment.
 
-The `@strudel/locale` package enables you to use Strudel's pattern language in your preferred natural (or unnatural) language by providing aliases for function and method names.
+The `@strudel/locale` package enables you to use Strudel's pattern language in your preferred natural (or unnatural) language by providing aliases for function names, method names, and color names.
 
 ## Features
 
-- Locale-based Aliasing: Map Strudel function and method names to any language using simple JSON files with `alias`.
+- Function Aliasing: Map Strudel function and method names to any language using `aliasFuncs`.
+- Color Aliasing: Create aliases for color names using `aliasColors`.
+- Color Resolution: Resolve color names and aliases to CSS values with `resolveColor`.
+- Locale Files: Define complete language mappings in JSON files.
 - Dynamic Locale Switching: Instantly switch languages in the REPL with `locale`.
 - Batch and Flexible Aliasing: Support for single, multiple, and dictionary-based aliasing.
 - Extensible: Add new languages by creating a locale file.
@@ -15,57 +18,103 @@ The `@strudel/locale` package enables you to use Strudel's pattern language in y
 ## Future work
 
 - Aliasing for default samples and synths
-- Aliasing for colours
 - Aliasing for options (e.g. `pianoroll({fold: ..})`)
-- Expand the package to include translations of function/method descriptions and other fields in `doc.json`
-- Expand to include translation of the entire Strudel REPL UI including Settings etc.
+- Enable translations of function/method descriptions and other fields in `doc.json`
+- Enable translations of Strudel REPL UI including Settings etc.
 
 ## Usage
 
-### 1. Simple Customised Aliasing
+### 1. Function Aliasing
 
-You can use the underlying `alias` function directly (from `@strudel/core/pattern.mjs`) to provide synonyms for individual terms:
+Use the `aliasFuncs` function to provide synonyms for Strudel function and method names:
 
 ```js
-alias('fast', 'schnell') // Single alias
-alias(['fast', 'slow'], ['vite', 'lent']) // Multiple aliases
-alias({ fast: ['rapide', 'schnell'], slow: 'lent' }) // Dictionary
+import { aliasFuncs } from '@strudel/locale';
+
+aliasFuncs('fast', 'schnell') // Single alias
+aliasFuncs(['fast', 'slow'], ['vite', 'lent']) // Multiple aliases
+aliasFuncs({ fast: ['rapide', 'schnell'], slow: 'lent' }) // Dictionary with multiple aliases
+
+// Now you can use the aliases
+s("bd cp").schnell(2) // equivalent to fast(2)
+s("bd cp").lent(0.5) // equivalent to slow(0.5)
 ```
 
-### 2. Create a Locale File
+### 2. Color Aliasing
 
-To add a persistent and easy to use locale file, add a JSON file in `strudel/packages/locale/locales/` for your language. For example, `de.json` for German:
+Use the `aliasColors` function to create aliases for color names:
+
+```js
+import { aliasColors } from '@strudel/locale';
+
+aliasColors('red', 'rouge') // Single color alias
+aliasColors(['red', 'blue'], ['rouge', 'bleu']) // Multiple color aliases
+aliasColors({ red: 'rouge', blue: 'bleu' }) // Dictionary
+
+// Now you can use color aliases
+s("bd cp").color("rouge") // equivalent to color('red')
+```
+
+### 3. Color Resolution
+
+The `resolveColor` function resolves color names and aliases to their CSS values:
+
+```js
+import { resolveColor } from '@strudel/locale';
+
+resolveColor('red') // Returns the hex value for red
+resolveColor("rouge") // Returns the hex value for red (if aliased)
+resolveColor('#ff0000') // Returns '#ff0000' (already a hex code)
+```
+
+### 4. Create a Locale File
+
+To add a persistent and easy to use locale file, create a `.json` file for your language(s). The format supports both functions and colors:
 
 ```json
 {
-  "fast": "schnell",
-  "slow": "langsam"
+  "functions": {
+    "fast": "schnell",
+    "slow": "langsam",
+    "density": ["dichte", "densité"]
+  },
+  "colors": {
+    "red": "rouge",
+    "blue": "bleu",
+    "green": ["vert", "grün"]
+  }
 }
 ```
 
-You can also alias to multiple terms as it uses `alias` underneath:
+### 5. Set the Locale in the REPL
 
-```json
-{
-  "fast": ["schnell", "rapide"],
-  "slow": ["langsam", "lent"]
-}
-```
-
-### 3. Set the Locale in the REPL
-
+Load and apply a locale with both functions and colors
 ```js
-// Load and apply the German locale
 await locale("de")
 
-s("bd cp").schnell(2) // equivalent to fast(2)
-s("bd cp").langsam(0.5) // equivalent to slow(0.5)
+s("bd cp").schnell(2).color("rouge") // equivalent to fast(2).color('red')
 ```
 
-- `locale(language)` loads `strudel/packages/locale/locales/<language>.json` and applies all aliases.
-- Aliases work for both pattern methods and standalone functions.
+Or use a locale object directly
+```js
+await locale({
+  "functions": {
+    "fast": "schnell",
+    "slow": "langsam"
+  },
+  "colors": {
+    "red": "rouge",
+    "blue": "bleu"
+  }
+})
+s("bd cp").schnell(2).color("rouge") // equivalent to fast(2).color('red')
+```
 
-### 4. Generating a Locale File Template
+- `locale(object)` applies aliases from the provided object.
+- Aliases work for both pattern methods and standalone functions.
+- Color aliases work with the `color()` method and any other color-related functions.
+
+### 6. Generating a Locale File Template
 
 To help translators and contributors, the package provides a script to automatically generate a template JSON file listing all user-facing Strudel function names (including synonyms). This makes it easy to start a new translation.
 
@@ -85,13 +134,7 @@ This will create a `doc.json` file in the project root, containing all documente
 From the project root, run:
 
 ```sh
-node packages/locale/script/generate-locale-template.mjs > packages/locale/locales/<your-language>.json
-```
-
-For example, to create a French template:
-
-```sh
-node packages/locale/script/generate-locale-template.mjs > packages/locale/locales/fr.json
+node packages/locale/script/generate-locale-template.mjs > your-locale.json
 ```
 
 #### 3. Fill in the Translations
@@ -100,9 +143,27 @@ Open the generated file (e.g., `fr.json`) and fill in the translations for each 
 
 ```json
 {
-  "fast": "rapide",
-  "slow": "lent",
-  "density": "densité"
-  // ...etc.
+  "functions": {
+    "fast": "rapide",
+    "slow": "lent",
+    "density": "densité"
+    // ...etcc
+  }
 }
+```
+
+#### 4. Upload your locale and load in the REPL
+Upload your completed locale file to a public URL (such as GitHub gist, your own server, or any public file hosting service) and load it in the Strudel REPL using:
+
+```js
+await locale('https://your-url.com/path/to/your-locale.json')
+```
+
+For example, if you uploaded your French locale file to a GitHub gist:
+
+```js
+await locale('https://gist.githubusercontent.com/username/gist-id/raw/fr.json')
+
+// Now you can use French aliases
+s("bd cp").rapide(2).couleur('rouge')
 ```
