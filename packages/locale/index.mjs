@@ -154,7 +154,6 @@ export function aliasColors(source, target) {
 
   // Add the alias to colorMap
   colorMap[target] = colorMap[source];
-  console.log('colorMap', colorMap);
 }
 
 /**
