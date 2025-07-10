@@ -1,5 +1,6 @@
 import { Pattern, clamp } from '@strudel/core';
 import { getDrawContext, getTheme } from '@strudel/draw';
+import { resolveColor } from '@strudel/locale';
 import { analysers, getAnalyzerData } from 'superdough';
 
 /**
@@ -24,7 +25,7 @@ Pattern.prototype.spectrum = function (config = {}) {
   let id = config.id ?? 1;
   return this.analyze(id).draw(
     (haps) => {
-      config.color = haps[0]?.value?.color || latestColor[id] || getTheme().foreground;
+      config.color = resolveColor(haps[0]?.value?.color) || latestColor[id] || getTheme().foreground;
       latestColor[id] = config.color;
       drawSpectrum(analysers[id], config);
     },

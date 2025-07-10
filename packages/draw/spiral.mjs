@@ -1,5 +1,6 @@
 import { Pattern } from '@strudel/core';
 import { getTheme } from './draw.mjs';
+import { resolveColor } from '@strudel/locale';
 
 // polar coords -> xy
 function fromPolar(angle, radius, cx, cy) {
@@ -104,7 +105,7 @@ function drawSpiral(options) {
     const isActive = hap.whole.begin <= time && hap.endClipped > time;
     const from = hap.whole.begin - time + inset;
     const to = hap.endClipped - time + inset - padding;
-    const hapColor = hap.value?.color || activeColor;
+    const hapColor = resolveColor(hap.value?.color) || activeColor;
     const color = colorizeInactive || isActive ? hapColor : inactiveColor;
     const opacity = fade ? 1 - Math.abs((hap.whole.begin - time) / min) : 1;
     spiralSegment({

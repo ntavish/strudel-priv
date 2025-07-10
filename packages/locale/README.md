@@ -6,14 +6,17 @@ The `@strudel/locale` package enables you to use Strudel's pattern language in y
 
 ## Features
 
-- Locale-based Aliasing: Map Strudel function and method names to any language using simple JSON files.
-- Dynamic Locale Switching: Instantly switch languages in the REPL with `setLocale`.
+- Locale-based Aliasing: Map Strudel function and method names to any language using simple JSON files with `alias`.
+- Dynamic Locale Switching: Instantly switch languages in the REPL with `locale`.
 - Batch and Flexible Aliasing: Support for single, multiple, and dictionary-based aliasing.
 - Extensible: Add new languages by creating a locale file.
 - Template Generation: Generate a complete locale file template with all available Strudel functions.
  
 ## Future work
 
+- Aliasing for default samples and synths
+- Aliasing for colours
+- Aliasing for options (e.g. `pianoroll({fold: ..})`)
 - Expand the package to include translations of function/method descriptions and other fields in `doc.json`
 - Expand to include translation of the entire Strudel REPL UI including Settings etc.
 
@@ -53,13 +56,13 @@ You can also alias to multiple terms as it uses `alias` underneath:
 
 ```js
 // Load and apply the German locale
-await setLocale('de');
+await locale("de")
 
-s('bd cp').schnell(2); // equivalent to fast(2)
-s('bd cp').langsam(0.5); // equivalent to slow(0.5)
+s("bd cp").schnell(2) // equivalent to fast(2)
+s("bd cp").langsam(0.5) // equivalent to slow(0.5)
 ```
 
-- `setLocale(language)` loads `strudel/packages/locale/locales/<language>.json` and applies all aliases.
+- `locale(language)` loads `strudel/packages/locale/locales/<language>.json` and applies all aliases.
 - Aliases work for both pattern methods and standalone functions.
 
 ### 4. Generating a Locale File Template

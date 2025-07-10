@@ -1,5 +1,6 @@
 import { Pattern, midiToFreq, getFrequency } from '@strudel/core';
 import { getTheme, getDrawContext } from './draw.mjs';
+import { resolveColor } from '@strudel/locale';
 
 const c = midiToFreq(36);
 
@@ -75,7 +76,7 @@ export function pitchwheel({
     }
     const angle = freq2angle(freq, root);
     const [x, y] = circlePos(centerX, centerY, radius, angle);
-    const hapColor = hap.value.color || color;
+    const hapColor = resolveColor(hap.value.color) || color;
     ctx.strokeStyle = hapColor;
     ctx.fillStyle = hapColor;
     const { velocity = 1, gain = 1 } = hap.value || {};

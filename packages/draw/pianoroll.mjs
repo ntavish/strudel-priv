@@ -6,6 +6,7 @@ This program is free software: you can redistribute it and/or modify it under th
 
 import { Pattern, noteToMidi, freqToMidi, isPattern } from '@strudel/core';
 import { getTheme, getDrawContext } from './draw.mjs';
+import { resolveColor } from '@strudel/locale';
 
 const scale = (normalized, min, max) => normalized * (max - min) + min;
 const getValue = (e) => {
@@ -204,7 +205,7 @@ export function __pianoroll({
     if (hideInactive && !isActive) {
       return;
     }
-    let color = event.value?.color;
+    let color = resolveColor(event.value?.color);
     active = color || active;
     inactive = colorizeInactive ? color || inactive : inactive;
     color = isActive ? active : inactive;

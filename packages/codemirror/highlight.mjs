@@ -1,5 +1,6 @@
 import { RangeSetBuilder, StateEffect, StateField, Prec } from '@codemirror/state';
 import { Decoration, EditorView } from '@codemirror/view';
+import { resolveColor } from '@strudel/locale';
 
 export const setMiniLocations = StateEffect.define();
 export const showMiniLocations = StateEffect.define();
@@ -92,7 +93,7 @@ const miniLocationHighlights = EditorView.decorations.compute([miniLocations, vi
 
     if (haps.has(id)) {
       const hap = haps.get(id);
-      const color = hap.value?.color ?? 'var(--foreground)';
+      const color = resolveColor(hap.value?.color) ?? 'var(--foreground)';
       const style = hap.value?.markcss || `outline: solid 2px ${color}`;
       // Get explicit channels for color values
       /* 
