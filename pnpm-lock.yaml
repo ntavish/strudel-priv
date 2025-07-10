@@ -212,6 +212,9 @@ importers:
       '@strudel/draw':
         specifier: workspace:*
         version: link:../draw
+      '@strudel/locale':
+        specifier: workspace:*
+        version: link:../locale
       '@strudel/transpiler':
         specifier: workspace:*
         version: link:../transpiler
@@ -266,6 +269,9 @@ importers:
       '@strudel/core':
         specifier: workspace:*
         version: link:../core
+      '@strudel/locale':
+        specifier: workspace:*
+        version: link:../locale
     devDependencies:
       vite:
         specifier: ^6.0.11
@@ -638,6 +644,9 @@ importers:
       '@strudel/draw':
         specifier: workspace:*
         version: link:../draw
+      '@strudel/locale':
+        specifier: workspace:*
+        version: link:../locale
       superdough:
         specifier: workspace:*
         version: link:../superdough
