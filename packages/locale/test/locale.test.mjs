@@ -9,8 +9,14 @@ const sameFirst = (a, b) => {
 
 // Mock locale data for testing
 const testLocaleData = {
-  fast: 'speedy',
-  slow: ['sluggish', 'tardy']
+  functions: {
+    fast: 'speedy',
+    slow: ['sluggish', 'tardy']
+  },
+  colors: {
+    red: 'rouge',
+    blue: ['bleu', 'bleue']
+  }
 };
 
 describe('locale', () => {

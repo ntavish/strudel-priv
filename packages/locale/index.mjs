@@ -215,11 +215,18 @@ export function resolveColor(color) {
 export async function locale(urlOrDict) {
   let localeDict;
   if (typeof urlOrDict === 'string') {
-    const response = await fetch(urlOrDict);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    try {
+      const response = await fetch(urlOrDict);
+      if (!response.ok) {
+        throw new Error(`Failed to load locale file from '${urlOrDict}': HTTP ${response.status}: ${response.statusText}`);
+      }
+      localeDict = await response.json();
+    } catch (error) {
+      if (error.message.startsWith('Failed to load locale file')) {
+        throw error; // Re-throw our custom error as-is
+      }
+      throw new Error(`Failed to load locale file from '${urlOrDict}': ${error.message}`);
     }
-    localeDict = await response.json();
   } else if (typeof urlOrDict === 'object' && urlOrDict !== null) {
     localeDict = urlOrDict;
   } else {
