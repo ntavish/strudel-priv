@@ -2381,6 +2381,35 @@ export const stut = register('stut', function (times, feedback, time, pat) {
 });
 
 /**
+ * Creates a reverse echo effect where echoes build up TO the main hit rather than trailing after it.
+ * The pattern is moved back in time and velocity increases with each echo, making the final echo
+ * (which happens at the original time) the loudest.
+ * @name preEcho
+ * @synonyms preecho
+ * @memberof Pattern
+ * @returns Pattern
+ * @param {number} times how many times to repeat
+ * @param {number} time cycle offset between iterations
+ * @param {number} feedback velocity multiplicator for each iteration (should be < 1)
+ * @example
+ * s("bd sd").preEcho(3, 1/6, .8)
+ */
+export const { preEcho, preecho } = register(
+  ['preEcho', 'preecho'],
+  function (times, time, feedback, pat) {
+    // Create echoes with reversed velocity (quietest first, loudest last)
+    const echoes = stack(
+      ...listRange(0, times - 1).map((i) => 
+        pat.late(Fraction(time).mul(i)).gain(Math.pow(feedback, times - 1 - i))
+      )
+    );
+    // Move the entire pattern back in time by the total echo duration
+    const totalDelay = Fraction(time).mul(times - 1);
+    return echoes.early(totalDelay);
+  }
+);
+
+/**
  * Divides a pattern into a given number of subdivisions, plays the subdivisions in order, but increments the starting subdivision each cycle. The pattern wraps to the first subdivision after the last subdivision is played.
  * @name iter
  * @memberof Pattern
