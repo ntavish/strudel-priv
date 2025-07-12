@@ -317,6 +317,12 @@ importers:
 
   packages/midi:
     dependencies:
+      '@codemirror/state':
+        specifier: ^6.5.1
+        version: 6.5.1
+      '@codemirror/view':
+        specifier: ^6.36.2
+        version: 6.36.2
       '@strudel/core':
         specifier: workspace:*
         version: link:../core
@@ -7657,6 +7663,7 @@ packages:
 
   workbox-google-analytics@7.0.0:
     resolution: {integrity: sha512-MEYM1JTn/qiC3DbpvP2BVhyIH+dV/5BjHk756u9VbwuAhu0QHyKscTnisQuz21lfRpOwiS9z4XdqeVAKol0bzg==}
+    deprecated: It is not compatible with newer versions of GA starting with v4, as long as you are using GAv3 it should be ok, but the package is not longer being maintained
 
   workbox-navigation-preload@7.0.0:
     resolution: {integrity: sha512-juWCSrxo/fiMz3RsvDspeSLGmbgC0U9tKqcUPZBCf35s64wlaLXyn2KdHHXVQrb2cqF7I0Hc9siQalainmnXJA==}
