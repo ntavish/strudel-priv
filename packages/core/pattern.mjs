@@ -2392,7 +2392,8 @@ export const stut = register('stut', function (times, feedback, time, pat) {
  * @param {number} time cycle offset between iterations
  * @param {number} feedback velocity multiplicator for each iteration (should be < 1)
  * @example
- * s("bd sd").preEcho(3, 1/6, .8)
+ * $: s("bd cp").preEcho(9, 1/32, .2)
+ * $: n(run(8)).scale("C4:pentatonic")
  */
 export const { preEcho, preecho } = register(
   ['preEcho', 'preecho'],
