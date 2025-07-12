@@ -2398,13 +2398,37 @@ export const stut = register('stut', function (times, feedback, time, pat) {
 export const { preEcho, preecho } = register(
   ['preEcho', 'preecho'],
   function (times, time, feedback, pat) {
-    // Create echoes with reversed velocity (quietest first, loudest last)
     const echoes = stack(
       ...listRange(0, times - 1).map((i) => 
         pat.late(Fraction(time).mul(i)).gain(Math.pow(feedback, times - 1 - i))
       )
     );
-    // Move the entire pattern back in time by the total echo duration
+    const totalDelay = Fraction(time).mul(times - 1);
+    return echoes.early(totalDelay);
+  }
+);
+
+/**
+ * Creates a reverse echo effect with custom function application, where echoes build up TO the main hit.
+ * Like preEcho but allows applying a custom function to each echo iteration.
+ * @name preEchoWith
+ * @synonyms preechowith
+ * @memberof Pattern
+ * @returns Pattern
+ * @param {number} times how many times to repeat
+ * @param {number} time cycle offset between iterations
+ * @param {function} func function to apply, given the pattern and the iteration index (0 = quietest/first, times-1 = loudest/last)
+ * @example
+ * s("bd cp").preEchoWith(4, 1/8, (p,n) => p.gain(Math.pow(.6, 3-n)).speed(1 + n*0.1))
+ */
+export const { preEchoWith, preechowith } = register(
+  ['preEchoWith', 'preechowith'],
+  function (times, time, func, pat) {
+    const echoes = stack(
+      ...listRange(0, times - 1).map((i) => 
+        func(pat.late(Fraction(time).mul(i)), i)
+      )
+    );
     const totalDelay = Fraction(time).mul(times - 1);
     return echoes.early(totalDelay);
   }
