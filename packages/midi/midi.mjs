@@ -8,6 +8,8 @@ import * as _WebMidi from 'webmidi';
 import { Pattern, getEventOffsetMs, isPattern, logger, ref } from '@strudel/core';
 import { noteToMidi, getControlName } from '@strudel/core';
 import { Note } from 'webmidi';
+import { WidgetType, Decoration, ViewPlugin } from '@codemirror/view';
+import { StateEffect } from '@codemirror/state';
 
 // if you use WebMidi from outside of this package, make sure to import that instance:
 export const { WebMidi } = _WebMidi;
@@ -462,6 +464,8 @@ Pattern.prototype.midi = function (midiport, options = {}) {
 
 let listeners = {};
 const refs = {};
+export let midiinValues = refs;
+export let midiInputID = null;
 
 /**
  * MIDI input: Opens a MIDI input port to receive MIDI control change messages.
@@ -471,6 +475,9 @@ const refs = {};
  * let cc = await midin('IAC Driver Bus 1')
  * note("c a f e").lpf(cc(0).range(0, 1000)).lpq(cc(1).range(0, 10)).sound("sawtooth")
  */
+
+//export let ccPositions = new Map(); // id -> { view, from, to }
+
 export async function midin(input) {
   if (isPattern(input)) {
     throw new Error(
@@ -479,30 +486,192 @@ export async function midin(input) {
       }')`,
     );
   }
-  const initial = await enableWebMidi(); // only returns on first init
-  const device = getDevice(input, WebMidi.inputs);
-  if (!device) {
-    throw new Error(
-      `midiin: device "${input}" not found.. connected devices: ${getMidiDeviceNamesString(WebMidi.inputs)}`,
-    );
-  }
-  if (initial) {
-    const otherInputs = WebMidi.inputs.filter((o) => o.name !== device.name);
-    logger(
-      `Midi enabled! Using "${device.name}". ${
-        otherInputs?.length ? `Also available: ${getMidiDeviceNamesString(otherInputs)}` : ''
-      }`,
-    );
-    refs[input] = {};
-  }
-  const cc = (cc) => ref(() => refs[input][cc] || 0);
+  refs[input] = {};
+  let device = null;
+  let midiEnabled = false;
 
-  listeners[input] && device.removeListener('midimessage', listeners[input]);
-  listeners[input] = (e) => {
-    const cc = e.dataBytes[0];
-    const v = e.dataBytes[1];
-    refs[input] && (refs[input][cc] = v / 127);
+  try {
+    const initial = await enableWebMidi(); // only returns on first init
+    device = getDevice(input, WebMidi.inputs);
+
+    if (initial) {
+      const otherInputs = WebMidi.inputs.filter((o) => o.name !== device.name);
+      midiEnabled = true;
+      midiInputID = input;
+      logger(
+        `[midi] midin: Midi input enabled! Using "${device.name}". ${
+          otherInputs?.length ? `Also available: ${getMidiDeviceNamesString(otherInputs)}` : ''
+        }`,
+      );
+    }
+  } catch (e) {
+    logger(
+      `[midi] midin: Midi input device "${input}" not found.. connected devices: ${getMidiDeviceNamesString(WebMidi.inputs)}`,
+    );
+  }
+  //const cc = (cc) => ref(() => refs[input][cc] || 0);
+  const cc = (ccNumber, defaultValue = 0) => {
+    if (refs[input] && refs[input][ccNumber] === undefined) {
+      refs[input][ccNumber] = defaultValue;
+    }
+
+    return ref(() => refs[input][ccNumber]);
   };
-  device.addListener('midimessage', listeners[input]);
+
+  // Update the MIDI listener
+  if (midiEnabled && device) {
+    listeners[input] && device.removeListener('midimessage', listeners[input]);
+    listeners[input] = (e) => {
+      const ccNumber = e.dataBytes[0];
+      const v = e.dataBytes[1];
+
+      refs[input] && (refs[input][ccNumber] = v / 127);
+
+      // Update CC widget if it exists
+      if (typeof window !== 'undefined' && window.midiInputWidgets) {
+        const id = `cc_${ccNumber}`;
+        const widget = window.midiInputWidgets.get(id);
+
+        if (widget) {
+          // If no default value, add it
+          if (!widget.noDefaultValue) {
+            widget.updateValue(v / 127);
+          } else {
+            widget.addDefaultValue(v / 127);
+          }
+        }
+      }
+    };
+    device.addListener('midimessage', listeners[input]);
+  }
   return cc;
 }
+
+// Add Midi Input Widget class (invisible, just tracks position)
+export class MidiInputWidget extends WidgetType {
+  constructor(ccNumber, from, to, view, defaultValue, noDefaultValue) {
+    super();
+    this.ccNumber = ccNumber;
+    this.from = from;
+    this.to = to;
+    this.view = view;
+    this.id = `cc_${ccNumber}`;
+    this.defaultValue = defaultValue || '0.0';
+    this.noDefaultValue = noDefaultValue || false;
+    // // Register this widget globally so MIDI can find it
+    if (typeof window !== 'undefined') {
+      window.midiInputWidgets = window.midiInputWidgets || new Map();
+      window.midiInputWidgets.set(this.id, this);
+    }
+  }
+
+  toDOM() {
+    // Return empty invisible element
+    return document.createElement('span');
+  }
+
+  eq() {
+    return false;
+  }
+
+  addDefaultValue(newValue) {
+    const formattedValue = newValue.toFixed(2);
+    const insertText = `,${formattedValue}`;
+
+    this.view.dispatch({
+      changes: { from: this.from, insert: insertText },
+    });
+
+    // Update stored position
+    this.from = this.from + 1;
+    this.to = this.from + formattedValue.length;
+    this.defaultValue = formattedValue;
+    this.noDefaultValue = false;
+  }
+
+  // Method to update the editor when MIDI comes in
+  updateValue(newValue) {
+    const formattedValue = newValue.toFixed(2);
+    const currentValue = this.defaultValue;
+
+    const to = this.from + currentValue.length;
+
+    this.view.dispatch({
+      changes: { from: this.from, to: to, insert: formattedValue },
+    });
+
+    // Update stored position
+    this.to = this.from + formattedValue.length;
+    this.defaultValue = formattedValue;
+  }
+}
+
+// Add Midi Input Widgets
+function getMidiInputWidgets(widgetConfigs, view) {
+  return widgetConfigs
+    .filter((w) => w.type === 'cc')
+    .map(({ from, to, ccNumber, defaultValue, noDefaultValue }) => {
+      //const currentValue = view.state.doc.sliceString(from, to);
+      //console.log("widget:",ccNumber, value);
+      return Decoration.widget({
+        widget: new MidiInputWidget(ccNumber, from, to, view, defaultValue, noDefaultValue),
+        side: 0,
+      }).range(from /*,to*/); // adding to make only the first widget change, if not it creates bug with different ccNumber mixed up
+    });
+}
+
+export const setMidiInputWidgets = StateEffect.define();
+
+export const updateMidiInputWidgets = (view, widgets) => {
+  view.dispatch({ effects: setMidiInputWidgets.of(widgets) });
+};
+
+export const midiInputPlugin = ViewPlugin.fromClass(
+  class {
+    decorations;
+
+    constructor(view) {
+      this.decorations = Decoration.set([]);
+    }
+
+    update(update) {
+      update.transactions.forEach((tr) => {
+        if (tr.docChanged) {
+          this.decorations = this.decorations.map(tr.changes);
+          const iterator = this.decorations.iter();
+          while (iterator.value) {
+            if (iterator.value?.widget?.ccNumber !== undefined) {
+              const widget = iterator.value.widget;
+
+              // Only update positions for widgets that haven't been positioned by addDefaultValue
+              if (widget.noDefaultValue) {
+                widget.from = iterator.from;
+                widget.to = iterator.to;
+              } else {
+                // Use the document change mapping to update the existing positions
+                const newFrom = tr.changes.mapPos(widget.from);
+                const newTo = tr.changes.mapPos(widget.to);
+                widget.from = newFrom;
+                widget.to = newTo;
+
+                // Update original value based on current document content
+                const currentValue = update.view.state.doc.sliceString(newFrom, newTo);
+                widget.defaultValue = currentValue;
+              }
+            }
+            iterator.next();
+          }
+        }
+        for (let e of tr.effects) {
+          if (e.is(setMidiInputWidgets)) {
+            const midiInputWidgets = getMidiInputWidgets(e.value, update.view);
+            this.decorations = Decoration.set([...midiInputWidgets]);
+          }
+        }
+      });
+    }
+  },
+  {
+    decorations: (v) => v.decorations,
+  },
+);

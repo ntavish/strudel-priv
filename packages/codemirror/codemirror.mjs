@@ -22,6 +22,7 @@ import { highlightMiniLocations, isPatternHighlightingEnabled, updateMiniLocatio
 import { keybindings } from './keybindings.mjs';
 import { initTheme, activateTheme, theme } from './themes.mjs';
 import { sliderPlugin, updateSliderWidgets } from './slider.mjs';
+import { midiInputPlugin, updateMidiInputWidgets } from '../midi/midi.mjs';
 import { widgetPlugin, updateWidgets } from './widget.mjs';
 import { persistentAtom } from '@nanostores/persistent';
 
@@ -79,6 +80,7 @@ export function initEditor({ initialCode = '', onChange, onEvaluate, onStop, roo
       ...initialSettings,
       mondo ? [] : javascript(),
       sliderPlugin,
+      midiInputPlugin,
       widgetPlugin,
       // indentOnInput(), // works without. already brought with javascript extension?
       // bracketMatching(), // does not do anything
@@ -189,7 +191,9 @@ export class StrudelMirror {
         this.widgets = options.meta?.widgets;
         const sliders = this.widgets.filter((w) => w.type === 'slider');
         updateSliderWidgets(this.editor, sliders);
-        const widgets = this.widgets.filter((w) => w.type !== 'slider');
+        const midiInputWidgets = this.widgets.filter((w) => w.type === 'cc');
+        updateMidiInputWidgets(this.editor, midiInputWidgets);
+        const widgets = this.widgets.filter((w) => w.type !== 'slider' && w.type !== 'cc');
         updateWidgets(this.editor, widgets);
         updateMiniLocations(this.editor, this.miniLocations);
         replOptions?.afterEval?.(options);

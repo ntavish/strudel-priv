@@ -91,6 +91,19 @@ export function transpiler(input, options = {}) {
           });
         return this.replace(sliderWithLocation(node));
       }
+      if (isMidiInputFunction(node)) {
+        emitWidgets &&
+          widgets.push({
+            from: node.arguments[1]?.start ?? node.arguments[0].end, // if no default value, use the end of the cc number
+            to: node.arguments[1]?.end ?? node.end - 1, // if no default value, use the end of the closing parenthesis
+            ccNumber: node.arguments[0].value,
+            defaultValue: node.arguments[1]?.raw ?? '0.0',
+            noDefaultValue: !node.arguments[1], // if no default value, add a flag to add a default value
+            type: 'cc',
+          });
+        return node;
+      }
+
       if (isWidgetMethod(node)) {
         const type = node.callee.property.name;
         const index = widgets.filter((w) => w.type === type).length;
@@ -201,6 +214,9 @@ function sliderWithLocation(node) {
   });
   node.callee.name = 'sliderWithID';
   return node;
+}
+function isMidiInputFunction(node) {
+  return node.type === 'CallExpression' && node.callee.name === 'cc';
 }
 
 export function getWidgetID(widgetConfig) {
