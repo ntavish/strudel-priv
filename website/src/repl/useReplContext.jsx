@@ -37,7 +37,7 @@ import './Repl.css';
 import { setInterval, clearInterval } from 'worker-timers';
 import { getMetadata } from '../metadata_parser';
 
-const { latestCode, maxPolyphony, audioDeviceName, multiChannelOrbits } = settingsMap.get();
+const { latestCode, maxPolyphony, audioDeviceName, multiChannelOrbits, latency } = settingsMap.get();
 let modulesLoading, presets, drawContext, clearCanvas, audioReady;
 
 if (typeof window !== 'undefined') {
@@ -73,6 +73,7 @@ export function useReplContext() {
     const drawContext = getDrawContext();
     const editor = new StrudelMirror({
       sync: isSyncEnabled,
+      latency,
       defaultOutput,
       getTime,
       setInterval,

@@ -108,6 +108,7 @@ export function SettingsTab({ started }) {
     audioEngineTarget,
     togglePanelTrigger,
     maxPolyphony,
+    latency,
     multiChannelOrbits,
     isTabIndentationEnabled,
     isMultiCursorEnabled,
@@ -163,6 +164,24 @@ export function SettingsTab({ started }) {
           type="number"
           placeholder=""
           value={maxPolyphony ?? ''}
+        />
+      </FormItem>
+      <FormItem label="Latency">
+        <Textbox
+          min={0}
+          max={Infinity}
+          onBlur={(e) => {
+            let v = parseFloat(e.target.value);
+            v = isNaN(v) ? 0.1 : v;
+            settingsMap.setKey('latency', v);
+          }}
+          onChange={(v) => {
+            v = parseFloat(v);
+            settingsMap.setKey('latency', isNaN(v) ? undefined : v);
+          }}
+          type="number"
+          placeholder=""
+          value={latency ?? 0.1}
         />
       </FormItem>
       <FormItem>

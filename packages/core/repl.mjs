@@ -18,6 +18,7 @@ export function repl({
   editPattern,
   onUpdateState,
   sync = false,
+  latency = 0.1,
   setInterval,
   clearInterval,
   id,
@@ -56,6 +57,7 @@ export function repl({
     setInterval,
     clearInterval,
     beforeStart,
+    latency,
   };
 
   // NeoCyclist uses a shared worker to communicate between instances, which is not supported on mobile chrome
