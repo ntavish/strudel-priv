@@ -11,7 +11,35 @@ Development is moving to https://codeberg.org/uzu/strudel
 - 1 Year of Strudel Blog Post: <https://loophole-letters.vercel.app/strudel1year>
 - 2 Years of Strudel Blog Post: <https://strudel.cc/blog/#year-2>
 
-## Running Locally
+## Running Locally With Docker
+
+After cloning the project, you can spin up a docker-compose deployment by running:
+
+```bash
+docker build --rm -t strudel:local .
+docker-compose up -d
+```
+
+or simply
+
+```bash
+make
+```
+
+If you need more granular control, just build the image and run it however you like: 
+
+```bash
+docker build -t strudel:local .
+docker run --rm --name strudel -p 4321:4321 -d strudel:local
+```
+
+Or if you want to pull from docker-hub directly:
+
+```bash
+docker run --rm --name strudel -p 4321:4321 -d TODO/strudel:latest
+```
+
+## Running Locally Without Docker
 
 After cloning the project, you can run the REPL locally:
 
