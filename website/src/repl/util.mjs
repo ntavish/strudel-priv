@@ -1,4 +1,5 @@
-import { evalScope, hash2code, logger } from '@strudel/core';
+import { hash2code, logger } from '@strudel/core';
+import { evalScope } from '@strudel/cyclist';
 import { settingPatterns } from '../settings.mjs';
 import { setVersionDefaults } from '@strudel/webaudio';
 import { getMetadata } from '../metadata_parser';

@@ -1,16 +1,17 @@
 {
-  "name": "@strudel/transpiler",
+  "name": "@strudel/cyclist",
   "version": "1.2.2",
-  "description": "Transpiler for strudel user code. Converts syntactically correct but semantically meaningless JS into evaluatable strudel code.",
+  "description": "Event Scheduler for Strudel",
   "main": "index.mjs",
   "type": "module",
   "publishConfig": {
     "main": "dist/index.mjs"
   },
   "scripts": {
-    "build": "vite build",
     "test": "vitest run",
-    "prepublishOnly": "npm run build"
+    "bench": "vitest bench",
+    "build": "vite build",
+    "prepublishOnly": "pnpm build"
   },
   "repository": {
     "type": "git",
@@ -23,19 +24,14 @@
     "livecoding",
     "algorave"
   ],
-  "author": "Felix Roos <flix91@gmail.com>",
+  "author": "Alex McLean <alex@slab.org> (https://slab.org)",
   "license": "AGPL-3.0-or-later",
   "bugs": {
     "url": "https://codeberg.org/uzu/strudel/issues"
   },
-  "homepage": "https://codeberg.org/uzu/strudel#readme",
+  "homepage": "https://strudel.cc",
   "dependencies": {
-    "@strudel/core": "workspace:*",
-    "@strudel/cyclist": "workspace:*",
-    "@strudel/mini": "workspace:*",
-    "acorn": "^8.14.0",
-    "escodegen": "^2.1.0",
-    "estree-walker": "^3.0.3"
+    "@strudel/core": "*"
   },
   "devDependencies": {
     "vite": "^6.0.11",

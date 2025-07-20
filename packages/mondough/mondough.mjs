@@ -1,5 +1,4 @@
 import {
-  strudelScope,
   reify,
   fast,
   slow,
@@ -12,6 +11,7 @@ import {
   degradeBy,
   silence,
 } from '@strudel/core';
+import { strudelScope } from '@strudel/cyclist';
 import { registerLanguage } from '@strudel/transpiler';
 import { MondoRunner } from 'mondolang';
 

@@ -5,7 +5,7 @@ This program is free software: you can redistribute it and/or modify it under th
 */
 
 import { logger } from './logger.mjs';
-import { ClockCollator, cycleToSeconds } from './util.mjs';
+import { ClockCollator, cycleToSeconds } from '@strudel/core';
 
 export class NeoCyclist {
   constructor({ onTrigger, onToggle, getTime }) {

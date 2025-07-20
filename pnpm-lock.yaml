@@ -209,6 +209,9 @@ importers:
       '@strudel/core':
         specifier: workspace:*
         version: link:../core
+      '@strudel/cyclist':
+        specifier: workspace:*
+        version: link:../cyclist
       '@strudel/draw':
         specifier: workspace:*
         version: link:../draw
@@ -252,6 +255,19 @@ importers:
         specifier: ^6.0.11
         version: 6.0.11(@types/node@22.10.10)(jiti@2.4.2)(lightningcss@1.29.1)(terser@5.37.0)(yaml@2.7.0)
 
+  packages/cyclist:
+    dependencies:
+      '@strudel/core':
+        specifier: '*'
+        version: 1.2.2
+    devDependencies:
+      vite:
+        specifier: ^6.0.11
+        version: 6.0.11(@types/node@22.10.10)(jiti@2.4.2)(lightningcss@1.29.1)(terser@5.37.0)(yaml@2.7.0)
+      vitest:
+        specifier: ^3.0.4
+        version: 3.0.4(@types/debug@4.1.12)(@types/node@22.10.10)(@vitest/ui@3.0.4)(jiti@2.4.2)(lightningcss@1.29.1)(terser@5.37.0)(yaml@2.7.0)
+
   packages/desktopbridge:
     dependencies:
       '@strudel/core':
@@ -266,6 +282,9 @@ importers:
       '@strudel/core':
         specifier: workspace:*
         version: link:../core
+      '@strudel/cyclist':
+        specifier: workspace:*
+        version: link:../cyclist
     devDependencies:
       vite:
         specifier: ^6.0.11
@@ -301,6 +320,9 @@ importers:
       '@strudel/core':
         specifier: workspace:*
         version: link:../core
+      '@strudel/cyclist':
+        specifier: workspace:*
+        version: link:../cyclist
       '@strudel/draw':
         specifier: workspace:*
         version: link:../draw
@@ -361,6 +383,9 @@ importers:
       '@strudel/core':
         specifier: workspace:*
         version: link:../core
+      '@strudel/cyclist':
+        specifier: workspace:*
+        version: link:../cyclist
       '@strudel/transpiler':
         specifier: workspace:*
         version: link:../transpiler
@@ -560,6 +585,9 @@ importers:
       '@strudel/core':
         specifier: workspace:*
         version: link:../core
+      '@strudel/cyclist':
+        specifier: workspace:*
+        version: link:../cyclist
       '@strudel/mini':
         specifier: workspace:*
         version: link:../mini
@@ -696,6 +724,9 @@ importers:
       '@strudel/csound':
         specifier: workspace:*
         version: link:../packages/csound
+      '@strudel/cyclist':
+        specifier: workspace:*
+        version: link:../packages/cyclist
       '@strudel/desktopbridge':
         specifier: workspace:*
         version: link:../packages/desktopbridge
@@ -2452,6 +2483,9 @@ packages:
 
   '@sinclair/typebox@0.27.8':
     resolution: {integrity: sha512-+Fj43pSMwJs4KRrH/938Uf+uAELIgVBmQzg/q1YG10djyfA3TnrU8N8XzqCh/okZdszqBQTZf96idMfE5lnwTA==}
+
+  '@strudel/core@1.2.2':
+    resolution: {integrity: sha512-rPFAwV7Emz85HyKwfVVn+2cNOHCGBbWw6XImv0elnzRiXxKWMdmZfuSL3xgpheEg9WUgacgmzJL9kbvfCitGtA==}
 
   '@supabase/auth-js@2.67.3':
     resolution: {integrity: sha512-NJDaW8yXs49xMvWVOkSIr8j46jf+tYHV0wHhrwOaLLMZSFO4g6kKAf+MfzQ2RaD06OCUkUHIzctLAxjTgEVpzw==}
@@ -7657,6 +7691,7 @@ packages:
 
   workbox-google-analytics@7.0.0:
     resolution: {integrity: sha512-MEYM1JTn/qiC3DbpvP2BVhyIH+dV/5BjHk756u9VbwuAhu0QHyKscTnisQuz21lfRpOwiS9z4XdqeVAKol0bzg==}
+    deprecated: It is not compatible with newer versions of GA starting with v4, as long as you are using GAv3 it should be ok, but the package is not longer being maintained
 
   workbox-navigation-preload@7.0.0:
     resolution: {integrity: sha512-juWCSrxo/fiMz3RsvDspeSLGmbgC0U9tKqcUPZBCf35s64wlaLXyn2KdHHXVQrb2cqF7I0Hc9siQalainmnXJA==}
@@ -9807,6 +9842,10 @@ snapshots:
       '@sigstore/protobuf-specs': 0.3.3
 
   '@sinclair/typebox@0.27.8': {}
+
+  '@strudel/core@1.2.2':
+    dependencies:
+      fraction.js: 5.2.1
 
   '@supabase/auth-js@2.67.3':
     dependencies:

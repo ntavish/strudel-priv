@@ -13,7 +13,8 @@ import {
   lineNumbers,
   drawSelection,
 } from '@codemirror/view';
-import { repl, registerControl } from '@strudel/core';
+import { registerControl } from '@strudel/core';
+import { repl } from '@strudel/cyclist';
 import { Drawer, cleanupDraw } from '@strudel/draw';
 import { isAutoCompletionEnabled } from './autocomplete.mjs';
 import { isTooltipEnabled } from './tooltip.mjs';
@@ -41,9 +42,9 @@ const extensions = {
   isMultiCursorEnabled: (on) =>
     on
       ? [
-          EditorState.allowMultipleSelections.of(true),
-          EditorView.clickAddsSelectionRange.of((ev) => ev.metaKey || ev.ctrlKey),
-        ]
+        EditorState.allowMultipleSelections.of(true),
+        EditorView.clickAddsSelectionRange.of((ev) => ev.metaKey || ev.ctrlKey),
+      ]
       : [],
 };
 const compartments = Object.fromEntries(Object.keys(extensions).map((key) => [key, new Compartment()]));

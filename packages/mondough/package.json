@@ -33,6 +33,7 @@
   "homepage": "https://github.com/tidalcycles/strudel#readme",
   "dependencies": {
     "@strudel/core": "workspace:*",
+    "@strudel/cyclist": "workspace:*",
     "@strudel/transpiler": "workspace:*",
     "mondolang": "workspace:*"
   },

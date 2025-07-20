@@ -7,9 +7,8 @@ This program is free software: you can redistribute it and/or modify it under th
 import * as controls from './controls.mjs'; // legacy
 export * from './euclid.mjs';
 import Fraction from './fraction.mjs';
-import createClock from './zyklus.mjs';
 import { logger } from './logger.mjs';
-export { Fraction, controls, createClock };
+export { Fraction, controls };
 export * from './controls.mjs';
 export * from './hap.mjs';
 export * from './pattern.mjs';
@@ -18,13 +17,7 @@ export * from './pick.mjs';
 export * from './state.mjs';
 export * from './timespan.mjs';
 export * from './util.mjs';
-export * from './speak.mjs';
-export * from './evaluate.mjs';
-export * from './repl.mjs';
-export * from './cyclist.mjs';
 export * from './logger.mjs';
-export * from './time.mjs';
-export * from './ui.mjs';
 export { default as drawLine } from './drawLine.mjs';
 // below won't work with runtime.mjs (json import fails)
 /* import * as p from './package.json';

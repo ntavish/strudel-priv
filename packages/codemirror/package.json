@@ -45,6 +45,7 @@
     "@replit/codemirror-vim": "^6.2.1",
     "@replit/codemirror-vscode-keymap": "^6.0.2",
     "@strudel/core": "workspace:*",
+    "@strudel/cyclist": "workspace:*",
     "@strudel/draw": "workspace:*",
     "@strudel/transpiler": "workspace:*",
     "nanostores": "^0.11.3"

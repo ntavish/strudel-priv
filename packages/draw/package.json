@@ -29,7 +29,8 @@
   },
   "homepage": "https://codeberg.org/uzu/strudel#readme",
   "dependencies": {
-    "@strudel/core": "workspace:*"
+    "@strudel/core": "workspace:*",
+    "@strudel/cyclist": "workspace:*"
   },
   "devDependencies": {
     "vite": "^6.0.11"
