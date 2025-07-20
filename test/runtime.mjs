@@ -4,7 +4,7 @@
 
 // import * as tunes from './tunes.mjs';
 import { evaluate } from '@strudel/transpiler';
-import { evalScope } from '@strudel/core';
+import { evalScope } from '@strudel/cyclist';
 import * as strudel from '@strudel/core';
 import * as webaudio from '@strudel/webaudio';
 // import gist from '@strudel/core/gist.js';

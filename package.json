@@ -48,6 +48,7 @@
   "homepage": "https://strudel.cc",
   "dependencies": {
     "@strudel/core": "workspace:*",
+    "@strudel/cyclist": "workspace:*",
     "@strudel/mini": "workspace:*",
     "@strudel/tonal": "workspace:*",
     "@strudel/transpiler": "workspace:*",

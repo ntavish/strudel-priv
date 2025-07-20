@@ -42,9 +42,9 @@ const extensions = {
   isMultiCursorEnabled: (on) =>
     on
       ? [
-        EditorState.allowMultipleSelections.of(true),
-        EditorView.clickAddsSelectionRange.of((ev) => ev.metaKey || ev.ctrlKey),
-      ]
+          EditorState.allowMultipleSelections.of(true),
+          EditorView.clickAddsSelectionRange.of((ev) => ev.metaKey || ev.ctrlKey),
+        ]
       : [],
 };
 const compartments = Object.fromEntries(Object.keys(extensions).map((key) => [key, new Compartment()]));

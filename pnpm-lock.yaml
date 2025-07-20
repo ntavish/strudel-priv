@@ -11,6 +11,9 @@ importers:
       '@strudel/core':
         specifier: workspace:*
         version: link:packages/core
+      '@strudel/cyclist':
+        specifier: workspace:*
+        version: link:packages/cyclist
       '@strudel/mini':
         specifier: workspace:*
         version: link:packages/mini
