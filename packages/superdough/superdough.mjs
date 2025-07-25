@@ -42,7 +42,7 @@ export function registerSound(key, onTrigger, data = {}) {
   soundMap.setKey(key, { onTrigger, data });
 }
 
-let gainCurveFunc = (val) => val;
+let gainCurveFunc = (val) => Math.pow(val, 2);
 
 export function applyGainCurve(val) {
   return gainCurveFunc(val);
@@ -135,7 +135,7 @@ export const getAudioDevices = async () => {
 
 let defaultDefaultValues = {
   s: 'triangle',
-  gain: 0.8,
+  gain: 1,
   postgain: 1,
   density: '.03',
   ftype: '12db',
@@ -531,6 +531,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     bank,
     source,
     gain = getDefaultValue('gain'),
+    gainlinear,
     postgain = getDefaultValue('postgain'),
     density = getDefaultValue('density'),
     // filters
@@ -614,6 +615,9 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   velocity = applyGainCurve(velocity);
   tremolodepth = applyGainCurve(tremolodepth);
   gain *= velocity; // velocity currently only multiplies with gain. it might do other things in the future
+  if (gainlinear != null) {
+    gain *= gainlinear;
+  }
 
   const end = t + hapDuration;
   const endWithRelease = end + release;
