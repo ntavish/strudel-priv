@@ -419,16 +419,21 @@ function setOrbit(audioContext, orbit, channels) {
     connectToDestination(orbits[orbit].gain, channels);
   }
 }
-function duckOrbit(target, t, attacktime = 0.1, duckdepth = 1) {
+function duckOrbit(targetOrbit, t, attacktime = 0.1, duckdepth = 1) {
+ const targetArr = [targetOrbit].flat()
+
+ targetArr.forEach(target => {
   if (orbits[target] == null) {
     errorLogger(new Error('duck target orbit does not exist'), 'superdough');
   }
-
   orbits[target].gain.gain.cancelAndHoldAtTime(t);
   const currVal = orbits[target].gain.gain.value;
   orbits[target].gain.gain.setValueAtTime(currVal, t);
   orbits[target].gain.gain.linearRampToValueAtTime(clamp(1 - duckdepth, 0.01, currVal), t + 0.002);
   orbits[target].gain.gain.exponentialRampToValueAtTime(1, t + Math.max(0.002, attacktime));
+
+ })
+
 }
 
 let hasChanged = (now, before) => now !== undefined && now !== before;
@@ -629,6 +634,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
 
   const channels = value.channels != null ? mapChannelNumbers(value.channels) : orbitChannels;
   setOrbit(ac, orbit, channels, t, cycle, cps);
+
 
   if (duckorbit != null) {
     duckOrbit(duckorbit, t, duckattack, duckdepth);
