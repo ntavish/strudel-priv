@@ -132,13 +132,17 @@ Pattern.prototype.fscope = function (config = {}) {
  * @example
  * s("sawtooth")._scope()
  */
-let latestColor = {};
 Pattern.prototype.tscope = function (config = {}) {
   let id = config.id ?? 1;
   return this.analyze(id).draw(
     (haps) => {
-      config.color = haps[0]?.value?.color || latestColor[id] || getTheme().foreground;
-      latestColor[id] = config.color;
+      // Prioritize config.color (which is initially a Pattern), fallback to haps color
+      let configColor = config.color;
+      if (configColor?._Pattern) {
+        config.color = configColor.queryArc(0, 0)?.[0]?.value;
+      } else if (!configColor && haps[0]?.value?.color) {
+        config.color = haps[0].value.color;
+      }
 
       clearScreen(config.smear, '0,0,0', config.ctx);
       drawTimeScope(analysers[id], config);
