@@ -137,17 +137,9 @@ Pattern.prototype.tscope = function (config = {}) {
   let id = config.id ?? 1;
   return this.analyze(id).draw(
     (haps) => {
-      if (haps[0]?.value?.color) {
-        config.color = haps[0].value.color;
-        latestColor[id] = config.color;
-      } else if (latestColor[id]) {
-        config.color = latestColor[id];
-      } 
-      else {
-        // If no color was set, default to theme foreground
-        config.color = getTheme().foreground;
-        latestColor[id] = config.color;
-      }
+      config.color = haps[0]?.value?.color || latestColor[id] || getTheme().foreground;
+      latestColor[id] = config.color;
+
       clearScreen(config.smear, '0,0,0', config.ctx);
       drawTimeScope(analysers[id], config);
     },
