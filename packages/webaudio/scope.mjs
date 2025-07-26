@@ -98,7 +98,7 @@ function clearScreen(smear = 0, smearRGB = `0,0,0`, ctx = getDrawContext()) {
 /**
  * Renders an oscilloscope for the frequency domain of the audio signal.
  * @name fscope
- * @param {string} color line color as hex or color name. defaults to white.
+ * @param {string} color line color as hex or color name. Takes precedence over color(). Defaults to theme color.
  * @param {number} scale scales the y-axis. Defaults to 0.25
  * @param {number} pos y-position relative to screen height. 0 = top, 1 = bottom of screen
  * @param {number} lean y-axis alignment where 0 = top and 1 = bottom
@@ -110,7 +110,13 @@ function clearScreen(smear = 0, smearRGB = `0,0,0`, ctx = getDrawContext()) {
 Pattern.prototype.fscope = function (config = {}) {
   let id = config.id ?? 1;
   return this.analyze(id).draw(
-    () => {
+    (haps) => {
+      let configColor = config.color;
+      if (configColor?._Pattern) {
+        config.color = configColor.queryArc(0, 0)?.[0]?.value;
+      } else if (!configColor) {
+        config.color = haps[0]?.value?.color ?? getTheme().color;
+      }
       clearScreen(config.smear, '0,0,0', config.ctx);
       analysers[id] && drawFrequencyScope(analysers[id], config);
     },
@@ -124,7 +130,7 @@ Pattern.prototype.fscope = function (config = {}) {
  * @synonyms tscope
  * @param {object} config optional config with options:
  * @param {boolean} align if 1, the scope will be aligned to the first zero crossing. defaults to 1
- * @param {string} color line color as hex or color name. defaults to white.
+ * @param {string} color line color as hex or color name. Takes precedence over color(). Defaults to theme color.
  * @param {number} thickness line thickness. defaults to 3
  * @param {number} scale scales the y-axis. Defaults to 0.25
  * @param {number} pos y-position relative to screen height. 0 = top, 1 = bottom of screen
@@ -136,14 +142,12 @@ Pattern.prototype.tscope = function (config = {}) {
   let id = config.id ?? 1;
   return this.analyze(id).draw(
     (haps) => {
-      // Prioritize config.color (which is initially a Pattern), fallback to haps color
       let configColor = config.color;
       if (configColor?._Pattern) {
         config.color = configColor.queryArc(0, 0)?.[0]?.value;
-      } else if (!configColor && haps[0]?.value?.color) {
-        config.color = haps[0].value.color;
+      } else if (!configColor) {
+        config.color = haps[0]?.value?.color ?? getTheme().color;
       }
-
       clearScreen(config.smear, '0,0,0', config.ctx);
       drawTimeScope(analysers[id], config);
     },

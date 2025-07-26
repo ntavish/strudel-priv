@@ -6,6 +6,7 @@ import { analysers, getAnalyzerData } from 'superdough';
  * Renders a spectrum analyzer for the incoming audio signal.
  * @name spectrum
  * @param {object} config optional config with options:
+ * @param {string} color line color as hex or color name. Takes precedence over color(). Defaults to theme color.
  * @param {integer} thickness line thickness in px (default 3)
  * @param {integer} speed scroll speed (default 1)
  * @param {integer} min min db (default -80)
@@ -19,13 +20,16 @@ import { analysers, getAnalyzerData } from 'superdough';
  * .dec(.3).room(.5)
  * ._spectrum()
  */
-let latestColor = {};
 Pattern.prototype.spectrum = function (config = {}) {
   let id = config.id ?? 1;
   return this.analyze(id).draw(
     (haps) => {
-      config.color = haps[0]?.value?.color || latestColor[id] || getTheme().foreground;
-      latestColor[id] = config.color;
+      let configColor = config.color;
+      if (configColor?._Pattern) {
+        config.color = configColor.queryArc(0, 0)?.[0]?.value;
+      } else if (!configColor) {
+        config.color = haps[0]?.value?.color ?? getTheme().color;
+      }
       drawSpectrum(analysers[id], config);
     },
     { id },
