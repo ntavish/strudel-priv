@@ -9,6 +9,7 @@ import {
   getVibratoOscillator,
   webAudioTimeout,
   getWorklet,
+  makeSaturationCurve,
 } from './helpers.mjs';
 import { getNoiseMix, getNoiseOscillator } from './noise.mjs';
 
@@ -41,17 +42,6 @@ const waveformAliases = [
   ['sin', 'sine'],
 ];
 const noises = ['pink', 'white', 'brown', 'crackle'];
-
-function makeSaturationCurve(amount, n_samples) {
-  const k = typeof amount === 'number' ? amount : 50;
-  const curve = new Float32Array(n_samples);
-
-  for (let i = 0; i < n_samples; i++) {
-    const x = (i * 2) / n_samples - 1;
-    curve[i] = Math.tanh(x * k);
-  }
-  return curve;
-}
 
 export function registerSynthSounds() {
   [...waveforms].forEach((s) => {
@@ -124,7 +114,7 @@ export function registerSynthSounds() {
 
       const sat = new WaveShaperNode(ctx);
       // tri to sine diode shaper emulation
-      sat.curve = makeSaturationCurve(2, ctx.sampleRate);
+      sat.curve = makeSaturationCurve(2, ctx.sampleRate, 1);
 
       const mix = gainNode(mixGain);
 

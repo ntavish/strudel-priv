@@ -552,6 +552,28 @@ export const { tremoloshape } = registerControl('tremoloshape', 'tremshape');
 export const { drive } = registerControl('drive');
 
 /**
+ * waveshaping distortion with selectable algorithms
+ *
+ * @name shape
+ * @param {number | Pattern} amount
+ * @example
+ * $: s("909bd").beat("0,4,8,11,14",16).shape("<2 4 1>").shapetype("<0 1 2>*2")
+ *
+ */
+export const { shape } = registerControl(['shape', 'shapevol', 'shapetype']);
+
+/**
+ * filter overdrive for supported filter types
+ *
+ * @name shapetype
+ * @param {number | Pattern} type
+ * @example
+ * $: s("909bd").beat("0,4,8,11,14",16).shape("2").shapetype("<0 1 2>")
+ *
+ */
+export const { shapeType } = registerControl('shapetype');
+
+/**
  * Create byte beats with custom expressions
  *
  * @name byteBeatExpression
@@ -1510,19 +1532,7 @@ export const { roomsize, size, sz, rsize } = registerControl('roomsize', 'size',
 // ['sclap'],
 // ['sclaves'],
 // ['scrash'],
-/**
- * (Deprecated) Wave shaping distortion. WARNING: can suddenly get unpredictably loud.
- * Please use distort instead, which has a more predictable response curve
- * second option in optional array syntax (ex: ".9:.5") applies a postgain to the output
- *
- *
- * @name shape
- * @param {number | Pattern} distortion between 0 and 1
- * @example
- * s("bd sd [~ bd] sd,hh*8").shape("<0 .2 .4 .6 .8>")
- *
- */
-export const { shape } = registerControl(['shape', 'shapevol']);
+
 /**
  * Wave shaping distortion. CAUTION: it can get loud.
  * Second option in optional array syntax (ex: ".9:.5") applies a postgain to the output.

@@ -277,3 +277,18 @@ export function applyFM(param, value, begin) {
   }
   return { stop };
 }
+
+export const saturationAlgos = [
+  (x, k) => ((1 + k) * x) / (1 + k * Math.abs(x)), //S Curve sourced from: https://www.nickwritesablog.com/sound-design-in-web-audio-neurofunk-bass-part-1/
+  (x, k) => Math.tanh(x * k),
+];
+
+export function makeSaturationCurve(amount, n_samples, algo = 0) {
+  const k = typeof amount === 'number' ? amount : 50;
+  const curve = new Float32Array(n_samples);
+  for (let i = 0; i < n_samples; i++) {
+    const x = (i * 2) / n_samples - 1;
+    curve[i] = saturationAlgos[algo % saturationAlgos.length]?.(x, amount);
+  }
+  return curve;
+}
