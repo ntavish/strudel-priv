@@ -1,8 +1,9 @@
+import { getTheme } from '@strudel/draw';
+
 /**
  * Resolves a config color value, handling Pattern objects and fallbacks.
- * @param {*} configColor - The color from config, may be a Pattern or primitive value
- * @param {Array} haps - Array of haps to check for color fallback
- * @returns {*} The resolved color value
+ * @param {Object} configColor - The color from the config object.
+ * @param {Array} haps - haps to check for color() setting.
  */
 export function resolveConfigColor(configColor, haps) {
   if (configColor?._Pattern) {

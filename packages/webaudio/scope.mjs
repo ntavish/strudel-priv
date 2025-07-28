@@ -1,5 +1,5 @@
 import { Pattern, clamp } from '@strudel/core';
-import { getDrawContext, getTheme } from '@strudel/draw';
+import { getDrawContext } from '@strudel/draw';
 import { analysers, getAnalyzerData } from 'superdough';
 import { resolveConfigColor } from './util.mjs';
 
