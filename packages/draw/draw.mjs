@@ -76,6 +76,7 @@ export const cleanupDraw = (clearScreen = true, id) => {
   const ctx = getDrawContext();
   clearScreen && ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   stopAllAnimations(id);
+  memory = {};
 };
 
 Pattern.prototype.onPaint = function (painter) {
