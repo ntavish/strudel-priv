@@ -1,6 +1,7 @@
 import { Pattern, clamp } from '@strudel/core';
 import { getDrawContext, getTheme } from '@strudel/draw';
 import { analysers, getAnalyzerData } from 'superdough';
+import { resolveConfigColor } from './util.mjs';
 
 export function drawTimeScope(
   analyser,
@@ -111,11 +112,8 @@ Pattern.prototype.fscope = function (config = {}) {
   let id = config.id ?? 1;
   return this.analyze(id).draw(
     (haps) => {
-      let configColor = config.color;
-      if (configColor?._Pattern) {
-        config.color = configColor.queryArc(0, 0)?.[0]?.value;
-      } else if (!configColor) {
-        config.color = haps[0]?.value?.color ?? getTheme().color;
+      if (typeof config.color !== 'string') {
+        config.color = resolveConfigColor(config.color, haps);
       }
       clearScreen(config.smear, '0,0,0', config.ctx);
       analysers[id] && drawFrequencyScope(analysers[id], config);
@@ -142,11 +140,8 @@ Pattern.prototype.tscope = function (config = {}) {
   let id = config.id ?? 1;
   return this.analyze(id).draw(
     (haps) => {
-      let configColor = config.color;
-      if (configColor?._Pattern) {
-        config.color = configColor.queryArc(0, 0)?.[0]?.value;
-      } else if (!configColor) {
-        config.color = haps[0]?.value?.color ?? getTheme().color;
+      if (typeof config.color !== 'string') {
+        config.color = resolveConfigColor(config.color, haps);
       }
       clearScreen(config.smear, '0,0,0', config.ctx);
       drawTimeScope(analysers[id], config);

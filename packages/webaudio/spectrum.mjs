@@ -1,6 +1,7 @@
 import { Pattern, clamp } from '@strudel/core';
 import { getDrawContext, getTheme } from '@strudel/draw';
 import { analysers, getAnalyzerData } from 'superdough';
+import { resolveConfigColor } from './util.mjs';
 
 /**
  * Renders a spectrum analyzer for the incoming audio signal.
@@ -24,11 +25,8 @@ Pattern.prototype.spectrum = function (config = {}) {
   let id = config.id ?? 1;
   return this.analyze(id).draw(
     (haps) => {
-      let configColor = config.color;
-      if (configColor?._Pattern) {
-        config.color = configColor.queryArc(0, 0)?.[0]?.value;
-      } else if (!configColor) {
-        config.color = haps[0]?.value?.color ?? getTheme().color;
+      if (typeof config.color !== 'string') {
+        config.color = resolveConfigColor(config.color, haps);
       }
       drawSpectrum(analysers[id], config);
     },
