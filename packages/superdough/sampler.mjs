@@ -221,7 +221,8 @@ export const samples = async (sampleMap, baseUrl = sampleMap._base || '', option
     const base = sampleMap.split('/').slice(0, -1).join('/');
     const savedJSON = localStorage.getItem(sampleMap)
     if (savedJSON) {
-      samples(JSON.parse(savedJSON), baseUrl || json._base || base, options)
+      const json = JSON.parse(savedJSON)
+      samples(json, baseUrl || json._base || base, options)
     } else {
 
 

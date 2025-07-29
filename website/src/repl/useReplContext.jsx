@@ -31,7 +31,7 @@ import {
 import { superdirtOutput } from '@strudel/osc/superdirtoutput';
 import { audioEngineTargets } from '../settings.mjs';
 import { useStore } from '@nanostores/react';
-import { prebake } from './prebake.mjs';
+import { prebake } from '../../../packages/repl/prebake.mjs'
 import { getRandomTune, initCode, loadModules, shareCode } from './util.mjs';
 import './Repl.css';
 import { setInterval, clearInterval } from 'worker-timers';

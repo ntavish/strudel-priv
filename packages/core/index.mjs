@@ -26,6 +26,7 @@ export * from './logger.mjs';
 export * from './time.mjs';
 export * from './ui.mjs';
 export * from './ui.mjs';
+export * from './idbutils.mjs'
 export { default as drawLine } from './drawLine.mjs';
 // below won't work with runtime.mjs (json import fails)
 /* import * as p from './package.json';
