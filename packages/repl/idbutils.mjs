@@ -1,8 +1,11 @@
 import { registerSound, onTriggerSample } from '@strudel/webaudio';
-import { isAudioFile } from './files.mjs';
 import { logger } from '@strudel/core';
 
 //utilites for writing and reading to the indexdb
+
+
+export const isAudioFile = (filename) =>
+  ['wav', 'mp3', 'flac', 'ogg', 'm4a', 'aac'].includes(filename.split('.').slice(-1)[0]);
 
 export const userSamplesDBConfig = {
   dbName: 'samples',

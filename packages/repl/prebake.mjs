@@ -1,5 +1,5 @@
-import { noteToMidi, valueToMidi, Pattern, evalScope } from '@strudel/core';
-import { aliasBank, registerSynthSounds, registerZZFXSounds, samples } from '@strudel/webaudio';
+import { noteToMidi, valueToMidi, Pattern, evalScope,registerSamplesFromDB } from '@strudel/core';
+import { aliasBank, registerSynthSounds, registerZZFXSounds, samples, } from '@strudel/webaudio';
 import * as core from '@strudel/core';
 
 export async function prebake() {
@@ -28,6 +28,7 @@ export async function prebake() {
     modulesLoading,
     registerSynthSounds(),
     registerZZFXSounds(),
+    registerSamplesFromDB(),
     //registerSoundfonts(),
     // need dynamic import here, because importing @strudel/soundfonts fails on server:
     // => getting "window is not defined", as soon as "@strudel/soundfonts" is imported statically
@@ -36,9 +37,10 @@ export async function prebake() {
     samples(`${ds}/tidal-drum-machines.json`),
     samples(`${ds}/piano.json`),
     samples(`${ds}/Dirt-Samples.json`),
-    samples(`${ds}/uzu-drumkit.json`),
+    samples(`https://raw.githubusercontent.com/tidalcycles/uzu-drumkit/main/strudel.json`),
     samples(`${ds}/vcsl.json`),
     samples(`${ds}/mridangam.json`),
+    registerSamplesFromDB(),
   ]);
 
   aliasBank(`${ts}/tidal-drum-machines-alias.json`);

@@ -1,7 +1,7 @@
 import { Fragment, useEffect } from 'react';
-import React, { useMemo, useState } from 'react';
-import { isAudioFile, readDir, dir, playFile } from '../../files.mjs';
-
+import { useMemo, useState } from 'react';
+import {  readDir, dir, playFile } from '../../files.mjs';
+import  { isAudioFile } from '@strudel/core';
 export function FilesTab() {
   const [path, setPath] = useState([]);
   useEffect(() => {

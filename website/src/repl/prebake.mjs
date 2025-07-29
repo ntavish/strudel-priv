@@ -1,6 +1,6 @@
 import { Pattern, noteToMidi, valueToMidi } from '@strudel/core';
 import { aliasBank, registerSynthSounds, registerZZFXSounds, samples } from '@strudel/webaudio';
-import { registerSamplesFromDB } from './idbutils.mjs';
+import { registerSamplesFromDB } from '@strudel/core/idbutils.mjs';
 import './piano.mjs';
 import './files.mjs';
 
@@ -10,6 +10,8 @@ const baseNoTrailing = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL
 export async function prebake() {
   // https://archive.org/details/SalamanderGrandPianoV3
   // License: CC-by http://creativecommons.org/licenses/by/3.0/ Author: Alexander Holm
+ 
+ 
   await Promise.all([
     registerSynthSounds(),
     registerZZFXSounds(),
@@ -28,7 +30,7 @@ export async function prebake() {
       prebake: true,
       tag: 'drum-machines',
     }),
-    samples(`${baseNoTrailing}/uzu-drumkit.json`, undefined, {
+    samples(`https://raw.githubusercontent.com/tidalcycles/uzu-drumkit/main/strudel.json`, undefined, {
       prebake: true,
       tag: 'drum-machines',
     }),
