@@ -857,3 +857,50 @@ n("[0,3] 2 [1,3] 2".fast(3).lastOf(4, fast(2))).clip(2)
   .slow(4)
   .stack(s("bd*4, [~ [hh hh? hh?]]*2,~ [sd ~ [sd:2? bd?]]").bank('RolandTR909').gain(.5).slow(2))
 `;
+
+export const atremble = `/*
+@title    A tremble
+@by       samy kamkar <https://sa.my>
+@details  2025/07/27
+@license  CC BY-NC-SA 4.0 <https://creativecommons.org/licenses/by-nc-sa/4.0/>
+*/
+setcpm(100/4)
+
+$: note("[[- <d3 a3 f3 e3> - -] - [- <d4 a4 f4 e4> - -] -]")
+  .slow(4)
+  .gain(sine.range(.1,.2).slow(32))
+  .delay(sine.range(.8, 3.8).slow(8))
+  .room(sine.range(0,1).slow(4))
+  .fm(8)
+  .fmdecay(.4)
+  .fmsustain(0)
+  .fmenv("lin")
+
+$: note("[~ [<[d3,a3,f4]!2 <[d3,bb3,g4] [d2,bb2,g3]>!2> ~]]*2")
+.sound("gm_electric_guitar_muted")
+  .room(2)
+  .delay(sine.range(.5,2).slow(5))
+
+$: sound("[<- bd!3> <rim!3 ->]").bank("RolandTR707").gain("<.9 .8> <.7 .8>")
+$: sound("[<- bd!3> rim]").bank("RolandTR707")
+  .hpf(sine.range(400,1000).slow(2))
+  .lpf(3000).room(2).gain("<.4 .3> .3").delay(sine.range(.4,.6))
+
+$: sound("<-!8 [hh!16]!128>").bank("RolandTR707")
+  .gain("[.05 .04 .1 .07]!4")
+  .lpf(4500)
+  .hpf(4000)
+  .pan(sine.range(0.8,.2).slow(2))
+
+$: note("<0!16 1!32 2!32 1!32>"
+        .pick(["[-]",
+        "[<[d4!3 d4] [- d4!3]> <[e4!4 -],[<f4 g4 a4 g4>!3 -]>]",
+        "[[d5!3 -]             <[e5!4 -],[<f5 g5 a5 g5>!3 -]>]"]))
+  .sound("square")
+  .fast("<2 4>/4")
+  .gain(.1)
+  .room(5)
+  .lpf(sine.range(1000,2000).slow(3))
+  .hpf(sine.range(700,900).slow(2))
+  .pan(sine.range(.2, .8).slow(5))
+`;
