@@ -51,6 +51,42 @@ export const bjork = function (ons, steps) {
   return inverted ? pattern.map((x) => 1 - x) : pattern;
 };
 
+export const metaBjork = function (ks, n, rotations=[0], inversions=[0]) {
+  let bjork_patterns = [];
+  let indices = [];
+  let result = [];
+  bjork_patterns.push(bjork(ks[0], n));
+  indices.push(0);
+  for(var i=1; i<ks.length; i++) {
+    let currentPat = bjork(ks[i], ks[i-1]);
+    bjork_patterns.push(currentPat);
+    indices.push(0);
+  }
+  bjork_patterns = bjork_patterns.map((x, i) => {
+    let currentPat = x;
+    if(rotations[i] > 0 || rotations[i] < 0) {
+      currentPat = rotate(currentPat, -rotations[i]);
+    }
+    if(inversions[i] > 0) {
+      currentPat = currentPat.map((x) => 1 - (x > 0 ? 1 : 0));
+    }
+    return currentPat;
+  });
+  result.push(bjork_patterns[0].slice());
+  for(let patternIndex = 1; patternIndex < bjork_patterns.length; patternIndex++) {
+    let currentPattern = result[result.length-1].slice();
+    let index = 0;
+    for(let i=0; i<currentPattern.length; i++) {
+      if(currentPattern[i] > 0) {
+        currentPattern[i] = bjork_patterns[patternIndex][index];
+        index++;
+      }
+    }
+    result.push(currentPattern);
+  }
+  return result;
+}
+
 /**
  * Changes the structure of the pattern to form an Euclidean rhythm.
  * Euclidean rhythms are rhythms obtained using the greatest common
@@ -150,6 +186,50 @@ export const e = register('e', function (euc, pat) {
 export const { euclidrot, euclidRot } = register(['euclidrot', 'euclidRot'], function (pulses, steps, rotation, pat) {
   return pat.struct(_euclidRot(pulses, steps, rotation));
 });
+
+/**
+ * Creates a structured pattern by iteratively masking the Euclidian
+ * distribution algorithm with itself step by step. The resulting pattern
+ * is compressed to fit within a single cycle. The euclidian distribution
+ * for each level can optionally be rotated or inverted.
+ *
+ * @name eheir
+ * @param {number[]} ks - list of pulses
+ * @param {number} steps - number of steps
+ * @param {number[]} rotations - list of rotations to apply to each level
+ * @param {number[]} inversions - list of inversions to apply to each level
+ * @example
+ * eheir([4, 2, 1], 8)
+ * // [3, 0, 1, 0, 2, 0, 1, 0]
+ * eheir([1], 8, [1,0,0], [1,0,0])
+ * // [1, 0, 1, 1, 1, 1, 1, 1]
+ */
+export const eheir = function (ks, steps, rotations=[0], inversions=[0]) {
+  return cat(metaBjork(ks, steps, rotations, inversions).reduce((a, b) => a.map((x, i) => x + b[i%b.length])));
+};
+
+/**
+ * Creates a structured pattern by iteratively masking the Euclidian
+ * distribution algorithm with itself step by step. The resulting pattern
+ * is spread out over a number of cycles equal to the number of steps/pulses.
+ * The euclidian distribution for each level can optionally be rotated or inverted.
+ * An additional parameter is provided for speeding the pattern up by a constant factor.
+ *
+ * @name sloweheir
+ * @param {number[]} ks - list of pulses
+ * @param {number} steps - number of steps
+ * @param {number[]} rotations - list of rotations to apply to each level
+ * @param {number[]} inversions - list of inversions to apply to each level
+ * @param {number} fast - speed the pattern up by a constant factor
+ * @example
+ * sloweheir([4, 2, 1], 8)
+ * // <3, 0, 1, 0, 2, 0, 1, 0>
+ * sloweheir([1], 8, [1,0,0], [1,0,0], 2)
+ * // <1, 0, 1, 1, 1, 1, 1, 1>
+ */
+export const sloweheir = function (ks, steps, rotations=[0], inversions=[0], fast = 1) {
+  return cat(metaBjork(ks, steps, rotations, inversions).reduce((a, b) => a.map((x, i) => x + b[i%b.length]))).slow(steps).fast(fast);
+}
 
 /**
  * Similar to `euclid`, but each pulse is held until the next pulse,
