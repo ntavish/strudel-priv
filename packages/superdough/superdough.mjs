@@ -330,7 +330,7 @@ function getDelay(orbit, delaytime, delayfeedback, t, channels) {
   if (delayfeedback > maxfeedback) {
     //logger(`delayfeedback was clamped to ${maxfeedback} to save your ears`);
   }
-  delayfeedback = clamp(delayfeedback, 0, 0.98);
+  delayfeedback = clamp(delayfeedback, 0, maxfeedback);
   if (!delays[orbit]) {
     const ac = getAudioContext();
     const dly = ac.createFeedbackDelay(1, delaytime, delayfeedback);
@@ -341,6 +341,53 @@ function getDelay(orbit, delaytime, delayfeedback, t, channels) {
   delays[orbit].delayTime.value !== delaytime && delays[orbit].delayTime.setValueAtTime(delaytime, t);
   delays[orbit].feedback.value !== delayfeedback && delays[orbit].feedback.setValueAtTime(delayfeedback, t);
   return delays[orbit];
+}
+
+function scheduleParams(node, params, t, glideMs = 5) {
+  const ac = getAudioContext();
+  const when = Math.max(t ?? ac.currentTime, ac.currentTime);
+
+  for (const [name, value] of Object.entries(params)) {
+    if (value == null) continue;
+    const p = node.parameters?.get(name);
+    if (!p) continue;
+
+    // de-zipper
+    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(when);
+    else p.cancelScheduledValues(when);
+
+    if (glideMs > 0) {
+      // anchor at current value then ramp
+      p.setValueAtTime(p.value ?? p.defaultValue ?? 0, when);
+      p.linearRampToValueAtTime(value, when + glideMs / 1000);
+    } else {
+      p.setValueAtTime(value, when);
+    }
+  }
+}
+
+// Special filters
+let sFilts = {};
+function getSFilt(orbit, freq, q, type, t, channels) {
+  if (!sFilts[orbit]) {
+    if (type == 'comb') {
+      filter = getWorklet(getAudioContext(), 'comb-processor', {
+        frequency: freq,
+        q: q,
+      });
+      connectToDestination(filter, channels);
+      sFilts[orbit] = filter;
+    } else {
+      console.warn(`No filter found of type ${type}`);
+      return;
+    }
+  }
+  const params = {
+    frequency: freq,
+    q: q,
+  };
+  scheduleParams(sFilts[orbit], params, t, 0.5);
+  return sFilts[orbit];
 }
 
 export function getLfo(audioContext, begin, end, properties = {}) {
@@ -481,6 +528,7 @@ function effectSend(input, effect, wet) {
 export function resetGlobalEffects() {
   delays = {};
   reverbs = {};
+  sFilts = {};
   analysers = {};
   analysersData = {};
 }
@@ -561,6 +609,11 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     bpsustain,
     bprelease,
     bandq = getDefaultValue('bandq'),
+    // special filters
+    sf,
+    sffreq,
+    sfq,
+    sftype,
 
     //phaser
     phaserrate: phaser,
@@ -789,19 +842,33 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   }
 
   // last gain
-  const post = new GainNode(ac, { gain: postgain });
+  let post = gainNode(postgain);
   chain.push(post);
-  connectToDestination(post, channels);
+
+  // special filters
+  let sFiltNode;
+  if (sf > 0) {
+    sFiltNode = getSFilt(orbit, sffreq, sfq, sftype, t, orbitChannels);
+    const sFiltSend = effectSend(post, sFiltNode, sf);
+    audioNodes.push(sFiltSend);
+    let unfiltered = gainNode(1 - sf);
+    chain.push(unfiltered);
+    connectToDestination(unfiltered, channels);
+  } else {
+    sFiltNode = post;
+    connectToDestination(post, channels);
+  }
 
   // delay
-  let delaySend;
+  let delayNode;
   if (delay > 0 && delaytime > 0 && delayfeedback > 0) {
-    const delayNode = getDelay(orbit, delaytime, delayfeedback, t, orbitChannels);
-    delaySend = effectSend(post, delayNode, delay);
+    delayNode = getDelay(orbit, delaytime, delayfeedback, t, orbitChannels);
+    const delaySend = effectSend(sFiltNode, delayNode, delay);
     audioNodes.push(delaySend);
   }
+
   // reverb
-  let reverbSend;
+  let reverbNode;
   if (room > 0) {
     let roomIR;
     if (ir !== undefined) {
@@ -814,8 +881,8 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       }
       roomIR = await loadBuffer(url, ac, ir, 0);
     }
-    const reverbNode = getReverb(orbit, roomsize, roomfade, roomlp, roomdim, roomIR, orbitChannels);
-    reverbSend = effectSend(post, reverbNode, room);
+    reverbNode = getReverb(orbit, roomsize, roomfade, roomlp, roomdim, roomIR, orbitChannels);
+    const reverbSend = effectSend(sFiltNode, reverbNode, room);
     audioNodes.push(reverbSend);
   }
 

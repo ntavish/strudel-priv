@@ -334,6 +334,143 @@ class LadderProcessor extends AudioWorkletProcessor {
 }
 registerProcessor('ladder-processor', LadderProcessor);
 
+class CombProcessor extends AudioWorkletProcessor {
+  static get parameterDescriptors() {
+    return [
+      { name: 'frequency', defaultValue: 440, minValue: 8, maxValue: 22050},
+      { name: 'q', defaultValue: 0.5, minValue: 0, maxValue: 1},
+      { name: 'damp', defaultValue: 0.0, minValue: 0, maxValue: 0.9999},
+      { name: 'drive', defaultValue: 0.0, minValue: -24, maxValue: 24}, // db
+      { name: 'polarity',  defaultValue: 1.0, minValue: -1.0, maxValue: 1.0},
+      { name: 'mix', defaultValue: 0.5, minValue: 0, maxValue: 1},
+    ];
+  }
+
+  constructor() {
+    super();
+    this.maxDelaySec = 2.0;
+    this.buffLen = Math.ceil(this.maxDelaySec * sampleRate);
+    this.buffers = [];
+    this.lpState = [];
+    this.writeIndex = 0;
+  }
+
+  // 3rd-order Lagrange interpolation for fractional delay
+  lagrange3(buff, idxBase, f) {
+    const y_m1 = buff[_mod(idxBase - 1, this.buffLen)];
+    const y0 = buff[_mod(idxBase, this.buffLen)];
+    const y1 = buff[_mod(idxBase + 1, this.buffLen)];
+    const y2 = buff[_mod(idxBase + 2, this.buffLen)];
+    const c_m1 = (-1/6) * f * (f - 1) * (f - 2);
+    const c0 = ( 1/2) * (f + 1) * (f - 1) * (f - 2);
+    const c1 = (-1/2) * f * (f + 1) * (f - 2);
+    const c2 = ( 1/6) * f * (f + 1) * (f - 1);
+
+    return c_m1 * y_m1 + c0 * y0 + c1 * y1 + c2 * y2;
+  }
+
+  interp(buff, idxBase, f) {
+    const y0 = buff[_mod(idxBase, this.buffLen)];
+    const y1 = buff[_mod(idxBase + 1, this.buffLen)];
+    return (1 - f) * y0 + f * y1;
+  }
+
+  prefillChannel(ch, mode, level) {
+    const buf = this.buffers[ch];
+    if (!buf) return;
+    const N = buf.length;
+    if (mode === 0) {
+      buf.fill(0);
+    } else if (mode === 1) {
+      for (let i = 0; i < N; i++) buf[i] = (Math.random() * 2 - 1) * level;
+    } else {
+      buf.fill(0);
+      buf[0] = level; // single-sample impulse
+    }
+  }
+
+  // Map 0..1 -> RT60 in seconds, then to loop feedback
+  qToFb(q, delaySec, {
+    rt60Min = 0.03,   // short tail at q=0
+    rt60Max = 8.0,    // long tail at q=1
+    curve   = 1.4     // <1 = faster at low q, >1 = more action near high q
+  } = {}) {
+    const r = Math.min(Math.max(q, 0), 1);
+    const T = rt60Min * Math.pow(rt60Max / rt60Min, Math.pow(r, curve)); // exponential lerp
+    const fb = Math.pow(10, (-3 * delaySec) / T); // = exp(-6.907755 * delaySec / T)
+    return Math.min(fb, 0.9995); // safety
+  }
+
+  // doStrike(mode, level) {
+  //   // If not provided, use last seen k-rate params
+  //   const m = mode ?? this.lastPrefillMode ?? 1;
+  //   const l = level ?? this.lastPrefillLevel ?? 0.2;
+  //   for (let ch = 0; ch < this.buffers.length; ch++) this.prefillChannel(ch, m, l);
+  //   // Reset loop filter state so strike is clean
+  //   for (let ch = 0; ch < this._lpState.length; ch++) this.lpState[ch] = 0;
+  //   // Put write head at 0 so the impulse/noise is “immediate”
+  //   this.writeIndex = 0;
+  // }
+
+  process(inputs, outputs, parameters) {
+    const input = inputs[0];
+    const output = outputs[0];
+    const numChannels = output.length;
+    while (this.buffers.length < numChannels) {
+      this.buffers.push(new Float32Array(this.buffLen));
+      this.lpState.push(0);
+    }
+
+    const hz = clamp(parameters.frequency[0], 1 / this.maxDelaySec, sampleRate / 2);
+    const res = parameters.q[0];
+    const damp = 0; //parameters.damp[0];
+    const drive = parameters.drive[0] ?? 0;
+    const mix = 1; // parameters.mix[0];
+    const polarity = 1; // (parameters.polarity?.[0] ?? 1) >= 0 ? 1 : -1; // k-rate
+
+    // Prefill controls (k-rate)
+    // const prefillMode  = (parameters.prefillMode?.[0] ?? 1) | 0;
+    // const prefillLevel = parameters.prefillLevel?.[0] ?? 0.2;
+    // for (let ch = 0; ch < numChannels; ch++) {
+    //   this.prefillChannel(ch, prefillMode, prefillLevel);
+    // }
+
+    for (let n = 0; n < blockSize; n++) {
+      const readPos = this.writeIndex - (sampleRate / hz);
+      const base = Math.floor(readPos);
+      const frac = readPos - base;
+      const fb = res;  // this.qToFb(res, 1 / hz); //res * res * 0.9997;
+      // const fb = res;
+      const preGain = Math.pow(10, drive / 20);
+
+      for (let ch = 0; ch < numChannels; ch++) {
+        const buff = this.buffers[ch];
+        const signal = (input[ch]?.[n] ?? 0) * preGain;
+        // buff[this.writeIndex] = signal;
+
+        const delayed = this.interp(buff, base, frac);
+        // const delayed = this.lagrange3(buff, base, frac);
+        // const delayed = buff[_mod(base, this.buffLen)];
+
+        // Lowpass the delayed signal
+        const lpPrev = this.lpState[ch];
+        const lpNow  = (1 - damp) * delayed + damp * lpPrev;
+        this.lpState[ch] = lpNow;
+
+        const y = signal + polarity * fb * lpNow;
+        // const y = -fb * signal + xDelayed + fb * yDelayed;
+        buff[this.writeIndex] = y;  // switch to signal for flanger
+        output[ch][n] = signal * (1 - mix) + y * mix;
+      }
+      this.writeIndex++;
+      if (this.writeIndex >= this.buffLen) this.writeIndex = 0;
+    }
+    return true;
+  }
+}
+
+registerProcessor('comb-processor', CombProcessor);
+
 class DistortProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [

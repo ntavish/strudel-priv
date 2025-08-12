@@ -719,7 +719,7 @@ export const { cut } = registerControl('cut');
 /**
  * Applies the cutoff frequency of the **l**ow-**p**ass **f**ilter.
  *
- * When using mininotation, you can also optionally add the 'lpq' parameter, separated by ':'.
+ * When using mininotation, you can also optionally add the 'lpq' and 'lpenv' parameters, separated by ':'.
  *
  * @name lpf
  * @param {number | Pattern} frequency audible between 0 and 20000
@@ -727,10 +727,21 @@ export const { cut } = registerControl('cut');
  * @example
  * s("bd sd [~ bd] sd,hh*6").lpf("<4000 2000 1000 500 200 100>")
  * @example
- * s("bd*16").lpf("1000:0 1000:10 1000:20 1000:30")
+ * s("bd*16").lpf("1000:0:2 1000:10:1 1000:20:8 1000:30:0.5")
  *
  */
 export const { cutoff, ctf, lpf, lp } = registerControl(['cutoff', 'resonance', 'lpenv'], 'ctf', 'lpf', 'lp');
+
+/**
+ * Sets the send amount to a special filter
+ *
+ * When using mininotation, you can also optionally add the 'sffreq', 'sfq', and 'sftype' parameters, separated by ':'.
+ *
+ * @name sf
+ * @param {number | Pattern} amount to send to special filter effect, between 0 and 1
+ *
+ */
+export const { sf } = registerControl(['sf', 'sffreq', 'sfq', 'sftype'], 'sf');
 
 /**
  * Sets the lowpass filter envelope modulation depth.
