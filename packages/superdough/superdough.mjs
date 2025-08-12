@@ -626,6 +626,10 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     sfsustain,
     sfrelease,
     sfenv,
+    sfstages,
+    sfspread,
+    sfdamp,
+    sfdrive,
 
     //phaser
     phaserrate: phaser,

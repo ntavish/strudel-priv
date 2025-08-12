@@ -122,7 +122,7 @@ export function createFilter(context, type, frequency, Q, model, drive) {
     filter = getWorklet(context, 'ladder-processor', { frequency, q: Q, drive });
     frequencyParam = filter.parameters.get('frequency');
   } else if (['comb', 'flange', 'allpass'].includes(model)) {
-    filter = getWorklet(getAudioContext(), 'comb-processor', {
+    filter = getWorklet(getAudioContext(), 'special-filter-processor', {
       frequency: frequency,
       q: Q,
     }, {

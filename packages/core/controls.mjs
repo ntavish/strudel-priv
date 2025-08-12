@@ -817,6 +817,42 @@ export const { sfrelease, sfr } = registerControl('sfrelease', 'sfr');
 export const { sfenv } = registerControl(['sfenv'], 'sfenv');
 
 /**
+ * Sets the number of (cascaded) stages of a special filter
+ *
+ * @name sfenv
+ * @param {number | Pattern} envelope modulation depth
+ *
+ */
+export const { sfstages } = registerControl(['sfstages'], 'sfstages');
+
+/**
+ * Sets the dampening of a special filter
+ *
+ * @name sfdamp
+ * @param {number | Pattern} envelope modulation depth
+ *
+ */
+export const { sfdamp } = registerControl(['sfdamp'], 'sfdamp');
+
+/**
+ * Sets the drive of a special filter
+ *
+ * @name sfdamp
+ * @param {number | Pattern} envelope modulation depth
+ *
+ */
+export const { sfdrive } = registerControl(['sfdrive'], 'sfdrive');
+
+/**
+ * Sets the spread of a special filter
+ *
+ * @name sfspread
+ * @param {number | Pattern} envelope modulation depth
+ *
+ */
+export const { sfspread } = registerControl(['sfspread'], 'sfspread');
+
+/**
  * Sets the lowpass filter envelope modulation depth.
  * @name lpenv
  * @param {number | Pattern} modulation depth of the lowpass filter envelope between 0 and _n_
