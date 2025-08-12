@@ -9,7 +9,7 @@ import './reverb.mjs';
 import './vowel.mjs';
 import { clamp, nanFallback, _mod, cycleToSeconds, secondsToCycle } from './util.mjs';
 import workletsUrl from './worklets.mjs?audioworklet';
-import { createFilter, gainNode, getCompressor, getWorklet } from './helpers.mjs';
+import { createFilter, createFilterAndEnvelope, setupFilterEnvelope, gainNode, getCompressor, getWorklet } from './helpers.mjs';
 import { map } from 'nanostores';
 import { logger } from './logger.mjs';
 import { loadBuffer } from './sampler.mjs';
@@ -368,25 +368,32 @@ function scheduleParams(node, params, t, glideMs = 5) {
 
 // Special filters
 let sFilts = {};
-function getSFilt(orbit, freq, q, type, t, channels) {
+function getSFilt(orbit, freq, q, type, att, dec, sus, rel, fenv, start, end, channels) {
   if (!sFilts[orbit]) {
-    if (type == 'comb') {
-      filter = getWorklet(getAudioContext(), 'comb-processor', {
-        frequency: freq,
-        q: q,
-      });
-      connectToDestination(filter, channels);
-      sFilts[orbit] = filter;
-    } else {
-      console.warn(`No filter found of type ${type}`);
-      return;
-    }
+    // if (sFilts[orbit]) {
+    //   sFilts[orbit].stop?.(start);
+    //   sFilts[orbit].disconnect();
+    //   delete sFilts[orbit];
+    // }
+    let filter = createFilter(
+      getAudioContext(),
+      "special", // biquad type: not used
+      freq,
+      q,
+      type,
+      0, //drive
+    );
+    connectToDestination(filter, channels);
+    // let frequencyParam = filter.parameters.get('frequency');
+    // frequencyParam.setValueAtTime(30, start);
+    sFilts[orbit] = filter;
   }
   const params = {
     frequency: freq,
     q: q,
   };
-  scheduleParams(sFilts[orbit], params, t, 0.5);
+  scheduleParams(sFilts[orbit], params, start, 0);  // was 0.5
+  setupFilterEnvelope(sFilts[orbit], freq, att, dec, sus, rel, fenv, start, end);
   return sFilts[orbit];
 }
 
@@ -614,6 +621,11 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     sffreq,
     sfq,
     sftype,
+    sfattack,
+    sfdecay,
+    sfsustain,
+    sfrelease,
+    sfenv,
 
     //phaser
     phaserrate: phaser,
@@ -733,7 +745,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   const ftype = getFilterType(value.ftype);
   if (cutoff !== undefined) {
     let lp = () =>
-      createFilter(
+      createFilterAndEnvelope(
         ac,
         'lowpass',
         cutoff,
@@ -757,7 +769,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
 
   if (hcutoff !== undefined) {
     let hp = () =>
-      createFilter(
+      createFilterAndEnvelope(
         ac,
         'highpass',
         hcutoff,
@@ -779,7 +791,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
 
   if (bandf !== undefined) {
     let bp = () =>
-      createFilter(ac, 'bandpass', bandf, bandq, bpattack, bpdecay, bpsustain, bprelease, bpenv, t, end, fanchor);
+      createFilterAndEnvelope(ac, 'bandpass', bandf, bandq, bpattack, bpdecay, bpsustain, bprelease, bpenv, t, end, fanchor);
     chain.push(bp());
     if (ftype === '24db') {
       chain.push(bp());
@@ -848,7 +860,20 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   // special filters
   let sFiltNode;
   if (sf > 0) {
-    sFiltNode = getSFilt(orbit, sffreq, sfq, sftype, t, orbitChannels);
+    sFiltNode = getSFilt(
+      orbit,
+      sffreq,
+      sfq,
+      sftype,
+      sfattack,
+      sfdecay,
+      sfsustain,
+      sfrelease,
+      sfenv,
+      t,
+      end,
+      orbitChannels,
+    );
     const sFiltSend = effectSend(post, sFiltNode, sf);
     audioNodes.push(sFiltSend);
     let unfiltered = gainNode(1 - sf);

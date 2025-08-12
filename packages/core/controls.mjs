@@ -733,15 +733,88 @@ export const { cut } = registerControl('cut');
 export const { cutoff, ctf, lpf, lp } = registerControl(['cutoff', 'resonance', 'lpenv'], 'ctf', 'lpf', 'lp');
 
 /**
- * Sets the send amount to a special filter
- *
- * When using mininotation, you can also optionally add the 'sffreq', 'sfq', and 'sftype' parameters, separated by ':'.
+ * Sets the send amount to this orbit's special filter
  *
  * @name sf
  * @param {number | Pattern} amount to send to special filter effect, between 0 and 1
  *
  */
 export const { sf } = registerControl(['sf', 'sffreq', 'sfq', 'sftype'], 'sf');
+
+/**
+ * Sets the cutoff frequency of a special filter
+ *
+ * @name sffreq
+ * @param {number | Pattern} special filter frequency
+ *
+ */
+export const { sffreq } = registerControl(['sffreq'], 'sffreq');
+
+/**
+ * Sets the resonance of a special filter
+ *
+ * @name sfq
+ * @param {number | Pattern} special filter resonance
+ *
+ */
+export const { sfq } = registerControl(['sfq'], 'sfq');
+
+/**
+ * Sets the type of a special filter (e.g. "comb")
+ *
+ * @name sftype
+ * @param {string | Pattern} special filter type
+ *
+ */
+export const { sftype } = registerControl(['sftype'], 'sftype');
+
+/**
+ * Sets the attack of the envelope on a special filter
+ *
+ * @name sfattack
+ * @param {number | Pattern} envelope attack
+ * @synonyms sfa
+ *
+ */
+export const { sfattack, sfa } = registerControl('sfattack', 'sfa');
+
+/**
+ * Sets the decay of the envelope on a special filter
+ *
+ * @name sfdecay
+ * @param {number | Pattern} envelope decay
+ * @synonyms sfd
+ *
+ */
+export const { sfdecay, sfd } = registerControl('sfdecay', 'sfd');
+
+/**
+ * Sets the sustain of the envelope on a special filter
+ *
+ * @name sfsustain
+ * @param {number | Pattern} envelope sustain
+ * @synonyms sfs
+ *
+ */
+export const { sfsustain, sfs } = registerControl('sfsustain', 'sfs');
+
+/**
+ * Sets the release of the envelope on a special filter
+ *
+ * @name sfrelease
+ * @param {number | Pattern} envelope sustain
+ *
+ */
+export const { sfrelease, sfr } = registerControl('sfrelease', 'sfr');
+
+/**
+ * Sets the envelope modulation depth of a special filter
+ *
+ * @name sfenv
+ * @param {number | Pattern} envelope modulation depth
+ *
+ */
+export const { sfenv } = registerControl(['sfenv'], 'sfenv');
 
 /**
  * Sets the lowpass filter envelope modulation depth.

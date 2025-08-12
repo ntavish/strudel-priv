@@ -346,11 +346,13 @@ class CombProcessor extends AudioWorkletProcessor {
     ];
   }
 
-  constructor() {
+  constructor(options) {
     super();
+    this.mode = options.processorOptions?.mode ?? 'comb';
     this.maxDelaySec = 2.0;
     this.buffLen = Math.ceil(this.maxDelaySec * sampleRate);
     this.buffers = [];
+    this.xBuffers = [];
     this.lpState = [];
     this.writeIndex = 0;
   }
@@ -418,6 +420,7 @@ class CombProcessor extends AudioWorkletProcessor {
     const numChannels = output.length;
     while (this.buffers.length < numChannels) {
       this.buffers.push(new Float32Array(this.buffLen));
+      this.xBuffers.push(new Float32Array(this.buffLen));
       this.lpState.push(0);
     }
 
@@ -445,9 +448,11 @@ class CombProcessor extends AudioWorkletProcessor {
 
       for (let ch = 0; ch < numChannels; ch++) {
         const buff = this.buffers[ch];
-        const signal = (input[ch]?.[n] ?? 0) * preGain;
+        const xBuff = this.xBuffers[ch];
+        const x = (input[ch]?.[n] ?? 0) * preGain;
         // buff[this.writeIndex] = signal;
 
+        const xDelayed = this.interp(xBuff, base, frac);
         const delayed = this.interp(buff, base, frac);
         // const delayed = this.lagrange3(buff, base, frac);
         // const delayed = buff[_mod(base, this.buffLen)];
@@ -457,10 +462,19 @@ class CombProcessor extends AudioWorkletProcessor {
         const lpNow  = (1 - damp) * delayed + damp * lpPrev;
         this.lpState[ch] = lpNow;
 
-        const y = signal + polarity * fb * lpNow;
+        let y;
+        if (this.mode === "comb") {
+          y = x + polarity * fb * lpNow;
+        } else if (this.mode === "flange") {
+          y = x + polarity * fb * xDelayed;
+        } else if (this.mode === "allpass") {
+          y = -fb * x + xDelayed + fb * delayed;
+        }
+        buff[this.writeIndex] = y;
+        xBuff[this.writeIndex] = x;
         // const y = -fb * signal + xDelayed + fb * yDelayed;
-        buff[this.writeIndex] = y;  // switch to signal for flanger
-        output[ch][n] = signal * (1 - mix) + y * mix;
+        // buff[this.writeIndex] = y;  // switch to signal for flanger
+        output[ch][n] = x * (1 - mix) + y * mix / (1 + fb);
       }
       this.writeIndex++;
       if (this.writeIndex >= this.buffLen) this.writeIndex = 0;
