@@ -131,7 +131,7 @@ export function createFilter(context, type, frequency, Q, model, drive) {
 }
 
 export function setupFilterEnvelope(filter, frequency, att, dec, sus, rel, fenv, start, end, fanchor) {
-  const frequencyParam = filter.parameters.get('frequency');
+  const frequencyParam = filter.parameters?.get('frequency') ?? filter.frequency;
   const curve = 'exponential';
   const [attack, decay, sustain, release] = getADSRValues([att, dec, sus, rel], curve, [0.005, 0.14, 0, 0.1]);
 
