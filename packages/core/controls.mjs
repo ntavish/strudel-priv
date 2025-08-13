@@ -820,7 +820,7 @@ export const { sfenv } = registerControl(['sfenv'], 'sfenv');
  * Sets the number of (cascaded) stages of a special filter
  *
  * @name sfenv
- * @param {number | Pattern} envelope modulation depth
+ * @param {number | Pattern} number of stages
  *
  */
 export const { sfstages } = registerControl(['sfstages'], 'sfstages');
@@ -829,7 +829,7 @@ export const { sfstages } = registerControl(['sfstages'], 'sfstages');
  * Sets the dampening of a special filter
  *
  * @name sfdamp
- * @param {number | Pattern} envelope modulation depth
+ * @param {number | Pattern} dampening
  *
  */
 export const { sfdamp } = registerControl(['sfdamp'], 'sfdamp');
@@ -837,20 +837,57 @@ export const { sfdamp } = registerControl(['sfdamp'], 'sfdamp');
 /**
  * Sets the drive of a special filter
  *
- * @name sfdamp
- * @param {number | Pattern} envelope modulation depth
+ * @name sfdrive
+ * @param {number | Pattern} drive
  *
  */
 export const { sfdrive } = registerControl(['sfdrive'], 'sfdrive');
 
 /**
- * Sets the spread of a special filter
+ * Sets the spread across frequencies of each stage of a special filter
  *
  * @name sfspread
- * @param {number | Pattern} envelope modulation depth
+ * @param {number | Pattern} spread of stage frequencies
  *
  */
 export const { sfspread } = registerControl(['sfspread'], 'sfspread');
+
+/**
+ * Sets the stereo width of a special filter
+ *
+ * @name sfstereo
+ * @param {number | Pattern} stereo width in range 0 (none) to 1
+ *
+ */
+export const { sfstereo } = registerControl(['sfstereo'], 'sfstereo');
+
+/**
+ * Sets the lfo rate of a special filter
+ *
+ * @name sfrate
+ * @param {number | Pattern} lfo rate
+ *
+ */
+export const { sfrate } = registerControl(['sfrate'], 'sfrate');
+
+/**
+ * Sets the lfo depth of a special filter
+ *
+ * @name sfdepth
+ * @param {number | Pattern} lfo depth
+ *
+ */
+export const { sfdepth } = registerControl(['sfdepth'], 'sfdepth');
+
+/**
+ * Sets the seriality of a special filter, meaning an interpolation between
+ * parallel voices and serial cascaded filters
+ *
+ * @name sfser
+ * @param {number | Pattern} lfo depth
+ *
+ */
+export const { sfser } = registerControl(['sfser'], 'sfser');
 
 /**
  * Sets the lowpass filter envelope modulation depth.

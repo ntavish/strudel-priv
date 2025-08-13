@@ -9,7 +9,14 @@ import './reverb.mjs';
 import './vowel.mjs';
 import { clamp, nanFallback, _mod, cycleToSeconds, secondsToCycle } from './util.mjs';
 import workletsUrl from './worklets.mjs?audioworklet';
-import { createFilter, createFilterAndEnvelope, setupFilterEnvelope, gainNode, getCompressor, getWorklet } from './helpers.mjs';
+import {
+  createFilter,
+  createFilterAndEnvelope,
+  setupFilterEnvelope,
+  gainNode,
+  getCompressor,
+  getWorklet,
+} from './helpers.mjs';
 import { map } from 'nanostores';
 import { logger } from './logger.mjs';
 import { loadBuffer } from './sampler.mjs';
@@ -368,31 +375,47 @@ function scheduleParams(node, params, t, glideMs = 5) {
 
 // Special filters
 let sFilts = {};
-function getSFilt(orbit, freq, q, type, att, dec, sus, rel, fenv, start, end, channels) {
+
+function getSFilt(orbit, freq, q, type, att, dec, sus, rel, fenv,
+  stages, spread, damp, drive, stereo, rate, depth, ser, start, end, channels) {
   if (!sFilts[orbit]) {
-    // if (sFilts[orbit]) {
-    //   sFilts[orbit].stop?.(start);
-    //   sFilts[orbit].disconnect();
-    //   delete sFilts[orbit];
-    // }
-    let filter = createFilter(
+    let filter = getWorklet(
       getAudioContext(),
-      "special", // biquad type: not used
-      freq,
-      q,
-      type,
-      0, //drive
+      'special-filter-processor',
+      {
+        frequency: freq,
+        q: q,
+        stages: stages,
+        spread: spread,
+        damp: damp,
+        drive: drive,
+        stereo: stereo,
+        rate: rate,
+        depth: depth,
+        seriality: ser,
+      },
+      {
+        processorOptions: { mode: type },
+        outputChannelCount: [2],
+        channelCountMode: 'explicit'
+      },
     );
     connectToDestination(filter, channels);
-    // let frequencyParam = filter.parameters.get('frequency');
-    // frequencyParam.setValueAtTime(30, start);
     sFilts[orbit] = filter;
   }
   const params = {
     frequency: freq,
     q: q,
+    stages: stages,
+    spread: spread,
+    damp: damp,
+    drive: drive,
+    stereo: stereo,
+    rate: rate,
+    depth: depth,
+    seriality: ser,
   };
-  scheduleParams(sFilts[orbit], params, start, 0);  // was 0.5
+  scheduleParams(sFilts[orbit], params, start, 0); // was 0.5
   setupFilterEnvelope(sFilts[orbit], freq, att, dec, sus, rel, fenv, start, end);
   return sFilts[orbit];
 }
@@ -630,6 +653,10 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     sfspread,
     sfdamp,
     sfdrive,
+    sfstereo,
+    sfrate,
+    sfdepth,
+    sfser,
 
     //phaser
     phaserrate: phaser,
@@ -795,7 +822,20 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
 
   if (bandf !== undefined) {
     let bp = () =>
-      createFilterAndEnvelope(ac, 'bandpass', bandf, bandq, bpattack, bpdecay, bpsustain, bprelease, bpenv, t, end, fanchor);
+      createFilterAndEnvelope(
+        ac,
+        'bandpass',
+        bandf,
+        bandq,
+        bpattack,
+        bpdecay,
+        bpsustain,
+        bprelease,
+        bpenv,
+        t,
+        end,
+        fanchor,
+      );
     chain.push(bp());
     if (ftype === '24db') {
       chain.push(bp());
@@ -874,6 +914,14 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       sfsustain,
       sfrelease,
       sfenv,
+      sfstages,
+      sfspread,
+      sfdamp,
+      sfdrive,
+      sfstereo,
+      sfrate,
+      sfdepth,
+      sfser,
       t,
       end,
       orbitChannels,

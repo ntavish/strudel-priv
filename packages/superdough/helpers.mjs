@@ -21,7 +21,9 @@ const getSlope = (y1, y2, x1, x2) => {
 export function getWorklet(ac, processor, params, config) {
   const node = new AudioWorkletNode(ac, processor, config);
   Object.entries(params).forEach(([key, value]) => {
-    node.parameters.get(key).value = value;
+    if (value !== undefined) {
+      node.parameters.get(key).value = value;
+    }
   });
   return node;
 }
@@ -117,24 +119,13 @@ export const getADSRValues = (params, curve = 'linear', defaultValues) => {
 
 export function createFilter(context, type, frequency, Q, model, drive) {
   let filter;
-  let frequencyParam;
   if (model === 'ladder') {
     filter = getWorklet(context, 'ladder-processor', { frequency, q: Q, drive });
-    frequencyParam = filter.parameters.get('frequency');
-  } else if (['comb', 'flange', 'allpass'].includes(model)) {
-    filter = getWorklet(getAudioContext(), 'special-filter-processor', {
-      frequency: frequency,
-      q: Q,
-    }, {
-      processorOptions: { mode: model },
-    });
-    frequencyParam = filter.parameters.get('frequency');
   } else {
     filter = context.createBiquadFilter();
     filter.type = type;
     filter.Q.value = Q;
     filter.frequency.value = frequency;
-    frequencyParam = filter.frequency;
   }
   return filter;
 }
@@ -159,7 +150,22 @@ export function setupFilterEnvelope(filter, frequency, att, dec, sus, rel, fenv,
   }
 }
 
-export function createFilterAndEnvelope(context, type, frequency, Q, att, dec, sus, rel, fenv, start, end, fanchor, model, drive) {
+export function createFilterAndEnvelope(
+  context,
+  type,
+  frequency,
+  Q,
+  att,
+  dec,
+  sus,
+  rel,
+  fenv,
+  start,
+  end,
+  fanchor,
+  model,
+  drive,
+) {
   const filter = createFilter(context, type, frequency, Q, model, drive);
   setupFilterEnvelope(filter, frequency, att, dec, sus, rel, fenv, start, end, fanchor);
   return filter;
