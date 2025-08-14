@@ -904,7 +904,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   // special filters
   let sFiltNode;
   if (sf > 0) {
-    sFiltNode = getSFilt(
+    const preSFiltNode = getSFilt(
       orbit,
       sffreq,
       sfq,
@@ -926,7 +926,9 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       end,
       orbitChannels,
     );
-    const sFiltSend = effectSend(post, sFiltNode, sf);
+    sFiltNode = gainNode(postgain);
+    preSFiltNode.connect(sFiltNode);
+    const sFiltSend = effectSend(post, preSFiltNode, sf);
     audioNodes.push(sFiltSend);
     let unfiltered = gainNode(1 - sf);
     chain.push(unfiltered);

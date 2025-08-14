@@ -127,7 +127,7 @@ export const { n } = registerControl('n');
  * @example
  * note("60 69 65 64")
  */
-export const { note } = registerControl(['note', 'n']);
+export const { note } = registerControl(['note', 'n', 'velocity']);
 
 /**
  * A pattern of numbers that speed up (or slow down) samples while they play. Currently only supported by osc / superdirt.
@@ -739,7 +739,7 @@ export const { cutoff, ctf, lpf, lp } = registerControl(['cutoff', 'resonance', 
  * @param {number | Pattern} amount to send to special filter effect, between 0 and 1
  *
  */
-export const { sf } = registerControl(['sf', 'sffreq', 'sfq', 'sftype'], 'sf');
+export const { sf } = registerControl('sf');
 
 /**
  * Sets the cutoff frequency of a special filter
@@ -748,7 +748,7 @@ export const { sf } = registerControl(['sf', 'sffreq', 'sfq', 'sftype'], 'sf');
  * @param {number | Pattern} special filter frequency
  *
  */
-export const { sffreq } = registerControl(['sffreq'], 'sffreq');
+export const { sffreq } = registerControl('sffreq');
 
 /**
  * Sets the resonance of a special filter
@@ -757,7 +757,7 @@ export const { sffreq } = registerControl(['sffreq'], 'sffreq');
  * @param {number | Pattern} special filter resonance
  *
  */
-export const { sfq } = registerControl(['sfq'], 'sfq');
+export const { sfq } = registerControl('sfq');
 
 /**
  * Sets the type of a special filter (e.g. "comb")
@@ -766,7 +766,7 @@ export const { sfq } = registerControl(['sfq'], 'sfq');
  * @param {string | Pattern} special filter type
  *
  */
-export const { sftype } = registerControl(['sftype'], 'sftype');
+export const { sftype } = registerControl('sftype');
 
 /**
  * Sets the attack of the envelope on a special filter
@@ -814,7 +814,7 @@ export const { sfrelease, sfr } = registerControl('sfrelease', 'sfr');
  * @param {number | Pattern} envelope modulation depth
  *
  */
-export const { sfenv } = registerControl(['sfenv'], 'sfenv');
+export const { sfenv } = registerControl('sfenv');
 
 /**
  * Sets the number of (cascaded) stages of a special filter
@@ -823,7 +823,7 @@ export const { sfenv } = registerControl(['sfenv'], 'sfenv');
  * @param {number | Pattern} number of stages
  *
  */
-export const { sfstages } = registerControl(['sfstages'], 'sfstages');
+export const { sfstages } = registerControl('sfstages');
 
 /**
  * Sets the dampening of a special filter
@@ -832,7 +832,7 @@ export const { sfstages } = registerControl(['sfstages'], 'sfstages');
  * @param {number | Pattern} dampening
  *
  */
-export const { sfdamp } = registerControl(['sfdamp'], 'sfdamp');
+export const { sfdamp } = registerControl('sfdamp');
 
 /**
  * Sets the drive of a special filter
@@ -841,7 +841,7 @@ export const { sfdamp } = registerControl(['sfdamp'], 'sfdamp');
  * @param {number | Pattern} drive
  *
  */
-export const { sfdrive } = registerControl(['sfdrive'], 'sfdrive');
+export const { sfdrive } = registerControl('sfdrive');
 
 /**
  * Sets the spread across frequencies of each stage of a special filter
@@ -850,7 +850,7 @@ export const { sfdrive } = registerControl(['sfdrive'], 'sfdrive');
  * @param {number | Pattern} spread of stage frequencies
  *
  */
-export const { sfspread } = registerControl(['sfspread'], 'sfspread');
+export const { sfspread } = registerControl('sfspread');
 
 /**
  * Sets the stereo width of a special filter
@@ -859,7 +859,7 @@ export const { sfspread } = registerControl(['sfspread'], 'sfspread');
  * @param {number | Pattern} stereo width in range 0 (none) to 1
  *
  */
-export const { sfstereo } = registerControl(['sfstereo'], 'sfstereo');
+export const { sfstereo } = registerControl('sfstereo');
 
 /**
  * Sets the lfo rate of a special filter
@@ -868,7 +868,7 @@ export const { sfstereo } = registerControl(['sfstereo'], 'sfstereo');
  * @param {number | Pattern} lfo rate
  *
  */
-export const { sfrate } = registerControl(['sfrate'], 'sfrate');
+export const { sfrate } = registerControl('sfrate');
 
 /**
  * Sets the lfo depth of a special filter
@@ -877,7 +877,7 @@ export const { sfrate } = registerControl(['sfrate'], 'sfrate');
  * @param {number | Pattern} lfo depth
  *
  */
-export const { sfdepth } = registerControl(['sfdepth'], 'sfdepth');
+export const { sfdepth } = registerControl('sfdepth');
 
 /**
  * Sets the seriality of a special filter, meaning an interpolation between
@@ -887,7 +887,7 @@ export const { sfdepth } = registerControl(['sfdepth'], 'sfdepth');
  * @param {number | Pattern} lfo depth
  *
  */
-export const { sfser } = registerControl(['sfser'], 'sfser');
+export const { sfser } = registerControl('sfser');
 
 /**
  * Sets the lowpass filter envelope modulation depth.
