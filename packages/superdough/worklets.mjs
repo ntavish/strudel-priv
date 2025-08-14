@@ -433,19 +433,20 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           const lpNow = (1 - damp) * delayed + damp * lpPrev;
           this.lpState[ch][s] = lpNow;
           let yp;
+          const a = Math.sqrt(Math.max(0, 1 - (fb * fb)));
           if (this.mode === 'comb') {
-            yp = y + polarity * fb * lpNow;
+            yp = a * y + polarity * fb * lpNow;
           } else if (this.mode === 'flange') {
-            yp = y + polarity * fb * xDelayed;
+            yp = a * y + polarity * fb * xDelayed;
           } else if (this.mode === 'allpass') {
             yp = -fb * y + xDelayed + fb * delayed;
           }
           xBuff[this.writeIndex] = y;
           buff[this.writeIndex] = yp;
-          if (this.mode !== 'allpass') {
-            // y = yp;
-            yp /= 1 + fb * fb; // normalize
-          }
+          // if (this.mode !== 'allpass') {
+          //   // y = yp;
+          //   yp /= 1 + fb * fb; // normalize
+          // }
           yTotal += yp;
           y = seriality * yp + (1 - seriality) * y;
         }
