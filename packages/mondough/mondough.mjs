@@ -46,7 +46,7 @@ lib['def'] = () => silence;
 lib['or'] = (...children) => chooseIn(...children); // always has structure but is cyclewise.. e.g. "s oh*8.dec[.04 | .5]"
 //lib['or'] = (...children) => chooseOut(...children); // "s oh*8.dec[.04 | .5]" is better but "dec[.04 | .5].s oh*8" has no struct
 
-function evaluator(node, scope) {
+function evaluator(node, scope, isFirst=false) {
   const { type } = node;
   // node is list
   if (type === 'list') {
@@ -79,9 +79,12 @@ function evaluator(node, scope) {
   if (type === 'plain' && scope[value]) {
     return reify(scope[value]); // -> local scope has no location
   }
-  const variable = lib[value] ?? strudelScope[value];
-  // problem: collisions when we want a string that happens to also be a variable name
-  // example: "s sine" -> sine is also a variable
+  let variable;
+  if (isFirst) {
+    // Only interpret value as a special command in lib or strudelScope if
+    // it appears first in a parsed list
+    variable = lib[value] ?? strudelScope[value];
+  }
   let pat;
   if (type === 'plain' && typeof variable !== 'undefined') {
     // some function names are not patternable, so we skip reification here

@@ -446,22 +446,24 @@ export class MondoRunner {
     // evaluate all children before evaluating list (dont mutate!!!)
     const args = ast.children
       .filter((child) => child.type !== 'comment') // ignore comments
-      .map((arg) => this.evaluate(arg, scope));
+      // We tag the first element (i === 0) so that only it will be interpreted
+      // as a special function by mondo/strudel
+      .map((arg, i) => this.evaluate(arg, scope, i === 0));
     const node = { type: 'list', children: args };
     return this.evaluator(node, scope);
   }
-  evaluate_leaf(ast, scope) {
+  evaluate_leaf(ast, scope, isFirst=false) {
     if (ast.type === 'number') {
       ast.value = Number(ast.value);
     } else if (['quotes_double', 'quotes_single'].includes(ast.type)) {
       ast.value = ast.value.slice(1, -1);
       ast.type = 'string';
     }
-    return this.evaluator(ast, scope);
+    return this.evaluator(ast, scope, isFirst);
   }
-  evaluate(ast, scope = {}) {
+  evaluate(ast, scope = {}, isFirst=false) {
     if (ast.type !== 'list') {
-      return this.evaluate_leaf(ast, scope);
+      return this.evaluate_leaf(ast, scope, isFirst);
     }
     const name = ast.children[0]?.value;
     if (name === 'fn') {
