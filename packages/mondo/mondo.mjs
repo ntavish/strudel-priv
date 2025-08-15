@@ -452,7 +452,7 @@ export class MondoRunner {
     const node = { type: 'list', children: args };
     return this.evaluator(node, scope);
   }
-  evaluate_leaf(ast, scope, isFirst=false) {
+  evaluate_leaf(ast, scope, isFirst = false) {
     if (ast.type === 'number') {
       ast.value = Number(ast.value);
     } else if (['quotes_double', 'quotes_single'].includes(ast.type)) {
@@ -461,7 +461,7 @@ export class MondoRunner {
     }
     return this.evaluator(ast, scope, isFirst);
   }
-  evaluate(ast, scope = {}, isFirst=false) {
+  evaluate(ast, scope = {}, isFirst = false) {
     if (ast.type !== 'list') {
       return this.evaluate_leaf(ast, scope, isFirst);
     }
