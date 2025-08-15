@@ -489,19 +489,27 @@ export const wchooseCycles = (...pairs) => _wchooseWith(rand.segment(1), ...pair
 export const wrandcat = wchooseCycles;
 
 const smootherStep = (x) => 6.0 * x ** 5 - 15.0 * x ** 4 + 10.0 * x ** 3;
-const interpolate = (tSmoothing=id) => (a, b, t) => a + tSmoothing(t) * (b - a);
+const getInterpolator =
+  (tSmoothing = id) =>
+  (a, b, t) =>
+    a + tSmoothing(t) * (b - a);
 
-function _perlin(t, tSmoothing=smootherStep) {
+function _perlin(t, tSmoothing = smootherStep) {
   t = Number(t);
   const ta = Math.floor(t);
   const ra = timeToRand(ta);
   const rb = timeToRand(ta + 1);
-  const smoothInterp = interpolate(tSmoothing);
+  const smoothInterp = getInterpolator(tSmoothing);
   return smoothInterp(ra, rb, t - ta);
 }
 
 function _berlin(t) {
-  return _perlin(t, id); // linear interpolation
+  t = Number(t);
+  const ta = Math.floor(t);
+  const ra = timeToRand(ta);
+  const rb = timeToRand(ta + 1);
+  // We divide by 2 to rescale back to (0, 1) due to adding `ra + rb` below
+  return getInterpolator()(ra, ra + rb, t - ta) / 2;
 }
 
 /**
@@ -546,7 +554,7 @@ function _standardNormal(t) {
   const za = _boxMullerTransform(Math.abs(ra0), Math.abs(ra1));
   const zb = _boxMullerTransform(Math.abs(rb0), Math.abs(rb1));
   const dt = t - ta;
-  let z = interpolate(id)(za, zb, dt);
+  let z = getInterpolator(id)(za, zb, dt);
   // Variance is now (1 - dt)^2 + dt^2 (due to the interpolation)
   // so we renormalize
   return z / Math.hypot(1 - dt, dt);
@@ -572,10 +580,14 @@ function _standardNormal(t) {
  *   .lpf(200).lpenv(5).lpd(0.15).lpq(1)
  *   .s("supersaw, triangle").detune(0.25)
  *   .delay(0.5).room(1)
- *.  ._punchcard({height: 500, width:2000})
  *
  */
-export const normal = (mu = 0, sigma = 1, chaos = 1) => time.fmap((t) => _standardNormal(t)).fast(chaos).mul(sigma).add(mu);
+export const normal = (mu = 0, sigma = 1, chaos = 1) =>
+  time
+    .fmap((t) => _standardNormal(t))
+    .fast(chaos)
+    .mul(sigma)
+    .add(mu);
 
 export const degradeByWith = register(
   'degradeByWith',
