@@ -488,35 +488,21 @@ export const wchooseCycles = (...pairs) => _wchooseWith(rand.segment(1), ...pair
 
 export const wrandcat = wchooseCycles;
 
-function _perlin(t) {
-  let ta = Math.floor(t);
-  let tb = ta + 1;
-  const smootherStep = (x) => 6.0 * x ** 5 - 15.0 * x ** 4 + 10.0 * x ** 3;
-  const interp = (x) => (a) => (b) => a + smootherStep(x) * (b - a);
-  const v = interp(t - ta)(timeToRand(ta))(timeToRand(tb));
-  return v;
+const smootherStep = (x) => 6.0 * x ** 5 - 15.0 * x ** 4 + 10.0 * x ** 3;
+const interpolate = (tSmoothing=id) => (a, b, t) => a + tSmoothing(t) * (b - a);
+
+function _perlin(t, tSmoothing=smootherStep) {
+  t = Number(t);
+  const ta = Math.floor(t);
+  const ra = timeToRand(ta);
+  const rb = timeToRand(ta + 1);
+  const smoothInterp = interpolate(tSmoothing);
+  return smoothInterp(ra, rb, t - ta);
 }
-export const perlinWith = (tpat) => {
-  return tpat.fmap(_perlin);
-};
 
 function _berlin(t) {
-  const prevRidgeStartIndex = Math.floor(t);
-  const nextRidgeStartIndex = prevRidgeStartIndex + 1;
-
-  const prevRidgeBottomPoint = timeToRand(prevRidgeStartIndex);
-  const nextRidgeTopPoint = timeToRand(nextRidgeStartIndex) + prevRidgeBottomPoint;
-
-  const currentPercent = (t - prevRidgeStartIndex) / (nextRidgeStartIndex - prevRidgeStartIndex);
-  const interp = (a, b, t) => {
-    return a + (b - a) * t;
-  };
-  return interp(prevRidgeBottomPoint, nextRidgeTopPoint, currentPercent) / 2;
+  return _perlin(t, id); // linear interpolation
 }
-
-export const berlinWith = (tpat) => {
-  return tpat.fmap(_berlin);
-};
 
 /**
  * Generates a continuous pattern of [perlin noise](https://en.wikipedia.org/wiki/Perlin_noise), in the range 0..1.
@@ -527,7 +513,7 @@ export const berlinWith = (tpat) => {
  * s("bd*4,hh*8").cutoff(perlin.range(500,8000))
  *
  */
-export const perlin = perlinWith(time.fmap((v) => Number(v)));
+export const perlin = time.fmap(_perlin);
 
 /**
  * Generates a continuous pattern of [berlin noise](conceived by Jame Coyne and Jade Rowland as a joke but turned out to be surprisingly cool and useful,
@@ -539,7 +525,44 @@ export const perlin = perlinWith(time.fmap((v) => Number(v)));
  * n("0!16".add(berlin.fast(4).mul(14))).scale("d:minor")
  *
  */
-export const berlin = berlinWith(time.fmap((v) => Number(v)));
+export const berlin = time.fmap(_berlin);
+
+function _boxMullerTransform(u, v) {
+  u = 1 - u; // omit 0
+  const r = Math.sqrt(-2 * Math.log(u)); // Rayleigh distribution
+  const theta = 2 * Math.PI * v; // random angle
+  return r * Math.cos(theta);
+}
+
+function _normal(t, mu, sigma) {
+  t = Number(t);
+  const ta = Math.floor(t);
+  const [ra0, ra1] = timeToRands(ta, 2);
+  const [rb0, rb1] = timeToRands(ta + 1, 2);
+
+  // Apply the Box-Muller transform
+  // Note: we must take the absolute value here because timeToRands
+  // produces values in the range (-1, 1)
+  const za = _boxMullerTransform(Math.abs(ra0), Math.abs(ra1));
+  const zb = _boxMullerTransform(Math.abs(rb0), Math.abs(rb1));
+  const dt = t - ta;
+  let z = interpolate(id)(za, zb, dt);
+  // Variance is now (1 - dt)^2 + dt^2 (due to the interpolation)
+  // so we renormalize
+  z /= Math.hypot(1 - dt, dt);
+  return mu + sigma * z;
+}
+
+/**
+ * Generates a Gaussian normal pattern of noise centered at the first argument (mu) and of
+ * standard deviation the second argument (sigma)
+ *
+ * @name normal
+ * @example
+ * n("0!16".add(berlin.fast(4).mul(14))).scale("d:minor")
+ *
+ */
+export const normal = (mu = 0, sigma = 1, chaos = 1) => time.fmap((t) => _normal(t * chaos, mu, sigma));
 
 export const degradeByWith = register(
   'degradeByWith',
