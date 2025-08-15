@@ -534,7 +534,7 @@ function _boxMullerTransform(u, v) {
   return r * Math.cos(theta);
 }
 
-function _normal(t, mu, sigma) {
+function _standardNormal(t) {
   t = Number(t);
   const ta = Math.floor(t);
   const [ra0, ra1] = timeToRands(ta, 2);
@@ -549,20 +549,33 @@ function _normal(t, mu, sigma) {
   let z = interpolate(id)(za, zb, dt);
   // Variance is now (1 - dt)^2 + dt^2 (due to the interpolation)
   // so we renormalize
-  z /= Math.hypot(1 - dt, dt);
-  return mu + sigma * z;
+  return z / Math.hypot(1 - dt, dt);
 }
 
 /**
- * Generates a Gaussian normal pattern of noise centered at the first argument (mu) and of
- * standard deviation the second argument (sigma)
+ * Generates a Gaussian pattern of noise centered at the first argument (mu) and of
+ * standard deviation the second argument (sigma). The third argument controls the speed with which
+ * the distribution changes in time
  *
  * @name normal
+ * @returns {Pattern}
+ * @param {mu} mean of the distribution (where it's centered)
+ * @param {sigma} standard deviation of the distribution (how much it deviates from that center)
+ * @param {chaos} speed multiplier for how often the noise is sampled (otherwise it interpolates between values)
  * @example
- * n("0!16".add(berlin.fast(4).mul(14))).scale("d:minor")
+ * note("d1!16").s("saw")
+ *   .penv(normal(0, 2, 16)).pdecay(100)
+ *   .lpf(50).lpenv(tri.range(2, 6).slow(2))
+ * @example
+ * let normalDistribution = normal(0, "<1 2 3>/2", "<<0.25 4>*2!3 16>");
+ * n("<0!16>*16".add(normalDistribution)).scale("f3:minor")
+ *   .lpf(200).lpenv(5).lpd(0.15).lpq(1)
+ *   .s("supersaw, triangle").detune(0.25)
+ *   .delay(0.5).room(1)
+ *.  ._punchcard({height: 500, width:2000})
  *
  */
-export const normal = (mu = 0, sigma = 1, chaos = 1) => time.fmap((t) => _normal(t * chaos, mu, sigma));
+export const normal = (mu = 0, sigma = 1, chaos = 1) => time.fmap((t) => _standardNormal(t)).fast(chaos).mul(sigma).add(mu);
 
 export const degradeByWith = register(
   'degradeByWith',
