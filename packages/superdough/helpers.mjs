@@ -21,7 +21,9 @@ const getSlope = (y1, y2, x1, x2) => {
 export function getWorklet(ac, processor, params, config) {
   const node = new AudioWorkletNode(ac, processor, config);
   Object.entries(params).forEach(([key, value]) => {
-    node.parameters.get(key).value = value;
+    if (value !== undefined) {
+      node.parameters.get(key).value = value;
+    }
   });
   return node;
 }
@@ -97,6 +99,10 @@ export function getCompressor(ac, threshold, ratio, knee, attack, release) {
     release: release ?? 0.05,
   };
   return new DynamicsCompressorNode(ac, options);
+}
+
+export function getLimiter(ac, threshold, attack, release, lookahead) {
+  return getWorklet(ac, 'limiter-processor', { threshold: threshold, attack: attack, release: release, lookahead: lookahead });
 }
 
 // changes the default values of the envelope based on what parameters the user has defined

@@ -9,7 +9,7 @@ import './reverb.mjs';
 import './vowel.mjs';
 import { clamp, nanFallback, _mod, cycleToSeconds, secondsToCycle } from './util.mjs';
 import workletsUrl from './worklets.mjs?audioworklet';
-import { createFilter, gainNode, getCompressor, getWorklet } from './helpers.mjs';
+import { createFilter, gainNode, getCompressor, getLimiter, getWorklet } from './helpers.mjs';
 import { map } from 'nanostores';
 import { logger } from './logger.mjs';
 import { loadBuffer } from './sampler.mjs';
@@ -597,6 +597,10 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     compressorKnee,
     compressorAttack,
     compressorRelease,
+    limiter: limiterThreshold,
+    limiterAttack,
+    limiterRelease,
+    limiterLookahead,
   } = value;
 
   delaytime = delaytime ?? cycleToSeconds(delaysync, cps);
@@ -786,6 +790,11 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   if (phaser !== undefined && phaserdepth > 0) {
     const phaserFX = getPhaser(t, endWithRelease, phaser, phaserdepth, phasercenter, phasersweep);
     chain.push(phaserFX);
+  }
+
+  if (limiterThreshold !== undefined) {
+    const limiter = getLimiter(ac, limiterThreshold, limiterAttack, limiterRelease, limiterLookahead);
+    chain.push(limiter);
   }
 
   // last gain

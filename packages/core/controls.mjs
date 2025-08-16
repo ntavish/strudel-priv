@@ -1574,6 +1574,25 @@ export const { compressorKnee } = registerControl('compressorKnee');
 export const { compressorRatio } = registerControl('compressorRatio');
 export const { compressorAttack } = registerControl('compressorAttack');
 export const { compressorRelease } = registerControl('compressorRelease');
+
+/**
+ * Limiter. The params are `limiter("threshold:attack:release:lookahead")`
+ *
+ * @name limiter
+ * @example
+ * s("bd sd [~ bd] sd,hh*8").gain(10)
+ * .limiter(-2)
+ *
+ */
+export const { limiter } = registerControl([
+  'limiter',
+  'limiterAttack',
+  'limiterRelease',
+  'limiterLookahead',
+]);
+export const { limiterAttack } = registerControl('limiterAttack');
+export const { limiterRelease } = registerControl('limiterRelease');
+export const { limiterLookahead } = registerControl('limiterLookahead');
 /**
  * Changes the speed of sample playback, i.e. a cheap way of changing pitch.
  *

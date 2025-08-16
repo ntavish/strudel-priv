@@ -334,6 +334,67 @@ class LadderProcessor extends AudioWorkletProcessor {
 }
 registerProcessor('ladder-processor', LadderProcessor);
 
+class LimiterProcessor extends AudioWorkletProcessor {
+  static get parameterDescriptors() {
+    return [
+      { name: 'threshold', defaultValue: -1, minValue: -60, maxValue: 0 }, // dB
+      { name: 'attack', defaultValue: 0.003, minValue: 0, maxValue: 1 },
+      { name: 'release', defaultValue: 0.05, minValue: 0, maxValue: 1 },
+      { name: 'lookahead', defaultValue: 0.005, minValue: 0, maxValue: 0.05 },
+    ];
+  }
+
+  constructor() {
+    super();
+    this.bufferSize = Math.floor(0.05 * sampleRate); // max 50 ms lookahead
+    this.writePos = 0;
+    this.readPos = 0;
+    this.delayBuffers = [];
+    this.envs = [];
+  }
+
+  process(inputs, outputs, params) {
+    const input = inputs[0];
+    const output = outputs[0];
+    const hasInput = !(input[0] === undefined);
+    if (!hasInput) {
+      return false;
+    }
+    const numChannels = output.length;
+    while (this.delayBuffers.length < numChannels) {
+      this.delayBuffers.push(new Float32Array(this.bufferSize));
+      this.envs.push(0);
+    }
+    const threshold = Math.pow(10, (params.threshold[0] / 20));
+    const attackCoef = Math.exp(-1 / (params.attack[0] * sampleRate));
+    const releaseCoef = Math.exp(-1 / (params.release[0] * sampleRate));
+    const delaySamples = Math.floor(params.lookahead[0] * sampleRate);
+
+    for (let n = 0; n < blockSize; n++) {
+      for (let ch = 0; ch < numChannels; ch++) {
+        this.readPos = _mod(this.writePos - delaySamples, this.bufferSize);
+        const x = input[ch][n] ?? input[ch][0];
+        this.delayBuffers[ch][this.writePos] = x;
+
+        // peak detector
+        const magnitude = Math.abs(x);
+        if (magnitude > this.env)
+          this.envs[ch] = attackCoef * this.envs[ch] + (1 - attackCoef) * magnitude;
+        else
+          this.envs[ch] = releaseCoef * this.envs[ch] + (1 - releaseCoef) * magnitude;
+
+        const dampening = this.envs[ch] > threshold ? threshold / this.envs[ch] : 1;
+        output[ch][n] = this.delayBuffers[ch][this.readPos] * dampening;
+      }
+      this.readPos = (this.readPos + 1) % this.bufferSize;
+      this.writePos = (this.writePos + 1) % this.bufferSize;
+    }
+    return true;
+  }
+}
+
+registerProcessor('limiter-processor', LimiterProcessor);
+
 class DistortProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
