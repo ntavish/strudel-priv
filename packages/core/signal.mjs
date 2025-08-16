@@ -188,36 +188,46 @@ export const mouseX = signal(() => _mouseX);
 
 // random signals
 
-const xorwise = (x) => {
-  const a = (x << 13) ^ x;
-  const b = (a >> 17) ^ a;
-  return (b << 5) ^ b;
-};
+// Produce "Avalanche effect" where flipping a single bit of x
+// results in all output bits flipping with probability 0.5
+// See e.g. https://github.com/aappleby/smhasher/blob/0ff96f7835817a27d0487325b6c16033e2992eb5/src/MurmurHash3.cpp#L68-L77
+function _murmurHashFinalizer(x) {
+  x |= 0;
+  x ^= x >>> 16;
+  x = Math.imul(x, 0x85ebca6b);
+  x ^= x >>> 13;
+  x = Math.imul(x, 0xc2b2ae35);
+  x ^= x >>> 16;
+  return x >>> 0; // unsigned
+}
 
-// stretch 300 cycles over the range of [0,2**29 == 536870912) then apply the xorshift algorithm
-const _frac = (x) => x - Math.trunc(x);
+// Used to decorrelate nearby t and i prior to hashing
+function _decorrelate(t, i = 0) {
+  // const T = Math.floor(t * 4096);  // set 2^12 resolution
+  const T = Math.floor(t * 536870912); // set 2^29 resolution
+  const lowBits = (T >>> 0) >>> 0;
+  const highBits = Math.floor(T / 4294967296) >>> 0; // 2^32
+  let key = lowBits ^ Math.imul(highBits ^ 0x85ebca6b, 0xc2b2ae35);
+  key ^= Math.imul(i ^ 0x7f4a7c15, 0x9e3779b9);
+  return key >>> 0;
+  // return (T ^ Math.imul(i ^ 0x7f4a7c15, 0x9e3779b9)) >>> 0;
+}
 
-const timeToIntSeed = (x) => xorwise(Math.trunc(_frac(x / 300) * 536870912));
+function randAt(t, i = 0) {
+  return _murmurHashFinalizer(_decorrelate(t, i)) / 4294967296; // 2^32
+}
 
-const intSeedToRand = (x) => (x % 536870912) / 536870912;
+// N samples at time t
+function timeToRands(t, n) {
+  const out = new Array(n);
+  for (let i = 0; i < n; i++) out[i] = randAt(t, i);
+  return out;
+}
 
-const timeToRand = (x) => Math.abs(intSeedToRand(timeToIntSeed(x)));
-
-const timeToRandsPrime = (seed, n) => {
-  const result = [];
-  // eslint-disable-next-line
-  for (let i = 0; i < n; ++i) {
-    result.push(intSeedToRand(seed));
-    seed = xorwise(seed);
-  }
-  return result;
-};
-
-const timeToRands = (t, n) => timeToRandsPrime(timeToIntSeed(t), n);
-
-/**
- *
- */
+// Single sample at time t
+function timeToRand(t) {
+  return randAt(t, 0);
+}
 
 /**
  * A discrete pattern of numbers from 0 to n-1
