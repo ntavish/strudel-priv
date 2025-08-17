@@ -350,40 +350,48 @@ class LimiterProcessor extends AudioWorkletProcessor {
     this.writePos = 0;
     this.readPos = 0;
     this.delayBuffers = [];
-    this.envs = [];
+    this.follower = 0; // envelope follower
   }
+
+  // Helper for accessing audio rate parameters
+  _pv(arr, n) { return (arr.length > 1) ? arr[n] : arr[0]; }
 
   process(inputs, outputs, params) {
     const input = inputs[0];
-    const output = outputs[0];
-    const hasInput = !(input[0] === undefined);
-    if (!hasInput) {
+    if (input[0] === undefined) {
       return false;
     }
+    const sidechain = inputs[1]; // optional sidechain input
+    const output = outputs[0];
     const numChannels = output.length;
     while (this.delayBuffers.length < numChannels) {
       this.delayBuffers.push(new Float32Array(this.bufferSize));
-      this.envs.push(0);
     }
-    const threshold = Math.pow(10, (params.threshold[0] / 20));
-    const attackCoef = Math.exp(-1 / (params.attack[0] * sampleRate));
-    const releaseCoef = Math.exp(-1 / (params.release[0] * sampleRate));
-    const delaySamples = Math.floor(params.lookahead[0] * sampleRate);
 
+    const blockSize = output[0].length ?? 0;
     for (let n = 0; n < blockSize; n++) {
+      const threshold = Math.pow(10, (this._pv(params.threshold, n) / 20));
+      const attackCoef = Math.exp(-1 / (this._pv(params.attack, n) * sampleRate));
+      const releaseCoef = Math.exp(-1 / (this._pv(params.release, n) * sampleRate));
+      const delaySamples = Math.floor(this._pv(params.lookahead, n) * sampleRate);
+      this.readPos = _mod(this.writePos - delaySamples, this.bufferSize);
+      const probed = sidechain !== undefined ? sidechain : input;
+      // Calculate the maximum volume across all channels of the probed input
+      // This ensures that all channels are limited jointly and thus there is
+      // no wobbling back and forth in, say, stereo
+      const magnitude = probed.reduce(
+        (max, ch) => Math.max(max, Math.abs(this._pv(ch, n))),
+        0,
+      );
       for (let ch = 0; ch < numChannels; ch++) {
-        this.readPos = _mod(this.writePos - delaySamples, this.bufferSize);
-        const x = input[ch][n] ?? input[ch][0];
-        this.delayBuffers[ch][this.writePos] = x;
+        this.delayBuffers[ch][this.writePos] = this._pv(input[ch], n);
 
-        // peak detector
-        const magnitude = Math.abs(x);
-        if (magnitude > this.env)
-          this.envs[ch] = attackCoef * this.envs[ch] + (1 - attackCoef) * magnitude;
+        if (magnitude > this.follower)
+          this.follower = attackCoef * this.follower + (1 - attackCoef) * magnitude;
         else
-          this.envs[ch] = releaseCoef * this.envs[ch] + (1 - releaseCoef) * magnitude;
+          this.follower = releaseCoef * this.follower + (1 - releaseCoef) * magnitude;
 
-        const dampening = this.envs[ch] > threshold ? threshold / this.envs[ch] : 1;
+        const dampening = this.follower > threshold ? threshold / this.follower : 1;
         output[ch][n] = this.delayBuffers[ch][this.readPos] * dampening;
       }
       this.readPos = (this.readPos + 1) % this.bufferSize;
