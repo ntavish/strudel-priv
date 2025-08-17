@@ -1593,6 +1593,14 @@ export const { limiter } = registerControl([
 export const { limiterAttack } = registerControl('limiterAttack');
 export const { limiterRelease } = registerControl('limiterRelease');
 export const { limiterLookahead } = registerControl('limiterLookahead');
+
+/**
+ * Sets the current pattern's output as a sidechain for the provided orbits
+ *
+ * @name sidechain
+ */
+export const { sidechain } = registerControl(['sidechain']);
+
 /**
  * Changes the speed of sample playback, i.e. a cheap way of changing pitch.
  *

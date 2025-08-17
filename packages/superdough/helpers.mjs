@@ -101,10 +101,6 @@ export function getCompressor(ac, threshold, ratio, knee, attack, release) {
   return new DynamicsCompressorNode(ac, options);
 }
 
-export function getLimiter(ac, threshold, attack, release, lookahead) {
-  return getWorklet(ac, 'limiter-processor', { threshold: threshold, attack: attack, release: release, lookahead: lookahead });
-}
-
 // changes the default values of the envelope based on what parameters the user has defined
 // so it behaves more like you would expect/familiar as other synthesis tools
 // ex: sound(val).decay(val) will behave as a decay only envelope. sound(val).attack(val).decay(val) will behave like an "ad" env, etc.

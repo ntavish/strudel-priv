@@ -9,7 +9,7 @@ import './reverb.mjs';
 import './vowel.mjs';
 import { clamp, nanFallback, _mod, cycleToSeconds, secondsToCycle } from './util.mjs';
 import workletsUrl from './worklets.mjs?audioworklet';
-import { createFilter, gainNode, getCompressor, getLimiter, getWorklet } from './helpers.mjs';
+import { createFilter, gainNode, getCompressor, getWorklet } from './helpers.mjs';
 import { map } from 'nanostores';
 import { logger } from './logger.mjs';
 import { loadBuffer } from './sampler.mjs';
@@ -148,6 +148,7 @@ let defaultDefaultValues = {
   shapevol: 1,
   distortvol: 1,
   delay: 0,
+  room: 0,
   byteBeatExpression: '0',
   delayfeedback: 0.5,
   delaysync: 3 / 16,
@@ -326,7 +327,7 @@ export const panic = () => {
   channelMerger == null;
 };
 
-function getDelay(orbit, delaytime, delayfeedback, t, channels) {
+function getDelay(orbit, delaytime, delayfeedback, t, limiter) {
   if (delayfeedback > maxfeedback) {
     //logger(`delayfeedback was clamped to ${maxfeedback} to save your ears`);
   }
@@ -335,8 +336,8 @@ function getDelay(orbit, delaytime, delayfeedback, t, channels) {
     const ac = getAudioContext();
     const dly = ac.createFeedbackDelay(1, delaytime, delayfeedback);
     dly.start?.(t); // for some reason, this throws when audion extension is installed..
-    connectToDestination(dly, channels);
     delays[orbit] = dly;
+    dly.connect(limiter);
   }
   delays[orbit].delayTime.value !== delaytime && delays[orbit].delayTime.setValueAtTime(delaytime, t);
   delays[orbit].feedback.value !== delayfeedback && delays[orbit].feedback.setValueAtTime(delayfeedback, t);
@@ -414,13 +415,13 @@ function getFilterType(ftype) {
 
 let reverbs = {};
 let hasChanged = (now, before) => now !== undefined && now !== before;
-function getReverb(orbit, duration, fade, lp, dim, ir, channels) {
+function getReverb(orbit, duration, fade, lp, dim, ir, limiter) {
   // If no reverb has been created for a given orbit, create one
   if (!reverbs[orbit]) {
     const ac = getAudioContext();
     const reverb = ac.createReverb(duration, fade, lp, dim, ir);
-    connectToDestination(reverb, channels);
     reverbs[orbit] = reverb;
+    reverb.connect(limiter);
   }
   if (
     hasChanged(duration, reverbs[orbit].duration) ||
@@ -437,6 +438,54 @@ function getReverb(orbit, duration, fade, lp, dim, ir, channels) {
     reverbs[orbit].generate(duration, fade, lp, dim, ir);
   }
   return reverbs[orbit];
+}
+
+let limiters = {};
+function getLimiter(ac, orbit, threshold, attack, release, lookahead, postgain, currentTime, channels) {
+  const params = {
+    threshold: threshold,
+    attack: attack,
+    release: release,
+    lookahead: lookahead,
+    postgain: postgain,
+  };
+  if (!limiters[orbit]) {
+    const limiter = getWorklet(ac, 'limiter-processor', params, { 'numberOfInputs': 2 });
+    limiters[orbit] = limiter;
+    connectToDestination(limiters[orbit], channels);
+  }
+  for (const [name, value] of Object.entries(params)) {
+    if (value == null) continue;
+    const p = limiters[orbit].parameters?.get(name);
+    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(currentTime);
+    else p.cancelScheduledValues(currentTime);
+    p.setValueAtTime(value, currentTime);
+  }
+  return limiters[orbit];
+}
+
+let sidechainers = {}
+function setupSidechain(input, targetOrbit) {
+  const targetArr = [targetOrbit].flat();
+  targetArr.forEach((target) => {
+    const limiter = limiters[target];
+    if (limiter === undefined) {
+      errorLogger(new Error(`Sidechain target orbit ${target} does not exist`), 'superdough');
+      return;
+    }
+    // if (sidechainers[target]) {
+    //   limiter.disconnect(sidechainers[target]);
+    // }
+    sidechainers[target]?.disconnect();
+    // Connect input (index 0 of input) to the second input (index 1 of limiter)
+    input.connect(limiter, 0, 1);
+    sidechainers[target] = input;
+    // const numChannels = input.channels.length;
+    // for (let i = 0; i < numChannels; i ++) {
+    //   // Put the sidechain after all of the normal channels
+    //   input.connect(limiter, i, numChannels + i);
+    // }
+  });
 }
 
 export let analysers = {},
@@ -481,6 +530,7 @@ function effectSend(input, effect, wet) {
 export function resetGlobalEffects() {
   delays = {};
   reverbs = {};
+  limiters = {};
   analysers = {};
   analysersData = {};
 }
@@ -582,7 +632,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     delaysync = getDefaultValue('delaysync'),
     delaytime,
     orbit = getDefaultValue('orbit'),
-    room,
+    room = getDefaultValue('room'),
     roomfade,
     roomlp,
     roomdim,
@@ -601,6 +651,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     limiterAttack,
     limiterRelease,
     limiterLookahead,
+    sidechain,
   } = value;
 
   delaytime = delaytime ?? cycleToSeconds(delaysync, cps);
@@ -792,25 +843,33 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     chain.push(phaserFX);
   }
 
-  if (limiterThreshold !== undefined) {
-    const limiter = getLimiter(ac, limiterThreshold, limiterAttack, limiterRelease, limiterLookahead);
-    chain.push(limiter);
+  // end of main chain
+  const pre = new GainNode(ac, { gain: 1 });
+  chain.push(pre);
+
+  // analyser
+  let analyserSend;
+  if (analyze) {
+    const analyserNode = getAnalyserById(analyze, 2 ** (fft + 5));
+    analyserSend = effectSend(pre, analyserNode, 1);
+    audioNodes.push(analyserSend);
   }
 
-  // last gain
-  const post = new GainNode(ac, { gain: postgain });
-  chain.push(post);
-  connectToDestination(post, channels);
+  const limiter = getLimiter(ac, orbit, limiterThreshold, limiterAttack, limiterRelease, limiterLookahead, postgain, t, channels);
+  pre.connect(limiters[orbit]);
+
+  if (sidechain) {
+    setupSidechain(pre, sidechain);
+  }
 
   // delay
-  let delaySend;
   if (delay > 0 && delaytime > 0 && delayfeedback > 0) {
-    const delayNode = getDelay(orbit, delaytime, delayfeedback, t, orbitChannels);
-    delaySend = effectSend(post, delayNode, delay);
-    audioNodes.push(delaySend);
+    const delayNode = getDelay(orbit, delaytime, delayfeedback, t, limiter);
+    effectSend(pre, delayNode, delay);
+    delayNode.connect(limiter);
   }
+
   // reverb
-  let reverbSend;
   if (room > 0) {
     let roomIR;
     if (ir !== undefined) {
@@ -823,17 +882,9 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       }
       roomIR = await loadBuffer(url, ac, ir, 0);
     }
-    const reverbNode = getReverb(orbit, roomsize, roomfade, roomlp, roomdim, roomIR, orbitChannels);
-    reverbSend = effectSend(post, reverbNode, room);
-    audioNodes.push(reverbSend);
-  }
-
-  // analyser
-  let analyserSend;
-  if (analyze) {
-    const analyserNode = getAnalyserById(analyze, 2 ** (fft + 5));
-    analyserSend = effectSend(post, analyserNode, 1);
-    audioNodes.push(analyserSend);
+    const reverbNode = getReverb(orbit, roomsize, roomfade, roomlp, roomdim, roomIR, limiter);
+    effectSend(pre, reverbNode, room);
+    reverbNode.connect(limiter);
   }
 
   // connect chain elements together

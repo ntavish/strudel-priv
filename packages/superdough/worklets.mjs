@@ -337,10 +337,11 @@ registerProcessor('ladder-processor', LadderProcessor);
 class LimiterProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
-      { name: 'threshold', defaultValue: -1, minValue: -60, maxValue: 0 }, // dB
+      { name: 'threshold', defaultValue: 0 }, // dB
       { name: 'attack', defaultValue: 0.003, minValue: 0, maxValue: 1 },
       { name: 'release', defaultValue: 0.05, minValue: 0, maxValue: 1 },
       { name: 'lookahead', defaultValue: 0.005, minValue: 0, maxValue: 0.05 },
+      { name: 'postgain', defaultValue: 1 }, // linear
     ];
   }
 
@@ -358,9 +359,6 @@ class LimiterProcessor extends AudioWorkletProcessor {
 
   process(inputs, outputs, params) {
     const input = inputs[0];
-    if (input[0] === undefined) {
-      return false;
-    }
     const sidechain = inputs[1]; // optional sidechain input
     const output = outputs[0];
     const numChannels = output.length;
@@ -370,12 +368,13 @@ class LimiterProcessor extends AudioWorkletProcessor {
 
     const blockSize = output[0].length ?? 0;
     for (let n = 0; n < blockSize; n++) {
-      const threshold = Math.pow(10, (this._pv(params.threshold, n) / 20));
+      const threshold = Math.pow(10, this._pv(params.threshold, n) / 20);
       const attackCoef = Math.exp(-1 / (this._pv(params.attack, n) * sampleRate));
       const releaseCoef = Math.exp(-1 / (this._pv(params.release, n) * sampleRate));
+      const postGain = this._pv(params.postgain, n);
       const delaySamples = Math.floor(this._pv(params.lookahead, n) * sampleRate);
       this.readPos = _mod(this.writePos - delaySamples, this.bufferSize);
-      const probed = sidechain !== undefined ? sidechain : input;
+      const probed = sidechain.length ? sidechain : input;
       // Calculate the maximum volume across all channels of the probed input
       // This ensures that all channels are limited jointly and thus there is
       // no wobbling back and forth in, say, stereo
@@ -384,7 +383,7 @@ class LimiterProcessor extends AudioWorkletProcessor {
         0,
       );
       for (let ch = 0; ch < numChannels; ch++) {
-        this.delayBuffers[ch][this.writePos] = this._pv(input[ch], n);
+        this.delayBuffers[ch][this.writePos] = this._pv(input[ch] ?? [0], n);
 
         if (magnitude > this.follower)
           this.follower = attackCoef * this.follower + (1 - attackCoef) * magnitude;
@@ -392,7 +391,7 @@ class LimiterProcessor extends AudioWorkletProcessor {
           this.follower = releaseCoef * this.follower + (1 - releaseCoef) * magnitude;
 
         const dampening = this.follower > threshold ? threshold / this.follower : 1;
-        output[ch][n] = this.delayBuffers[ch][this.readPos] * dampening;
+        output[ch][n] = this.delayBuffers[ch][this.readPos] * dampening * postGain;
       }
       this.readPos = (this.readPos + 1) % this.bufferSize;
       this.writePos = (this.writePos + 1) % this.bufferSize;
