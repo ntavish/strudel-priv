@@ -365,20 +365,33 @@ class CompressorProcessor extends AudioWorkletProcessor {
     this.readPos = 0;
     this.delayBuffers = [];
     this.follower = 0; // envelope follower
+    this.avgGainLin = 1.0;
+    this.rmsCoeff = 0.9995;
     this.rms = 0;
+    this.rmsOver = 0;
     this.peakHold = 0;
-    this.avgGR = 0;
   }
 
   // Helper for accessing audio rate parameters
   _pv(arr, n) {
     return arr.length > 1 ? arr[n] : arr[0];
   }
-  _dbToLin(db) {
-    return Math.pow(10, db / 20);
+  _dBToLin(dB) {
+    return Math.pow(10, dB / 20);
   }
-  _linToDb(x) {
+  _linToDB(x) {
     return 20 * Math.log10(Math.max(x, 1e-20));
+  }
+  _kneeSmooth(x, knee) {
+    const halfKnee = 0.5 * knee;
+    if (knee <= 0) {
+      return Math.max(0, x);
+    } else if (x <= -halfKnee) {
+      return 0;
+    } else if (x >= halfKnee) {
+      return x;
+    }
+    return ((x + halfKnee) * (x + halfKnee)) / (2 * knee);
   }
 
   process(inputs, outputs, params) {
@@ -394,7 +407,6 @@ class CompressorProcessor extends AudioWorkletProcessor {
     for (let n = 0; n < blockSize; n++) {
       const threshold = this._pv(params.threshold, n);
       const attackCoef = Math.exp(-1 / (this._pv(params.attack, n) * sampleRate));
-      const releaseCoef = Math.exp(-1 / (this._pv(params.release, n) * sampleRate));
       const postGain = this._pv(params.postgain, n);
       let knee = this._pv(params.knee, n);
       let ratio = this._pv(params.ratio, n);
@@ -412,40 +424,36 @@ class CompressorProcessor extends AudioWorkletProcessor {
       // This ensures that all channels are limited jointly and thus there is
       // no wobbling back and forth in, say, stereo
       const magnitude = probed.reduce((max, ch) => Math.max(max, Math.abs(this._pv(ch, n))), 0);
-      const rmsCoef = 0.9995; // ~10–20ms smoothing at 48k; tune to taste
-      this.rms = rmsCoef * this.rms + (1 - rmsCoef) * magnitude * magnitude;
+      this.rms = this.rmsCoeff * this.rms + (1 - this.rmsCoeff) * magnitude * magnitude;
       const rms = Math.sqrt(this.rms + 1e-20);
-      const testValue = Math.max(magnitude * 0.75, rms);
+      // const testValue = Math.max(0.75 * magnitude, rms);
+      const testValue = sidechain.length > 0 ? Math.max(0.75 * magnitude, rms) : magnitude;
+      const t = clamp(this.follower, 0, 1);
+      const adapt = 0.3 + 0.7 * (1 - t) * (1 - t) * (1 - t) * (1 - t);
+      const releaseCoefAdapt = Math.exp(-1 / (this._pv(params.release, n) * adapt * sampleRate));
       if (testValue > this.follower) {
         this.follower = attackCoef * this.follower + (1 - attackCoef) * testValue;
-        this.peakHold = Math.max(this.peakHold * 0.995, this.follower);
+        this.peakHold = Math.max(0.995 * this.peakHold, this.follower);
       } else {
         const held = Math.max(this.peakHold, this.follower);
-        this.follower = releaseCoef * held + (1 - releaseCoef) * testValue;
+        // this.follower = releaseCoefAdapt * this.follower + (1 - releaseCoefAdapt) * testValue;
+        this.follower = releaseCoefAdapt * held + (1 - releaseCoefAdapt) * testValue;
         this.peakHold = Math.max(this.follower, testValue);
       }
-
-      const sgn = upward === 1 ? -1 : 1;
-      // Smoothed amount over threshold
-      const d = sgn * (this._linToDb(this.follower) - threshold);
-      const halfKnee = 0.5 * knee;
-      // Further smooth with knee
-      let D;
-      if (knee <= 0) {
-        D = Math.max(0, d);
-      } else if (d <= -halfKnee) {
-        D = 0;
-      } else if (d >= halfKnee) {
-        D = d;
-      } else {
-        D = ((d + halfKnee) * (d + halfKnee)) / (2 * knee);
+      const sgn = upward > 0.5 ? -1 : 1;
+      const d = sgn * (this._linToDB(this.follower) - threshold);
+      const D = this._kneeSmooth(d, knee);
+      const slope = 1 - 1 / ratio;
+      let smoothedGain = -sgn * slope * D;
+      if (D > knee) {
+        this.rmsOver = 0.99995 * this.rmsOver + (1 - 0.99995) * magnitude;
       }
-      let compGain = -sgn * (1 - 1 / ratio) * D; // in dB
-      this.avgGR = 0.998 * this.avgGR + 0.002 * compGain;
+      const dOver = sgn * (this._linToDB(this.rmsOver) - threshold);
+      const DOver = this._kneeSmooth(dOver, knee); // used for makeup gain computation
       if (autoMakeup) {
-        compGain += clamp(-0.7 * this.avgGR, -24, 24);
+        smoothedGain += sgn * slope * DOver;
       }
-      const compGainLin = this._dbToLin(compGain);
+      const compGainLin = this._dBToLin(smoothedGain);
       for (let ch = 0; ch < numChannels; ch++) {
         this.delayBuffers[ch][this.writePos] = this._pv(input[ch] ?? [0], n);
         output[ch][n] = this.delayBuffers[ch][this.readPos] * compGainLin * postGain;

@@ -1616,7 +1616,7 @@ export const { scompressorIsLimiter } = registerControl('scompressorIsLimiter');
  *
  * @name limiter
  * @example
- * s("bd sd [~ bd] sd,hh*8").gain(10)
+ * s("bd sd [~ bd] sd").gain(10).distort(5)
  * .limiter(-2)
  *
  */

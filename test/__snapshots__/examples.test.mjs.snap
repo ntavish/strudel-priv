@@ -5403,6 +5403,27 @@ exports[`runs examples > example "leslie" example index 0 1`] = `
 ]
 `;
 
+exports[`runs examples > example "limiter" example index 0 1`] = `
+[
+  "[ 0/1 → 1/4 | s:bd gain:10 distort:5 limiter:-2 ]",
+  "[ 1/4 → 1/2 | s:sd gain:10 distort:5 limiter:-2 ]",
+  "[ 5/8 → 3/4 | s:bd gain:10 distort:5 limiter:-2 ]",
+  "[ 3/4 → 1/1 | s:sd gain:10 distort:5 limiter:-2 ]",
+  "[ 1/1 → 5/4 | s:bd gain:10 distort:5 limiter:-2 ]",
+  "[ 5/4 → 3/2 | s:sd gain:10 distort:5 limiter:-2 ]",
+  "[ 13/8 → 7/4 | s:bd gain:10 distort:5 limiter:-2 ]",
+  "[ 7/4 → 2/1 | s:sd gain:10 distort:5 limiter:-2 ]",
+  "[ 2/1 → 9/4 | s:bd gain:10 distort:5 limiter:-2 ]",
+  "[ 9/4 → 5/2 | s:sd gain:10 distort:5 limiter:-2 ]",
+  "[ 21/8 → 11/4 | s:bd gain:10 distort:5 limiter:-2 ]",
+  "[ 11/4 → 3/1 | s:sd gain:10 distort:5 limiter:-2 ]",
+  "[ 3/1 → 13/4 | s:bd gain:10 distort:5 limiter:-2 ]",
+  "[ 13/4 → 7/2 | s:sd gain:10 distort:5 limiter:-2 ]",
+  "[ 29/8 → 15/4 | s:bd gain:10 distort:5 limiter:-2 ]",
+  "[ 15/4 → 4/1 | s:sd gain:10 distort:5 limiter:-2 ]",
+]
+`;
+
 exports[`runs examples > example "linger" example index 0 1`] = `
 [
   "[ 0/1 → 1/4 | s:lt ]",
@@ -8680,6 +8701,59 @@ exports[`runs examples > example "scaleTranspose" example index 0 1`] = `
   "[ 7/2 → 4/1 | note:B3 ]",
   "[ 7/2 → 4/1 | note:D4 ]",
   "[ 7/2 → 4/1 | note:F4 ]",
+]
+`;
+
+exports[`runs examples > example "scompressor" example index 0 1`] = `
+[
+  "[ 0/1 → 1/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 0/1 → 1/4 | s:bd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 1/8 → 1/4 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 1/4 → 3/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 1/4 → 1/2 | s:sd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 3/8 → 1/2 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 1/2 → 5/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 5/8 → 3/4 | s:bd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 5/8 → 3/4 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 3/4 → 7/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 3/4 → 1/1 | s:sd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 7/8 → 1/1 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 1/1 → 9/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 1/1 → 5/4 | s:bd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 9/8 → 5/4 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 5/4 → 11/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 5/4 → 3/2 | s:sd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 11/8 → 3/2 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 3/2 → 13/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 13/8 → 7/4 | s:bd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 13/8 → 7/4 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 7/4 → 15/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 7/4 → 2/1 | s:sd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 15/8 → 2/1 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 2/1 → 17/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 2/1 → 9/4 | s:bd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 17/8 → 9/4 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 9/4 → 19/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 9/4 → 5/2 | s:sd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 19/8 → 5/2 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 5/2 → 21/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 21/8 → 11/4 | s:bd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 21/8 → 11/4 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 11/4 → 23/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 11/4 → 3/1 | s:sd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 23/8 → 3/1 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 3/1 → 25/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 3/1 → 13/4 | s:bd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 25/8 → 13/4 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 13/4 → 27/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 13/4 → 7/2 | s:sd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 27/8 → 7/2 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 7/2 → 29/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 29/8 → 15/4 | s:bd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 29/8 → 15/4 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 15/4 → 31/8 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 15/4 → 4/1 | s:sd scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
+  "[ 31/8 → 4/1 | s:hh scompressor:-20 scompressorRatio:20 scompressorKnee:10 scompressorAttack:0.002 scompressorRelease:0.02 ]",
 ]
 `;
 
