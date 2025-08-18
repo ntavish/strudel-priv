@@ -1576,6 +1576,29 @@ export const { compressorAttack } = registerControl('compressorAttack');
 export const { compressorRelease } = registerControl('compressorRelease');
 
 /**
+ * Strudel Compressor. The params are `scompressor("threshold:ratio:knee:attack:release")`
+ *
+ * @name scompressor
+ * @example
+ * s("bd sd [~ bd] sd,hh*8")
+ * .scompressor("-20:20:10:.002:.02")
+ *
+ */
+export const { scompressor } = registerControl([
+  'scompressor',
+  'scompressorRatio',
+  'scompressorKnee',
+  'scompressorAttack',
+  'scompressorRelease',
+]);
+export const { scompressorKnee } = registerControl('scompressorKnee');
+export const { scompressorRatio } = registerControl('scompressorRatio');
+export const { scompressorAttack } = registerControl('scompressorAttack');
+export const { scompressorRelease } = registerControl('scompressorRelease');
+export const { scompressorAutomakeup } = registerControl('scompressorAutomakeup');
+export const { scompressorUpward } = registerControl('scompressorUpward');
+
+/**
  * Limiter. The params are `limiter("threshold:attack:release:lookahead")`
  *
  * @name limiter

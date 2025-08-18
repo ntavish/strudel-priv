@@ -334,14 +334,20 @@ class LadderProcessor extends AudioWorkletProcessor {
 }
 registerProcessor('ladder-processor', LadderProcessor);
 
-class LimiterProcessor extends AudioWorkletProcessor {
+class CompressorProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       { name: 'threshold', defaultValue: 0 }, // dB
-      { name: 'attack', defaultValue: 0.003, minValue: 0, maxValue: 1 },
-      { name: 'release', defaultValue: 0.05, minValue: 0, maxValue: 1 },
+      { name: 'attack', defaultValue: 0.003, minValue: 1e-6, maxValue: 1 },
+      { name: 'release', defaultValue: 0.05, minValue: 1e-6, maxValue: 1 },
       { name: 'lookahead', defaultValue: 0.005, minValue: 0, maxValue: 0.05 },
       { name: 'postgain', defaultValue: 1 }, // linear
+      { name: 'ratio', defaultValue: 4, minValue: 1, maxValue: 20 },
+      { name: 'knee', defaultValue: 6, minValue: 0, maxValue: 24 },
+      // bools
+      { name: 'islimiter', defaultValue: 0 },
+      { name: 'automakeup', defaultValue: 0 },
+      { name: 'upward', defaultValue: 0 }
     ];
   }
 
@@ -358,6 +364,8 @@ class LimiterProcessor extends AudioWorkletProcessor {
 
   // Helper for accessing audio rate parameters
   _pv(arr, n) { return (arr.length > 1) ? arr[n] : arr[0]; }
+  _dbToLin(db) { return Math.pow(10, db / 20); }
+  _linToDb(x) { return 20 * Math.log10(Math.max(x, 1e-20)); }
 
   process(inputs, outputs, params) {
     const input = inputs[0];
@@ -370,10 +378,19 @@ class LimiterProcessor extends AudioWorkletProcessor {
 
     const blockSize = output[0].length ?? 0;
     for (let n = 0; n < blockSize; n++) {
-      const threshold = Math.pow(10, this._pv(params.threshold, n) / 20);
+      const threshold = this._pv(params.threshold, n);
       const attackCoef = Math.exp(-1 / (this._pv(params.attack, n) * sampleRate));
       const releaseCoef = Math.exp(-1 / (this._pv(params.release, n) * sampleRate));
       const postGain = this._pv(params.postgain, n);
+      let knee = this._pv(params.knee, n);
+      let ratio = this._pv(params.ratio, n);
+      const upward = this._pv(params.upward, n);
+      const autoMakeup = this._pv(params.automakeup, n);
+      const isLimiter = this._pv(params.islimiter, n);
+      if (isLimiter) {
+        ratio = 1e9;
+        knee = 0;
+      }
       const delaySamples = Math.floor(this._pv(params.lookahead, n) * sampleRate);
       this.readPos = _mod(this.writePos - delaySamples, this.bufferSize);
       const probed = sidechain.length ? sidechain : input;
@@ -397,10 +414,29 @@ class LimiterProcessor extends AudioWorkletProcessor {
         this.peakHold = Math.max(this.follower, testValue);
       }
 
-      const dampening = this.follower > threshold ? threshold / this.follower : 1;
+      const sgn = (upward === 1 ? -1 : 1);
+      // Smoothed amount over threshold
+      const d = sgn * this._linToDb(this.follower) - threshold;
+      const halfKnee = 0.5 * knee;
+      // Further smooth with knee
+      let D;
+      if (knee <= 0) {
+        D = Math.max(0, d);
+      } else if (d <= -halfKnee) {
+        D = 0;
+      } else if (d >= halfKnee) {
+        D = d;
+      } else {
+        D = (d + halfKnee) * (d + halfKnee) / (2 * knee);
+      }
+      let compGain = -sgn * (1 - (1 / ratio)) * D; // in dB
+      if (autoMakeup) {
+        compGain += 0.5 * knee * (1 - 1 / ratio);
+      }
+      const compGainLin = this._dbToLin(compGain);
       for (let ch = 0; ch < numChannels; ch++) {
         this.delayBuffers[ch][this.writePos] = this._pv(input[ch] ?? [0], n);
-        output[ch][n] = this.delayBuffers[ch][this.readPos] * dampening * postGain;
+        output[ch][n] = this.delayBuffers[ch][this.readPos] * compGainLin * postGain;
       }
       this.readPos = (this.readPos + 1) % this.bufferSize;
       this.writePos = (this.writePos + 1) % this.bufferSize;
@@ -409,7 +445,7 @@ class LimiterProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('limiter-processor', LimiterProcessor);
+registerProcessor('compressor-processor', CompressorProcessor);
 
 class DistortProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {

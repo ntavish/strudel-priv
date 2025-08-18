@@ -327,7 +327,7 @@ export const panic = () => {
   channelMerger == null;
 };
 
-function getDelay(orbit, delaytime, delayfeedback, t, limiter) {
+function getDelay(orbit, delaytime, delayfeedback, t, compressor) {
   if (delayfeedback > maxfeedback) {
     //logger(`delayfeedback was clamped to ${maxfeedback} to save your ears`);
   }
@@ -337,7 +337,7 @@ function getDelay(orbit, delaytime, delayfeedback, t, limiter) {
     const dly = ac.createFeedbackDelay(1, delaytime, delayfeedback);
     dly.start?.(t); // for some reason, this throws when audion extension is installed..
     delays[orbit] = dly;
-    dly.connect(limiter);
+    dly.connect(compressor);
   }
   delays[orbit].delayTime.value !== delaytime && delays[orbit].delayTime.setValueAtTime(delaytime, t);
   delays[orbit].feedback.value !== delayfeedback && delays[orbit].feedback.setValueAtTime(delayfeedback, t);
@@ -415,13 +415,13 @@ function getFilterType(ftype) {
 
 let reverbs = {};
 let hasChanged = (now, before) => now !== undefined && now !== before;
-function getReverb(orbit, duration, fade, lp, dim, ir, limiter) {
+function getReverb(orbit, duration, fade, lp, dim, ir, compressor) {
   // If no reverb has been created for a given orbit, create one
   if (!reverbs[orbit]) {
     const ac = getAudioContext();
     const reverb = ac.createReverb(duration, fade, lp, dim, ir);
     reverbs[orbit] = reverb;
-    reverb.connect(limiter);
+    reverb.connect(compressor);
   }
   if (
     hasChanged(duration, reverbs[orbit].duration) ||
@@ -448,9 +448,10 @@ function getLimiter(ac, orbit, threshold, attack, release, lookahead, postgain, 
     release: release,
     lookahead: lookahead,
     postgain: postgain,
+    islimiter: true,
   };
   if (!limiters[orbit]) {
-    const limiter = getWorklet(ac, 'limiter-processor', params, { 'numberOfInputs': 2 });
+    const limiter = getWorklet(ac, 'compressor-processor', params, { 'numberOfInputs': 2 });
     limiters[orbit] = limiter;
     connectToDestination(limiters[orbit], channels);
   }
@@ -464,22 +465,48 @@ function getLimiter(ac, orbit, threshold, attack, release, lookahead, postgain, 
   return limiters[orbit];
 }
 
+let scompressors = {};
+function getSCompressor(ac, orbit, threshold, attack, release, knee, ratio, automakeup, upward, currentTime, limiter) {
+  const params = {
+    threshold: threshold,
+    attack: attack,
+    release: release,
+    knee: knee,
+    ratio: ratio,
+    automakeup: automakeup,
+    upward: upward,
+  };
+  if (!scompressors[orbit]) {
+    const compressor = getWorklet(ac, 'compressor-processor', params, { 'numberOfInputs': 2 });
+    scompressors[orbit] = compressor;
+    compressor.connect(limiter);
+  }
+  for (const [name, value] of Object.entries(params)) {
+    if (value == null) continue;
+    const p = scompressors[orbit].parameters?.get(name);
+    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(currentTime);
+    else p.cancelScheduledValues(currentTime);
+    p.setValueAtTime(value, currentTime);
+  }
+  return scompressors[orbit];
+}
+
 let sidechainers = {}
 function setupSidechain(input, targetOrbit) {
   const targetArr = [targetOrbit].flat();
   targetArr.forEach((target) => {
-    const limiter = limiters[target];
-    if (limiter === undefined) {
+    const compressor = scompressors[target];
+    if (compressor === undefined) {
       errorLogger(new Error(`Sidechain target orbit ${target} does not exist`), 'superdough');
       return;
     }
     try {
-      sidechainers[target]?.disconnect(limiter, 0, 1);
+      sidechainers[target]?.disconnect(compressor, 0, 1);
     } catch (e) {
       // pass
     }
-    // Connect input (index 0 of input) to the second input (index 1 of limiter)
-    input.connect(limiter, 0, 1);
+    // Connect input (index 0 of input) to the second input (index 1 of compressor)
+    input.connect(compressor, 0, 1);
     sidechainers[target] = input;
   });
 }
@@ -647,6 +674,13 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     limiterAttack,
     limiterRelease,
     limiterLookahead,
+    scompressor: scompressorThreshold,
+    scompressorRatio,
+    scompressorKnee,
+    scompressorAttack,
+    scompressorRelease,
+    scompressorAutoMakeup,
+    scompressorUpward,
     sidechain,
   } = value;
 
@@ -852,7 +886,8 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   }
 
   const limiter = getLimiter(ac, orbit, limiterThreshold, limiterAttack, limiterRelease, limiterLookahead, postgain, t, channels);
-  pre.connect(limiters[orbit]);
+  const compressor = getSCompressor(ac, orbit, scompressorThreshold, scompressorAttack, scompressorRelease, scompressorKnee, scompressorRatio, scompressorAutoMakeup, scompressorUpward, t, limiter);
+  pre.connect(compressor);
 
   if (sidechain) {
     setupSidechain(pre, sidechain);
@@ -860,9 +895,9 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
 
   // delay
   if (delay > 0 && delaytime > 0 && delayfeedback > 0) {
-    const delayNode = getDelay(orbit, delaytime, delayfeedback, t, limiter);
+    const delayNode = getDelay(orbit, delaytime, delayfeedback, t, compressor);
     effectSend(pre, delayNode, delay);
-    delayNode.connect(limiter);
+    delayNode.connect(compressor);
   }
 
   // reverb
@@ -878,9 +913,9 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       }
       roomIR = await loadBuffer(url, ac, ir, 0);
     }
-    const reverbNode = getReverb(orbit, roomsize, roomfade, roomlp, roomdim, roomIR, limiter);
+    const reverbNode = getReverb(orbit, roomsize, roomfade, roomlp, roomdim, roomIR, compressor);
     effectSend(pre, reverbNode, room);
-    reverbNode.connect(limiter);
+    reverbNode.connect(compressor);
   }
 
   // connect chain elements together
