@@ -451,7 +451,7 @@ function getLimiter(ac, orbit, threshold, attack, release, lookahead, postgain, 
     islimiter: true,
   };
   if (!limiters[orbit]) {
-    const limiter = getWorklet(ac, 'compressor-processor', params, { 'numberOfInputs': 2 });
+    const limiter = getWorklet(ac, 'compressor-processor', params, { numberOfInputs: 2 });
     limiters[orbit] = limiter;
     connectToDestination(limiters[orbit], channels);
   }
@@ -466,7 +466,20 @@ function getLimiter(ac, orbit, threshold, attack, release, lookahead, postgain, 
 }
 
 let scompressors = {};
-function getSCompressor(ac, orbit, threshold, attack, release, knee, ratio, automakeup, upward, islimiter, currentTime, limiter) {
+function getSCompressor(
+  ac,
+  orbit,
+  threshold,
+  attack,
+  release,
+  knee,
+  ratio,
+  automakeup,
+  upward,
+  islimiter,
+  currentTime,
+  limiter,
+) {
   const params = {
     threshold: threshold,
     attack: attack,
@@ -478,7 +491,7 @@ function getSCompressor(ac, orbit, threshold, attack, release, knee, ratio, auto
     islimiter: islimiter,
   };
   if (!scompressors[orbit]) {
-    const compressor = getWorklet(ac, 'compressor-processor', params, { 'numberOfInputs': 2 });
+    const compressor = getWorklet(ac, 'compressor-processor', params, { numberOfInputs: 2 });
     scompressors[orbit] = compressor;
     compressor.connect(limiter);
   }
@@ -492,7 +505,7 @@ function getSCompressor(ac, orbit, threshold, attack, release, knee, ratio, auto
   return scompressors[orbit];
 }
 
-let sidechainers = {}
+let sidechainers = {};
 function setupSidechain(input, targetOrbit) {
   const targetArr = [targetOrbit].flat();
   targetArr.forEach((target) => {
@@ -887,8 +900,31 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     audioNodes.push(analyserSend);
   }
 
-  const limiter = getLimiter(ac, orbit, limiterThreshold, limiterAttack, limiterRelease, limiterLookahead, postgain, t, channels);
-  const compressor = getSCompressor(ac, orbit, scompressorThreshold, scompressorAttack, scompressorRelease, scompressorKnee, scompressorRatio, scompressorAutomakeup, scompressorUpward, scompressorIsLimiter, t, limiter);
+  const limiter = getLimiter(
+    ac,
+    orbit,
+    limiterThreshold,
+    limiterAttack,
+    limiterRelease,
+    limiterLookahead,
+    postgain,
+    t,
+    channels,
+  );
+  const compressor = getSCompressor(
+    ac,
+    orbit,
+    scompressorThreshold,
+    scompressorAttack,
+    scompressorRelease,
+    scompressorKnee,
+    scompressorRatio,
+    scompressorAutomakeup,
+    scompressorUpward,
+    scompressorIsLimiter,
+    t,
+    limiter,
+  );
   pre.connect(compressor);
 
   if (sidechain) {

@@ -347,7 +347,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
       // bools
       { name: 'islimiter', defaultValue: 0 },
       { name: 'automakeup', defaultValue: 0 },
-      { name: 'upward', defaultValue: 0 }
+      { name: 'upward', defaultValue: 0 },
     ];
   }
 
@@ -364,9 +364,15 @@ class CompressorProcessor extends AudioWorkletProcessor {
   }
 
   // Helper for accessing audio rate parameters
-  _pv(arr, n) { return (arr.length > 1) ? arr[n] : arr[0]; }
-  _dbToLin(db) { return Math.pow(10, db / 20); }
-  _linToDb(x) { return 20 * Math.log10(Math.max(x, 1e-20)); }
+  _pv(arr, n) {
+    return arr.length > 1 ? arr[n] : arr[0];
+  }
+  _dbToLin(db) {
+    return Math.pow(10, db / 20);
+  }
+  _linToDb(x) {
+    return 20 * Math.log10(Math.max(x, 1e-20));
+  }
 
   process(inputs, outputs, params) {
     const input = inputs[0];
@@ -398,10 +404,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
       // Calculate the maximum volume across all channels of the probed input
       // This ensures that all channels are limited jointly and thus there is
       // no wobbling back and forth in, say, stereo
-      const magnitude = probed.reduce(
-        (max, ch) => Math.max(max, Math.abs(this._pv(ch, n))),
-        0,
-      );
+      const magnitude = probed.reduce((max, ch) => Math.max(max, Math.abs(this._pv(ch, n))), 0);
       const rmsCoef = 0.9995; // ~10–20ms smoothing at 48k; tune to taste
       this.rms = rmsCoef * this.rms + (1 - rmsCoef) * magnitude * magnitude;
       const rms = Math.sqrt(this.rms + 1e-20);
@@ -415,7 +418,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.peakHold = Math.max(this.follower, testValue);
       }
 
-      const sgn = (upward === 1 ? -1 : 1);
+      const sgn = upward === 1 ? -1 : 1;
       // Smoothed amount over threshold
       const d = sgn * (this._linToDb(this.follower) - threshold);
       const halfKnee = 0.5 * knee;
@@ -428,9 +431,9 @@ class CompressorProcessor extends AudioWorkletProcessor {
       } else if (d >= halfKnee) {
         D = d;
       } else {
-        D = (d + halfKnee) * (d + halfKnee) / (2 * knee);
+        D = ((d + halfKnee) * (d + halfKnee)) / (2 * knee);
       }
-      let compGain = -sgn * (1 - (1 / ratio)) * D; // in dB
+      let compGain = -sgn * (1 - 1 / ratio) * D; // in dB
       this.avgGR = 0.998 * this.avgGR + 0.002 * compGain;
       if (autoMakeup) {
         compGain += clamp(-0.7 * this.avgGR, -24, 24);

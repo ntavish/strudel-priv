@@ -1608,12 +1608,7 @@ export const { scompressorIsLimiter } = registerControl('scompressorIsLimiter');
  * .limiter(-2)
  *
  */
-export const { limiter } = registerControl([
-  'limiter',
-  'limiterAttack',
-  'limiterRelease',
-  'limiterLookahead',
-]);
+export const { limiter } = registerControl(['limiter', 'limiterAttack', 'limiterRelease', 'limiterLookahead']);
 export const { limiterAttack } = registerControl('limiterAttack');
 export const { limiterRelease } = registerControl('limiterRelease');
 export const { limiterLookahead } = registerControl('limiterLookahead');
