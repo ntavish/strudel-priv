@@ -347,7 +347,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
       { name: 'threshold', defaultValue: 0 }, // dB
       { name: 'attack', defaultValue: 0.003, minValue: 1e-6, maxValue: 1 },
       { name: 'release', defaultValue: 0.05, minValue: 1e-6, maxValue: 1 },
-      { name: 'lookahead', defaultValue: 0.005, minValue: 0, maxValue: 0.05 },
+      { name: 'lookahead', defaultValue: 0, minValue: 0, maxValue: 0.05 },
       { name: 'postgain', defaultValue: 1 }, // linear
       { name: 'ratio', defaultValue: 4, minValue: 1, maxValue: 20 },
       { name: 'knee', defaultValue: 6, minValue: 0, maxValue: 24 },
@@ -407,6 +407,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
     for (let n = 0; n < blockSize; n++) {
       const threshold = this._pv(params.threshold, n);
       const attackCoef = Math.exp(-1 / (this._pv(params.attack, n) * sampleRate));
+      const releaseCoef = Math.exp(-1 / (this._pv(params.release, n) * sampleRate));
       const postGain = this._pv(params.postgain, n);
       let knee = this._pv(params.knee, n);
       let ratio = this._pv(params.ratio, n);
@@ -426,8 +427,8 @@ class CompressorProcessor extends AudioWorkletProcessor {
       const magnitude = probed.reduce((max, ch) => Math.max(max, Math.abs(this._pv(ch, n))), 0);
       this.rms = this.rmsCoeff * this.rms + (1 - this.rmsCoeff) * magnitude * magnitude;
       const rms = Math.sqrt(this.rms + 1e-20);
-      // const testValue = Math.max(0.75 * magnitude, rms);
-      const testValue = sidechain.length > 0 ? Math.max(0.75 * magnitude, rms) : magnitude;
+      // const testValue = sidechain.length > 0 ? Math.max(0.75 * magnitude, rms) : magnitude;
+      const testValue = magnitude;
       const t = clamp(this.follower, 0, 1);
       const adapt = 0.3 + 0.7 * (1 - t) * (1 - t) * (1 - t) * (1 - t);
       const releaseCoefAdapt = Math.exp(-1 / (this._pv(params.release, n) * adapt * sampleRate));
@@ -436,7 +437,6 @@ class CompressorProcessor extends AudioWorkletProcessor {
         this.peakHold = Math.max(0.995 * this.peakHold, this.follower);
       } else {
         const held = Math.max(this.peakHold, this.follower);
-        // this.follower = releaseCoefAdapt * this.follower + (1 - releaseCoefAdapt) * testValue;
         this.follower = releaseCoefAdapt * held + (1 - releaseCoefAdapt) * testValue;
         this.peakHold = Math.max(this.follower, testValue);
       }

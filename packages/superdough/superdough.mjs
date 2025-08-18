@@ -156,6 +156,7 @@ let defaultDefaultValues = {
   i: 1,
   velocity: 1,
   fft: 8,
+  limiterLookahead: 0.005,
 };
 
 const defaultDefaultDefaultValues = Object.freeze({ ...defaultDefaultValues });
@@ -521,11 +522,11 @@ function getSCompressor(
     compressor.connect(orbits[orbit].limiter);
   }
   for (const [name, value] of Object.entries(params)) {
-    if (value == null) continue;
-    const p = orbits[orbit].scompressor.parameters?.get(name);
+    const p = orbits[orbit].scompressor.parameters.get(name);
+    let valueWithDefault = value ?? p.defaultValue;
     if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(currentTime);
     else p.cancelScheduledValues(currentTime);
-    p.setValueAtTime(value, currentTime);
+    p.setValueAtTime(valueWithDefault, currentTime);
   }
   return orbits[orbit].scompressor;
 }
@@ -713,7 +714,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     limiter: limiterThreshold,
     limiterAttack,
     limiterRelease,
-    limiterLookahead,
+    limiterLookahead = getDefaultValue('limiterLookahead'),
     scompressor: scompressorThreshold,
     scompressorRatio,
     scompressorKnee,
