@@ -360,6 +360,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
     this.follower = 0; // envelope follower
     this.rms = 0;
     this.peakHold = 0;
+    this.avgGR = 0;
   }
 
   // Helper for accessing audio rate parameters
@@ -416,7 +417,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
       const sgn = (upward === 1 ? -1 : 1);
       // Smoothed amount over threshold
-      const d = sgn * this._linToDb(this.follower) - threshold;
+      const d = sgn * (this._linToDb(this.follower) - threshold);
       const halfKnee = 0.5 * knee;
       // Further smooth with knee
       let D;
@@ -430,8 +431,9 @@ class CompressorProcessor extends AudioWorkletProcessor {
         D = (d + halfKnee) * (d + halfKnee) / (2 * knee);
       }
       let compGain = -sgn * (1 - (1 / ratio)) * D; // in dB
+      this.avgGR = 0.998 * this.avgGR + 0.002 * compGain;
       if (autoMakeup) {
-        compGain += 0.5 * knee * (1 - 1 / ratio);
+        compGain += clamp(-0.7 * this.avgGR, -24, 24);
       }
       const compGainLin = this._dbToLin(compGain);
       for (let ch = 0; ch < numChannels; ch++) {

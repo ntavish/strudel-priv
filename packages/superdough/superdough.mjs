@@ -679,7 +679,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     scompressorKnee,
     scompressorAttack,
     scompressorRelease,
-    scompressorAutoMakeup,
+    scompressorAutomakeup,
     scompressorUpward,
     sidechain,
   } = value;
@@ -886,7 +886,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   }
 
   const limiter = getLimiter(ac, orbit, limiterThreshold, limiterAttack, limiterRelease, limiterLookahead, postgain, t, channels);
-  const compressor = getSCompressor(ac, orbit, scompressorThreshold, scompressorAttack, scompressorRelease, scompressorKnee, scompressorRatio, scompressorAutoMakeup, scompressorUpward, t, limiter);
+  const compressor = getSCompressor(ac, orbit, scompressorThreshold, scompressorAttack, scompressorRelease, scompressorKnee, scompressorRatio, scompressorAutomakeup, scompressorUpward, t, limiter);
   pre.connect(compressor);
 
   if (sidechain) {
