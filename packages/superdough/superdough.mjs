@@ -473,18 +473,14 @@ function setupSidechain(input, targetOrbit) {
       errorLogger(new Error(`Sidechain target orbit ${target} does not exist`), 'superdough');
       return;
     }
-    // if (sidechainers[target]) {
-    //   limiter.disconnect(sidechainers[target]);
-    // }
-    sidechainers[target]?.disconnect();
+    try {
+      sidechainers[target]?.disconnect(limiter, 0, 1);
+    } catch (e) {
+      // pass
+    }
     // Connect input (index 0 of input) to the second input (index 1 of limiter)
     input.connect(limiter, 0, 1);
     sidechainers[target] = input;
-    // const numChannels = input.channels.length;
-    // for (let i = 0; i < numChannels; i ++) {
-    //   // Put the sidechain after all of the normal channels
-    //   input.connect(limiter, i, numChannels + i);
-    // }
   });
 }
 

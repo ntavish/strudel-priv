@@ -352,6 +352,8 @@ class LimiterProcessor extends AudioWorkletProcessor {
     this.readPos = 0;
     this.delayBuffers = [];
     this.follower = 0; // envelope follower
+    this.rms = 0;
+    this.peakHold = 0;
   }
 
   // Helper for accessing audio rate parameters
@@ -382,15 +384,22 @@ class LimiterProcessor extends AudioWorkletProcessor {
         (max, ch) => Math.max(max, Math.abs(this._pv(ch, n))),
         0,
       );
+      const rmsCoef = 0.9995; // ~10–20ms smoothing at 48k; tune to taste
+      this.rms = rmsCoef * this.rms + (1 - rmsCoef) * magnitude * magnitude;
+      const rms = Math.sqrt(this.rms + 1e-20);
+      const testValue = Math.max(magnitude * 0.75, rms);
+      if (testValue > this.follower) {
+        this.follower = attackCoef * this.follower + (1 - attackCoef) * testValue;
+        this.peakHold = Math.max(this.peakHold * 0.995, this.follower);
+      } else {
+        const held = Math.max(this.peakHold, this.follower);
+        this.follower = releaseCoef * held + (1 - releaseCoef) * testValue;
+        this.peakHold = Math.max(this.follower, testValue);
+      }
+
+      const dampening = this.follower > threshold ? threshold / this.follower : 1;
       for (let ch = 0; ch < numChannels; ch++) {
         this.delayBuffers[ch][this.writePos] = this._pv(input[ch] ?? [0], n);
-
-        if (magnitude > this.follower)
-          this.follower = attackCoef * this.follower + (1 - attackCoef) * magnitude;
-        else
-          this.follower = releaseCoef * this.follower + (1 - releaseCoef) * magnitude;
-
-        const dampening = this.follower > threshold ? threshold / this.follower : 1;
         output[ch][n] = this.delayBuffers[ch][this.readPos] * dampening * postGain;
       }
       this.readPos = (this.readPos + 1) % this.bufferSize;

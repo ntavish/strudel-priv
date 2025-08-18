@@ -1599,7 +1599,7 @@ export const { limiterLookahead } = registerControl('limiterLookahead');
  *
  * @name sidechain
  */
-export const { sidechain } = registerControl(['sidechain']);
+export const { sidechain } = registerControl('sidechain');
 
 /**
  * Changes the speed of sample playback, i.e. a cheap way of changing pitch.
