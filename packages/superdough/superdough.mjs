@@ -466,7 +466,7 @@ function getLimiter(ac, orbit, threshold, attack, release, lookahead, postgain, 
 }
 
 let scompressors = {};
-function getSCompressor(ac, orbit, threshold, attack, release, knee, ratio, automakeup, upward, currentTime, limiter) {
+function getSCompressor(ac, orbit, threshold, attack, release, knee, ratio, automakeup, upward, islimiter, currentTime, limiter) {
   const params = {
     threshold: threshold,
     attack: attack,
@@ -475,6 +475,7 @@ function getSCompressor(ac, orbit, threshold, attack, release, knee, ratio, auto
     ratio: ratio,
     automakeup: automakeup,
     upward: upward,
+    islimiter: islimiter,
   };
   if (!scompressors[orbit]) {
     const compressor = getWorklet(ac, 'compressor-processor', params, { 'numberOfInputs': 2 });
@@ -681,6 +682,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     scompressorRelease,
     scompressorAutomakeup,
     scompressorUpward,
+    scompressorIsLimiter,
     sidechain,
   } = value;
 
@@ -886,7 +888,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   }
 
   const limiter = getLimiter(ac, orbit, limiterThreshold, limiterAttack, limiterRelease, limiterLookahead, postgain, t, channels);
-  const compressor = getSCompressor(ac, orbit, scompressorThreshold, scompressorAttack, scompressorRelease, scompressorKnee, scompressorRatio, scompressorAutomakeup, scompressorUpward, t, limiter);
+  const compressor = getSCompressor(ac, orbit, scompressorThreshold, scompressorAttack, scompressorRelease, scompressorKnee, scompressorRatio, scompressorAutomakeup, scompressorUpward, scompressorIsLimiter, t, limiter);
   pre.connect(compressor);
 
   if (sidechain) {
