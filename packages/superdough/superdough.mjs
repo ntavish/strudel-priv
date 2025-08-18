@@ -9,9 +9,9 @@ import './reverb.mjs';
 import './vowel.mjs';
 import { clamp, nanFallback, _mod, cycleToSeconds, secondsToCycle } from './util.mjs';
 import workletsUrl from './worklets.mjs?audioworklet';
-import { createFilter, gainNode, getCompressor, getWorklet } from './helpers.mjs';
+import { createFilter, gainNode, getCompressor, getWorklet, webAudioTimeout } from './helpers.mjs';
 import { map } from 'nanostores';
-import { logger } from './logger.mjs';
+import { logger, errorLogger } from './logger.mjs';
 import { loadBuffer } from './sampler.mjs';
 
 export const DEFAULT_MAX_POLYPHONY = 128;
@@ -332,16 +332,18 @@ function getDelay(orbit, delaytime, delayfeedback, t, compressor) {
     //logger(`delayfeedback was clamped to ${maxfeedback} to save your ears`);
   }
   delayfeedback = clamp(delayfeedback, 0, 0.98);
-  if (!delays[orbit]) {
+  if (!orbits[orbit].delayNode) {
     const ac = getAudioContext();
     const dly = ac.createFeedbackDelay(1, delaytime, delayfeedback);
     dly.start?.(t); // for some reason, this throws when audion extension is installed..
-    delays[orbit] = dly;
-    dly.connect(compressor);
+    connectToOrbit(dly, orbit);
+    orbits[orbit].delayNode = dly;
   }
-  delays[orbit].delayTime.value !== delaytime && delays[orbit].delayTime.setValueAtTime(delaytime, t);
-  delays[orbit].feedback.value !== delayfeedback && delays[orbit].feedback.setValueAtTime(delayfeedback, t);
-  return delays[orbit];
+  orbits[orbit].delayNode.delayTime.value !== delaytime &&
+    orbits[orbit].delayNode.delayTime.setValueAtTime(delaytime, t);
+  orbits[orbit].delayNode.feedback.value !== delayfeedback &&
+    orbits[orbit].delayNode.feedback.setValueAtTime(delayfeedback, t);
+  return orbits[orbit].delayNode;
 }
 
 export function getLfo(audioContext, begin, end, properties = {}) {
@@ -364,22 +366,6 @@ export function getLfo(audioContext, begin, end, properties = {}) {
   };
 
   return getWorklet(audioContext, 'lfo-processor', lfoprops);
-}
-
-export function getSyncedLfo(audioContext, time, end, cps, cycle, properties = {}) {
-  const frequency = cycle / cps;
-
-  return getWorklet(audioContext, 'lfo-processor', {
-    frequency,
-    depth: 1,
-    skew: 0,
-    phaseoffset: 0,
-    time,
-    end,
-    shape: 1,
-    dcoffset: -0.5,
-    ...properties,
-  });
 }
 
 function getPhaser(time, end, frequency = 1, depth = 0.5, centerFrequency = 1000, sweep = 2000) {
@@ -413,34 +399,74 @@ function getFilterType(ftype) {
   return typeof ftype === 'number' ? filterTypes[Math.floor(_mod(ftype, filterTypes.length))] : ftype;
 }
 
-let reverbs = {};
+//type orbit {
+// gain: number,
+// reverbNode: reverbNode
+// delayNode: delayNode
+//}
+let orbits = {};
+function connectToOrbit(node, orbit) {
+  if (orbits[orbit] == null) {
+    errorLogger(new Error('target orbit does not exist'), 'superdough');
+  }
+  node.connect(orbits[orbit].gain);
+}
+
+function setOrbit(audioContext, orbit, channels) {
+  if (orbits[orbit] == null) {
+    orbits[orbit] = {
+      gain: new GainNode(audioContext, { gain: 1 }),
+    };
+  }
+}
+function duckOrbit(audioContext, targetOrbit, t, attacktime = 0.1, duckdepth = 1) {
+  const targetArr = [targetOrbit].flat();
+
+  targetArr.forEach((target) => {
+    if (orbits[target] == null) {
+      errorLogger(new Error(`duck target orbit ${target} does not exist`), 'superdough');
+      return;
+    }
+    webAudioTimeout(
+      audioContext,
+      () => {
+        orbits[target].gain.gain.cancelScheduledValues(t);
+        const currVal = orbits[target].gain.gain.value;
+        orbits[target].gain.gain.linearRampToValueAtTime(clamp(1 - Math.pow(duckdepth, 0.5), 0.01, currVal), t);
+        orbits[target].gain.gain.exponentialRampToValueAtTime(1, t + Math.max(0.002, attacktime));
+      },
+      0,
+      t - 0.01,
+    );
+  });
+}
+
 let hasChanged = (now, before) => now !== undefined && now !== before;
-function getReverb(orbit, duration, fade, lp, dim, ir, compressor) {
+function getReverb(orbit, duration, fade, lp, dim, ir) {
   // If no reverb has been created for a given orbit, create one
-  if (!reverbs[orbit]) {
+  if (!orbits[orbit].reverbNode) {
     const ac = getAudioContext();
     const reverb = ac.createReverb(duration, fade, lp, dim, ir);
-    reverbs[orbit] = reverb;
-    reverb.connect(compressor);
+    connectToOrbit(reverb, orbit);
+    orbits[orbit].reverbNode = reverb;
   }
   if (
-    hasChanged(duration, reverbs[orbit].duration) ||
-    hasChanged(fade, reverbs[orbit].fade) ||
-    hasChanged(lp, reverbs[orbit].lp) ||
-    hasChanged(dim, reverbs[orbit].dim) ||
-    reverbs[orbit].ir !== ir
+    hasChanged(duration, orbits[orbit].reverbNode.duration) ||
+    hasChanged(fade, orbits[orbit].reverbNode.fade) ||
+    hasChanged(lp, orbits[orbit].reverbNode.lp) ||
+    hasChanged(dim, orbits[orbit].reverbNode.dim) ||
+    orbits[orbit].reverbNode.ir !== ir
   ) {
     // only regenerate when something has changed
     // avoids endless regeneration on things like
     // stack(s("a"), s("b").rsize(8)).room(.5)
     // this only works when args may stay undefined until here
     // setting default values breaks this
-    reverbs[orbit].generate(duration, fade, lp, dim, ir);
+    orbits[orbit].reverbNode.generate(duration, fade, lp, dim, ir);
   }
-  return reverbs[orbit];
+  return orbits[orbit].reverbNode;
 }
 
-let limiters = {};
 function getLimiter(ac, orbit, threshold, attack, release, lookahead, postgain, currentTime, channels) {
   const params = {
     threshold: threshold,
@@ -450,22 +476,21 @@ function getLimiter(ac, orbit, threshold, attack, release, lookahead, postgain, 
     postgain: postgain,
     islimiter: true,
   };
-  if (!limiters[orbit]) {
+  if (!orbits[orbit].limiter) {
     const limiter = getWorklet(ac, 'compressor-processor', params, { numberOfInputs: 2 });
-    limiters[orbit] = limiter;
-    connectToDestination(limiters[orbit], channels);
+    orbits[orbit].limiter = limiter;
+    connectToDestination(orbits[orbit].limiter, channels);
   }
   for (const [name, value] of Object.entries(params)) {
     if (value == null) continue;
-    const p = limiters[orbit].parameters?.get(name);
+    const p = orbits[orbit].limiter.parameters?.get(name);
     if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(currentTime);
     else p.cancelScheduledValues(currentTime);
     p.setValueAtTime(value, currentTime);
   }
-  return limiters[orbit];
+  return orbits[orbit].limiter;
 }
 
-let scompressors = {};
 function getSCompressor(
   ac,
   orbit,
@@ -478,7 +503,6 @@ function getSCompressor(
   upward,
   islimiter,
   currentTime,
-  limiter,
 ) {
   const params = {
     threshold: threshold,
@@ -490,38 +514,38 @@ function getSCompressor(
     upward: upward,
     islimiter: islimiter,
   };
-  if (!scompressors[orbit]) {
+  if (!orbits[orbit].scompressor) {
     const compressor = getWorklet(ac, 'compressor-processor', params, { numberOfInputs: 2 });
-    scompressors[orbit] = compressor;
-    compressor.connect(limiter);
+    orbits[orbit].scompressor = compressor;
+    orbits[orbit].gain.connect(compressor);
+    compressor.connect(orbits[orbit].limiter);
   }
   for (const [name, value] of Object.entries(params)) {
     if (value == null) continue;
-    const p = scompressors[orbit].parameters?.get(name);
+    const p = orbits[orbit].scompressor.parameters?.get(name);
     if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(currentTime);
     else p.cancelScheduledValues(currentTime);
     p.setValueAtTime(value, currentTime);
   }
-  return scompressors[orbit];
+  return orbits[orbit].scompressor;
 }
 
-let sidechainers = {};
 function setupSidechain(input, targetOrbit) {
   const targetArr = [targetOrbit].flat();
   targetArr.forEach((target) => {
-    const compressor = scompressors[target];
+    const compressor = orbits[target].scompressor;
     if (compressor === undefined) {
       errorLogger(new Error(`Sidechain target orbit ${target} does not exist`), 'superdough');
       return;
     }
     try {
-      sidechainers[target]?.disconnect(compressor, 0, 1);
+      orbits[target].sidechain?.disconnect(compressor, 0, 1);
     } catch (e) {
       // pass
     }
     // Connect input (index 0 of input) to the second input (index 1 of compressor)
     input.connect(compressor, 0, 1);
-    sidechainers[target] = input;
+    orbits[target].sidechain = input;
   });
 }
 
@@ -565,9 +589,7 @@ function effectSend(input, effect, wet) {
 }
 
 export function resetGlobalEffects() {
-  delays = {};
-  reverbs = {};
-  limiters = {};
+  orbits = {};
   analysers = {};
   analysersData = {};
 }
@@ -620,6 +642,9 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     gain = getDefaultValue('gain'),
     postgain = getDefaultValue('postgain'),
     density = getDefaultValue('density'),
+    duckorbit,
+    duckattack,
+    duckdepth,
     // filters
     fanchor = getDefaultValue('fanchor'),
     drive = 0.69,
@@ -658,6 +683,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     coarse,
 
     crush,
+    dry,
     shape,
     shapevol = getDefaultValue('shapevol'),
     distort,
@@ -704,7 +730,13 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   const orbitChannels = mapChannelNumbers(
     multiChannelOrbits && orbit > 0 ? [orbit * 2 - 1, orbit * 2] : getDefaultValue('channels'),
   );
+
   const channels = value.channels != null ? mapChannelNumbers(value.channels) : orbitChannels;
+  setOrbit(ac, orbit, channels, t, cycle, cps);
+
+  if (duckorbit != null) {
+    duckOrbit(ac, duckorbit, t, duckattack, duckdepth);
+  }
 
   gain = applyGainCurve(nanFallback(gain, 1));
   postgain = applyGainCurve(postgain);
@@ -933,9 +965,8 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
 
   // delay
   if (delay > 0 && delaytime > 0 && delayfeedback > 0) {
-    const delayNode = getDelay(orbit, delaytime, delayfeedback, t, compressor);
+    const delayNode = getDelay(orbit, delaytime, delayfeedback, t);
     effectSend(pre, delayNode, delay);
-    delayNode.connect(compressor);
   }
 
   // reverb
@@ -951,9 +982,16 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       }
       roomIR = await loadBuffer(url, ac, ir, 0);
     }
-    const reverbNode = getReverb(orbit, roomsize, roomfade, roomlp, roomdim, roomIR, compressor);
+    const reverbNode = getReverb(orbit, roomsize, roomfade, roomlp, roomdim, roomIR);
     effectSend(pre, reverbNode, room);
-    reverbNode.connect(compressor);
+  }
+  if (dry != null) {
+    dry = applyGainCurve(dry);
+    const dryGain = new GainNode(ac, { gain: dry });
+    chain.push(dryGain);
+    connectToOrbit(dryGain, orbit);
+  } else {
+    connectToOrbit(pre, orbit);
   }
 
   // connect chain elements together
