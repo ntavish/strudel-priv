@@ -203,14 +203,12 @@ function _murmurHashFinalizer(x) {
 
 // Used to decorrelate nearby t and i prior to hashing
 function _decorrelate(t, i = 0) {
-  // const T = Math.floor(t * 4096);  // set 2^12 resolution
   const T = Math.floor(t * 536870912); // set 2^29 resolution
   const lowBits = (T >>> 0) >>> 0;
   const highBits = Math.floor(T / 4294967296) >>> 0; // 2^32
   let key = lowBits ^ Math.imul(highBits ^ 0x85ebca6b, 0xc2b2ae35);
   key ^= Math.imul(i ^ 0x7f4a7c15, 0x9e3779b9);
   return key >>> 0;
-  // return (T ^ Math.imul(i ^ 0x7f4a7c15, 0x9e3779b9)) >>> 0;
 }
 
 function randAt(t, i = 0) {
