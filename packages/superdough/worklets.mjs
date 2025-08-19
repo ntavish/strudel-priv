@@ -347,7 +347,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
       { name: 'threshold', defaultValue: 0 }, // dB
       { name: 'attack', defaultValue: 0.003, minValue: 1e-6, maxValue: 1 },
       { name: 'release', defaultValue: 0.05, minValue: 1e-6, maxValue: 1 },
-      { name: 'lookahead', defaultValue: 0, minValue: 0, maxValue: 0.05 },
+      { name: 'lookahead', defaultValue: 0.006, minValue: 0, maxValue: 0.05 },
       { name: 'postgain', defaultValue: 1 }, // linear
       { name: 'ratio', defaultValue: 4, minValue: 1, maxValue: 20 },
       { name: 'knee', defaultValue: 6, minValue: 0, maxValue: 24 },
@@ -365,11 +365,10 @@ class CompressorProcessor extends AudioWorkletProcessor {
     this.readPos = 0;
     this.delayBuffers = [];
     this.follower = 0; // envelope follower
-    this.avgGainLin = 1.0;
-    this.rmsCoeff = 0.9995;
+    this.avgGain = 0;
+    this.rmsCoef = this._secToCoef(0.03); // 30ms
     this.rms = 0;
-    this.rmsOver = 0;
-    this.peakHold = 0;
+    this.makeupCoef = this._secToCoef(1); // 1s
   }
 
   // Helper for accessing audio rate parameters
@@ -393,6 +392,12 @@ class CompressorProcessor extends AudioWorkletProcessor {
     }
     return ((x + halfKnee) * (x + halfKnee)) / (2 * knee);
   }
+  _secToCoef(t) {
+    return Math.exp(-1 / (t * sampleRate));
+  }
+  _mix(a, b, t) {
+    return t * a + (1 - t) * b;
+  }
 
   process(inputs, outputs, params) {
     const input = inputs[0];
@@ -402,18 +407,17 @@ class CompressorProcessor extends AudioWorkletProcessor {
     while (this.delayBuffers.length < numChannels) {
       this.delayBuffers.push(new Float32Array(this.bufferSize));
     }
-
     const blockSize = output[0].length ?? 0;
     for (let n = 0; n < blockSize; n++) {
       const threshold = this._pv(params.threshold, n);
-      const attackCoef = Math.exp(-1 / (this._pv(params.attack, n) * sampleRate));
-      const releaseCoef = Math.exp(-1 / (this._pv(params.release, n) * sampleRate));
+      const attackCoef = this._secToCoef(this._pv(params.attack, n));
+      const releaseCoef = this._secToCoef(this._pv(params.release, n));
       const postGain = this._pv(params.postgain, n);
       let knee = this._pv(params.knee, n);
       let ratio = this._pv(params.ratio, n);
-      const upward = this._pv(params.upward, n);
-      const autoMakeup = this._pv(params.automakeup, n);
-      const isLimiter = this._pv(params.islimiter, n);
+      const upward = this._pv(params.upward, n) > 0.5;
+      const autoMakeup = this._pv(params.automakeup, n) > 0.5;
+      const isLimiter = this._pv(params.islimiter, n) > 0.5;
       if (isLimiter) {
         ratio = 1e9;
         knee = 0;
@@ -425,38 +429,30 @@ class CompressorProcessor extends AudioWorkletProcessor {
       // This ensures that all channels are limited jointly and thus there is
       // no wobbling back and forth in, say, stereo
       const magnitude = probed.reduce((max, ch) => Math.max(max, Math.abs(this._pv(ch, n))), 0);
-      this.rms = this.rmsCoeff * this.rms + (1 - this.rmsCoeff) * magnitude * magnitude;
+      this.rms = this._mix(this.rms, magnitude * magnitude, this.rmsCoef);
       const rms = Math.sqrt(this.rms + 1e-20);
-      // const testValue = sidechain.length > 0 ? Math.max(0.75 * magnitude, rms) : magnitude;
-      const testValue = magnitude;
-      const t = clamp(this.follower, 0, 1);
-      const adapt = 0.3 + 0.7 * (1 - t) * (1 - t) * (1 - t) * (1 - t);
-      const releaseCoefAdapt = Math.exp(-1 / (this._pv(params.release, n) * adapt * sampleRate));
-      if (testValue > this.follower) {
-        this.follower = attackCoef * this.follower + (1 - attackCoef) * testValue;
-        this.peakHold = Math.max(0.995 * this.peakHold, this.follower);
-      } else {
-        const held = Math.max(this.peakHold, this.follower);
-        this.follower = releaseCoefAdapt * held + (1 - releaseCoefAdapt) * testValue;
-        this.peakHold = Math.max(this.follower, testValue);
-      }
-      const sgn = upward > 0.5 ? -1 : 1;
+      const target = rms; //rms; //Math.max(0.75 * magnitude, rms);
+      const coef = (target > this.follower) ? attackCoef : releaseCoef;
+      this.follower = this._mix(this.follower, target, coef);
+      const sgn = upward ? -1 : 1;
       const d = sgn * (this._linToDB(this.follower) - threshold);
       const D = this._kneeSmooth(d, knee);
+      const D0 = this._kneeSmooth(-threshold, knee);
       const slope = 1 - 1 / ratio;
-      let smoothedGain = -sgn * slope * D;
-      if (D > knee) {
-        this.rmsOver = 0.99995 * this.rmsOver + (1 - 0.99995) * magnitude;
-      }
-      const dOver = sgn * (this._linToDB(this.rmsOver) - threshold);
-      const DOver = this._kneeSmooth(dOver, knee); // used for makeup gain computation
+      let gain = -sgn * slope * D;
+      this.avgGain = this._mix(this.avgGain, gain, this.makeupCoef);
+      // Do not apply more makeup than we are reducing
+      const cap = Math.max(0, -gain);
+      const makeupGain = -Math.sign(this.avgGain) * Math.min(Math.abs(this.avgGain), cap);
       if (autoMakeup) {
-        smoothedGain += sgn * slope * DOver;
+        // gain -= this.avgGain; // cancel out the average gain
+        // gain += makeupGain;
+        gain += 0.75 * slope * D0
       }
-      const compGainLin = this._dBToLin(smoothedGain);
+      const gainLin = this._dBToLin(gain);
       for (let ch = 0; ch < numChannels; ch++) {
         this.delayBuffers[ch][this.writePos] = this._pv(input[ch] ?? [0], n);
-        output[ch][n] = this.delayBuffers[ch][this.readPos] * compGainLin * postGain;
+        output[ch][n] = this.delayBuffers[ch][this.readPos] * gainLin * postGain;
       }
       this.readPos = (this.readPos + 1) % this.bufferSize;
       this.writePos = (this.writePos + 1) % this.bufferSize;

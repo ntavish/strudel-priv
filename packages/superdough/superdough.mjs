@@ -156,7 +156,6 @@ let defaultDefaultValues = {
   i: 1,
   velocity: 1,
   fft: 8,
-  limiterLookahead: 0.005,
 };
 
 const defaultDefaultDefaultValues = Object.freeze({ ...defaultDefaultValues });
@@ -539,11 +538,6 @@ function setupSidechain(input, targetOrbit) {
       errorLogger(new Error(`Sidechain target orbit ${target} does not exist`), 'superdough');
       return;
     }
-    try {
-      orbits[target].sidechain?.disconnect(compressor, 0, 1);
-    } catch (e) {
-      // pass
-    }
     // Connect input (index 0 of input) to the second input (index 1 of compressor)
     input.connect(compressor, 0, 1);
     orbits[target].sidechain = input;
@@ -714,7 +708,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     limiter: limiterThreshold,
     limiterAttack,
     limiterRelease,
-    limiterLookahead = getDefaultValue('limiterLookahead'),
+    limiterLookahead,
     scompressor: scompressorThreshold,
     scompressorRatio,
     scompressorKnee,
