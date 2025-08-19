@@ -1,6 +1,6 @@
 /*
 tonal.mjs - <short description TODO>
-Copyright (C) 2022 Strudel contributors - see <https://github.com/tidalcycles/strudel/blob/main/packages/tonal/tonal.mjs>
+Copyright (C) 2022 Strudel contributors - see <https://codeberg.org/uzu/strudel/src/branch/main/packages/tonal/tonal.mjs>
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details. You should have received a copy of the GNU Affero General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
@@ -14,7 +14,7 @@ function scaleStep(step, scale) {
   scale = scale.replaceAll(':', ' ');
   step = Math.ceil(step);
   let { intervals, tonic, empty } = Scale.get(scale);
-  if ((empty && isNote(scale)) || (!empty && !tonic)) {
+  if ((empty && isNote(scale)) || (empty && !tonic)) {
     throw new Error(`incomplete scale. Make sure to use ":" instead of spaces, example: .scale("C:major")`);
   } else if (empty) {
     throw new Error(`invalid scale "${scale}"`);
@@ -88,13 +88,14 @@ function scaleOffset(scale, offset, note) {
  * @returns Pattern
  * @memberof Pattern
  * @name transpose
+ * @synonyms trans
  * @example
  * "c2 c3".fast(2).transpose("<0 -2 5 3>".slow(2)).note()
  * @example
  * "c2 c3".fast(2).transpose("<1P -2M 4P 3m>".slow(2)).note()
  */
 
-export const transpose = register('transpose', function (intervalOrSemitones, pat) {
+export const { transpose, trans } = register(['transpose', 'trans'], function transposeFn(intervalOrSemitones, pat) {
   return pat.withHap((hap) => {
     const note = hap.value.note ?? hap.value;
     if (typeof note === 'number') {
@@ -142,6 +143,7 @@ export const transpose = register('transpose', function (intervalOrSemitones, pa
  * @name scaleTranspose
  * @param {offset} offset number of steps inside the scale
  * @returns Pattern
+ * @synonyms scaleTrans, strans
  * @example
  * "-8 [2,4,6]"
  * .scale('C4 bebop major')
@@ -149,22 +151,25 @@ export const transpose = register('transpose', function (intervalOrSemitones, pa
  * .note()
  */
 
-export const scaleTranspose = register('scaleTranspose', function (offset /* : number | string */, pat) {
-  return pat.withHap((hap) => {
-    if (!hap.context.scale) {
-      throw new Error('can only use scaleTranspose after .scale');
-    }
-    if (typeof hap.value === 'object')
-      return hap.withValue(() => ({
-        ...hap.value,
-        note: scaleOffset(hap.context.scale, Number(offset), hap.value.note),
-      }));
-    if (typeof hap.value !== 'string') {
-      throw new Error('can only use scaleTranspose with notes');
-    }
-    return hap.withValue(() => scaleOffset(hap.context.scale, Number(offset), hap.value));
-  });
-});
+export const { scaleTranspose, scaleTrans, strans } = register(
+  ['scaleTranspose', 'scaleTrans', 'strans'],
+  function (offset /* : number | string */, pat) {
+    return pat.withHap((hap) => {
+      if (!hap.context.scale) {
+        throw new Error('can only use scaleTranspose after .scale');
+      }
+      if (typeof hap.value === 'object')
+        return hap.withValue(() => ({
+          ...hap.value,
+          note: scaleOffset(hap.context.scale, Number(offset), hap.value.note),
+        }));
+      if (typeof hap.value !== 'string') {
+        throw new Error('can only use scaleTranspose with notes');
+      }
+      return hap.withValue(() => scaleOffset(hap.context.scale, Number(offset), hap.value));
+    });
+  },
+);
 
 /**
  * Turns numbers into notes in the scale (zero indexed). Also sets scale for other scale operations, like {@link Pattern#scaleTranspose}.

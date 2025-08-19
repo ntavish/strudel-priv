@@ -1,16 +1,17 @@
 /*
 controls.mjs - Registers audio controls for pattern manipulation and effects.
-Copyright (C) 2022 Strudel contributors - see <https://github.com/tidalcycles/strudel/blob/main/packages/core/controls.mjs>
+Copyright (C) 2022 Strudel contributors - see <https://codeberg.org/uzu/strudel/src/branch/main/packages/core/controls.mjs>
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details. You should have received a copy of the GNU Affero General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { Pattern, register, sequence } from './pattern.mjs';
+import { Pattern, register, reify } from './pattern.mjs';
 
 export function createParam(names) {
   let isMulti = Array.isArray(names);
   names = !isMulti ? [names] : names;
   const name = names[0];
 
+  // todo: make this less confusing
   const withVal = (xs) => {
     let bag;
     // check if we have an object with an unnamed control (.value)
@@ -35,25 +36,34 @@ export function createParam(names) {
     }
   };
 
-  const func = (...pats) => sequence(...pats).withValue(withVal);
-
-  const setter = function (...pats) {
-    if (!pats.length) {
-      return this.fmap(withVal);
+  // todo: make this less confusing
+  const func = function (value, pat) {
+    if (!pat) {
+      return reify(value).withValue(withVal);
     }
-    return this.set(func(...pats));
+    if (typeof value === 'undefined') {
+      return pat.fmap(withVal);
+    }
+    return pat.set(reify(value).withValue(withVal));
   };
-  Pattern.prototype[name] = setter;
+  Pattern.prototype[name] = function (value) {
+    return func(value, this);
+  };
   return func;
 }
 
 // maps control alias names to the "main" control name
 const controlAlias = new Map();
 
+export function isControlName(name) {
+  return controlAlias.has(name);
+}
+
 export function registerControl(names, ...aliases) {
   const name = Array.isArray(names) ? names[0] : names;
   let bag = {};
   bag[name] = createParam(names);
+  controlAlias.set(name, name);
   aliases.forEach((alias) => {
     bag[alias] = bag[name];
     controlAlias.set(alias, name);
@@ -96,7 +106,7 @@ export const { source, src } = registerControl('source', 'src');
  * @example
  * s("bd sd [~ bd] sd,hh*6").n("<0 1>")
  */
-// also see https://github.com/tidalcycles/strudel/pull/63
+// also see https://codeberg.org/uzu/strudel/pulls/63
 export const { n } = registerControl('n');
 /**
  * Plays the given note name or midi number. A note name consists of
@@ -242,6 +252,20 @@ export const { fmenv } = registerControl('fmenv');
  *
  */
 export const { fmattack } = registerControl('fmattack');
+
+/**
+ * waveform of the fm modulator
+ *
+ * @name fmwave
+ * @param {number | Pattern} wave waveform
+ * @example
+ * n("0 1 2 3".fast(4)).scale("d:minor").s("sine").fmwave("<sine square sawtooth crackle>").fm(4).fmh(2.01)
+ * @example
+ * n("0 1 2 3".fast(4)).chord("<Dm Am F G>").voicing().s("sawtooth").fmwave("brown").fm(.6)
+ *
+ */
+export const { fmwave } = registerControl('fmwave');
+
 /**
  * Decay time for the FM envelope: seconds until the sustain level is reached after the attack phase.
  *
@@ -296,6 +320,7 @@ export const { fft } = registerControl('fft');
  *
  * @name decay
  * @param {number | Pattern} time decay time in seconds
+ * @synonyms dec
  * @example
  * note("c3 e3 f3 g3").decay("<.1 .2 .3 .4>").sustain(0)
  *
@@ -348,7 +373,7 @@ export const { bandf, bpf, bp } = registerControl(['bandf', 'bandq', 'bpenv'], '
  * s("bd sd [~ bd] sd").bpf(500).bpq("<0 1 2 3>")
  *
  */
-// currently an alias of 'bandq' https://github.com/tidalcycles/strudel/issues/496
+// currently an alias of 'bandq' https://codeberg.org/uzu/strudel/issues/496
 // ['bpq'],
 export const { bandq, bpq } = registerControl('bandq', 'bpq');
 /**
@@ -435,6 +460,78 @@ export const { crush } = registerControl('crush');
 export const { coarse } = registerControl('coarse');
 
 /**
+ * modulate the amplitude of a sound with a continuous waveform
+ *
+ * @name tremolo
+ * @synonyms trem
+ * @param {number | Pattern} speed modulation speed in HZ
+ * @example
+ * note("d d d# d".fast(4)).s("supersaw").tremolo("<3 2 100> ").tremoloskew("<.5>")
+ *
+ */
+export const { tremolo } = registerControl(['tremolo', 'tremolodepth', 'tremoloskew', 'tremolophase'], 'trem');
+
+/**
+ * modulate the amplitude of a sound with a continuous waveform
+ *
+ * @name tremolosync
+ * @synonyms tremsync
+ * @param {number | Pattern} cycles modulation speed in cycles
+ * @example
+ * note("d d d# d".fast(4)).s("supersaw").tremolosync("4").tremoloskew("<1 .5 0>")
+ *
+ */
+export const { tremolosync } = registerControl(
+  ['tremolosync', 'tremolodepth', 'tremoloskew', 'tremolophase'],
+  'tremsync',
+);
+
+/**
+ * depth of amplitude modulation
+ *
+ * @name tremolodepth
+ * @synonyms tremdepth
+ * @param {number | Pattern} depth
+ * @example
+ * note("a1 a1 a#1 a1".fast(4)).s("pulse").tremsync(4).tremolodepth("<1 2 .7>")
+ *
+ */
+export const { tremolodepth } = registerControl('tremolodepth', 'tremdepth');
+/**
+ * alter the shape of the modulation waveform
+ *
+ * @name tremoloskew
+ * @synonyms tremskew
+ * @param {number | Pattern} amount between 0 & 1, the shape of the waveform
+ * @example
+ * note("{f a c e}%16").s("sawtooth").tremsync(4).tremoloskew("<.5 0 1>")
+ *
+ */
+export const { tremoloskew } = registerControl('tremoloskew', 'tremskew');
+
+/**
+ * alter the phase of the modulation waveform
+ *
+ * @name tremolophase
+ * @synonyms tremphase
+ * @param {number | Pattern} offset the offset in cycles of the modulation
+ * @example
+ * note("{f a c e}%16").s("sawtooth").tremsync(4).tremolophase("<0 .25 .66>")
+ *
+ */
+export const { tremolophase } = registerControl('tremolophase', 'tremphase');
+
+/**
+ * shape of amplitude modulation
+ *
+ * @name tremoloshape
+ * @param {number | Pattern} shape tri | square | sine | saw | ramp
+ * @example
+ * note("{f g c d}%16").tremsync(4).tremoloshape("<sine tri square>").s("sawtooth")
+ *
+ */
+export const { tremoloshape } = registerControl('tremoloshape', 'tremshape');
+/**
  * filter overdrive for supported filter types
  *
  * @name drive
@@ -443,7 +540,69 @@ export const { coarse } = registerControl('coarse');
  * note("{f g g c d a a#}%16".sub(17)).s("supersaw").lpenv(8).lpf(150).lpq(.8).ftype('ladder').drive("<.5 4>")
  *
  */
+
+/**
+ * modulate the amplitude of an orbit to create a "sidechain" like effect
+ *
+ * @name duckorbit
+ * @param {number | Pattern} orbit target orbit
+ * @example
+ * $: n(run(16)).scale("c:minor:pentatonic").s("sawtooth").delay(.7).orbit(2)
+ * $: s("bd:4!4").beat("0,4,8,11,14",16).duckorbit(2).duckattack(0.2).duckdepth(1)
+ *
+ */
+export const { duck } = registerControl('duckorbit', 'duck');
+
+/**
+ *  the amount of ducking applied to target orbit
+ *
+ * @name duckdepth
+ * @param {number | Pattern} depth depth of modulation from 0 to 1
+ * @example
+ * stack( n(run(8)).scale("c:minor").s("sawtooth").delay(.7).orbit(2), s("bd:4!4").beat("0,4,8,11,14",16).duckorbit(2).duckattack(0.2).duckdepth("<1 .9 .6 0>"))
+ *
+ */
+
+export const { duckdepth } = registerControl('duckdepth');
+
+/**
+ *  the attack time of the duck effect
+ *
+ * @name duckattack
+ * @param {number | Pattern} time
+ * @example
+ * stack( n(run(8)).scale("c:minor").s("sawtooth").delay(.7).orbit(2), s("bd:4!4").beat("0,4,8,11,14",16).duckorbit(2).duckattack("<0.2 0 0.4>").duckdepth(1))
+ *
+ */
+export const { duckattack } = registerControl('duckattack', 'duckatt');
+
 export const { drive } = registerControl('drive');
+
+/**
+ * Create byte beats with custom expressions
+ *
+ * @name byteBeatExpression
+ * @synonyms bbexpr
+ *
+ * @param {number | Pattern} byteBeatExpression bitwise expression for creating bytebeat
+ * @example
+ * s("bytebeat").bbexpr('t*(t>>15^t>>66)')
+ *
+ */
+export const { byteBeatExpression, bbexpr } = registerControl('byteBeatExpression', 'bbexpr');
+
+/**
+ * Create byte beats with custom expressions
+ *
+ * @name byteBeatStartTime
+ * @synonyms bbst
+ *
+ * @param {number | Pattern} byteBeatStartTime in samples (t)
+ * @example
+ * note("c3!8".add("{0 0 12 0 7 5 3}%8")).s("bytebeat:5").bbst("<3 1>".mul(10000))._scope()
+ *
+ */
+export const { byteBeatStartTime, bbst } = registerControl('byteBeatStartTime', 'bbst');
 
 /**
  * Allows you to set the output channels on the interface
@@ -457,6 +616,41 @@ export const { drive } = registerControl('drive');
  *
  */
 export const { channels, ch } = registerControl('channels', 'ch');
+
+/**
+ * controls the pulsewidth of the pulse oscillator
+ *
+ * @name pw
+ * @param {number | Pattern} pulsewidth
+ * @example
+ * note("{f a c e}%16").s("pulse").pw(".8:1:.2")
+ * @example
+ * n(run(8)).scale("D:pentatonic").s("pulse").pw("0 .75 .5 1")
+ */
+export const { pw } = registerControl(['pw', 'pwrate', 'pwsweep']);
+
+/**
+ * controls the lfo rate for the pulsewidth of the pulse oscillator
+ *
+ * @name pwrate
+ * @param {number | Pattern} rate
+ * @example
+ * n(run(8)).scale("D:pentatonic").s("pulse").pw("0.5").pwrate("<5 .1 25>").pwsweep("<0.3 .8>")
+
+ *
+ */
+export const { pwrate } = registerControl('pwrate');
+
+/**
+ * controls the lfo sweep for the pulsewidth of the pulse oscillator
+ *
+ * @name pwsweep
+ * @param {number | Pattern} sweep
+ * @example
+ * n(run(8)).scale("D:pentatonic").s("pulse").pw("0.5").pwrate("<5 .1 25>").pwsweep("<0.3 .8>")
+ *
+ */
+export const { pwsweep } = registerControl('pwsweep');
 
 /**
  * Phaser audio effect that approximates popular guitar pedals.
@@ -794,7 +988,7 @@ export const { fanchor } = registerControl('fanchor');
  * s("bd sd [~ bd] sd,hh*8").hpf("<2000 2000:25>")
  *
  */
-// currently an alias of 'hcutoff' https://github.com/tidalcycles/strudel/issues/496
+// currently an alias of 'hcutoff' https://codeberg.org/uzu/strudel/issues/496
 // ['hpf'],
 /**
  * Applies a vibrato to the frequency of the oscillator.
@@ -861,7 +1055,7 @@ export const { hresonance, hpq } = registerControl('hresonance', 'hpq');
  * s("bd sd [~ bd] sd,hh*8").lpf(2000).lpq("<0 10 20 30>")
  *
  */
-// currently an alias of 'resonance' https://github.com/tidalcycles/strudel/issues/496
+// currently an alias of 'resonance' https://codeberg.org/uzu/strudel/issues/496
 export const { resonance, lpq } = registerControl('resonance', 'lpq');
 /**
  * DJ filter, below 0.5 is low pass filter, above is high pass filter.
@@ -914,15 +1108,31 @@ export const { delayfeedback, delayfb, dfb } = registerControl('delayfeedback', 
  *
  */
 export const { delaytime, delayt, dt } = registerControl('delaytime', 'delayt', 'dt');
-/* // TODO: test
+
+/**
+ * Sets the time of the delay effect in cycles.
+ *
+ * @name delaysync
+ * @param {number | Pattern} cycles delay length in cycles
+ * @synonyms delayt, dt
+ * @example
+ * s("bd bd").delay(.25).delaysync("<1 2 3 5>".div(8))
+ *
+ */
+export const { delaysync } = registerControl('delaysync');
+
+/**
  * Specifies whether delaytime is calculated relative to cps.
  *
  * @name lock
  * @param {number | Pattern} enable When set to 1, delaytime is a direct multiple of a cycle.
+ * @superdirtOnly
  * @example
  * s("sd").delay().lock(1).osc()
  *
+ *
  */
+
 export const { lock } = registerControl('lock');
 /**
  * Set detune for stacked voices of supported oscillators
@@ -1227,7 +1437,7 @@ export const { semitone } = registerControl('semitone');
 
 // TODO: synth param
 export const { voice } = registerControl('voice');
-// voicings // https://github.com/tidalcycles/strudel/issues/506
+// voicings // https://codeberg.org/uzu/strudel/issues/506
 // chord to voice, like C Eb Fm7 G7. the symbols can be defined via addVoicings
 export const { chord } = registerControl('chord');
 // which dictionary to use for the voicings
@@ -1461,7 +1671,7 @@ export const { vowel } = registerControl('vowel');
  * @name waveloss
  */
 export const { waveloss } = registerControl('waveloss');
-/*
+/**
  * Noise crackle density
  *
  * @name density
@@ -1474,18 +1684,6 @@ export const { density } = registerControl('density');
 // ['modwheel'],
 export const { expression } = registerControl('expression');
 export const { sustainpedal } = registerControl('sustainpedal');
-/* // TODO: doesn't seem to do anything
- *
- * Tremolo Audio DSP effect
- *
- * @name tremolodepth
- * @param {number | Pattern} depth between 0 and 1
- * @example
- * n("0,4,7").tremolodepth("<0 .3 .6 .9>").osc()
- *
- */
-export const { tremolodepth, tremdp } = registerControl('tremolodepth', 'tremdp');
-export const { tremolorate, tremr } = registerControl('tremolorate', 'tremr');
 
 export const { fshift } = registerControl('fshift');
 export const { fshiftnote } = registerControl('fshiftnote');
@@ -1562,7 +1760,6 @@ export const { zmod } = registerControl('zmod');
 // like crush but scaled differently
 export const { zcrush } = registerControl('zcrush');
 export const { zdelay } = registerControl('zdelay');
-export const { tremolo } = registerControl('tremolo');
 export const { zzfx } = registerControl('zzfx');
 
 /**
@@ -1780,3 +1977,32 @@ export const as = register('as', (mapping, pat) => {
     return v;
   });
 });
+
+/**
+ * Allows you to scrub an audio file like a tape loop by passing values that represents the position in the audio file
+ * in the optional array syntax ex: "0.5:2", the second value controls the speed of playback
+ * @name scrub
+ * @memberof Pattern
+ * @returns Pattern
+ * @example
+ * samples('github:switchangel/pad')
+ * s("swpad:0").scrub("{0.1!2 .25@3 0.7!2 <0.8:1.5>}%8")
+ * @example
+ * samples('github:yaxu/clean-breaks/main');
+ * s("amen/4").fit().scrub("{0@3 0@2 4@3}%8".div(16))
+ */
+
+export const scrub = register(
+  'scrub',
+  (beginPat, pat) => {
+    return beginPat.outerBind((v) => {
+      if (!Array.isArray(v)) {
+        v = [v];
+      }
+      const [beginVal, speedMultiplier = 1] = v;
+
+      return pat.begin(beginVal).mul(speed(speedMultiplier)).clip(1);
+    });
+  },
+  false,
+);

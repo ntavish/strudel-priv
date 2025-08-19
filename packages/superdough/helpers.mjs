@@ -1,5 +1,8 @@
 import { getAudioContext } from './superdough.mjs';
 import { clamp, nanFallback } from './util.mjs';
+import { getNoiseBuffer } from './noise.mjs';
+
+export const noises = ['pink', 'white', 'brown', 'crackle'];
 
 export function gainNode(value) {
   const node = getAudioContext().createGain();
@@ -206,18 +209,28 @@ export function getVibratoOscillator(param, value, t) {
 // ConstantSource inherits AudioScheduledSourceNode, which has scheduling abilities
 // a bit of a hack, but it works very well :)
 export function webAudioTimeout(audioContext, onComplete, startTime, stopTime) {
-  const constantNode = audioContext.createConstantSource();
+  const constantNode = new ConstantSourceNode(audioContext);
+
   constantNode.start(startTime);
   constantNode.stop(stopTime);
   constantNode.onended = () => {
     onComplete();
   };
+  return constantNode;
 }
 const mod = (freq, range = 1, type = 'sine') => {
   const ctx = getAudioContext();
-  const osc = ctx.createOscillator();
-  osc.type = type;
-  osc.frequency.value = freq;
+  let osc;
+  if (noises.includes(type)) {
+    osc = ctx.createBufferSource();
+    osc.buffer = getNoiseBuffer(type, 2);
+    osc.loop = true;
+  } else {
+    osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.value = freq;
+  }
+
   osc.start();
   const g = new GainNode(ctx, { gain: range });
   osc.connect(g); // -range, range
@@ -252,7 +265,7 @@ export function applyFM(param, value, begin) {
 
     modulator = fmmod.node;
     stop = fmmod.stop;
-    if (![fmAttack, fmDecay, fmSustain, fmRelease, fmVelocity].find((v) => v !== undefined)) {
+    if (![fmAttack, fmDecay, fmSustain, fmRelease, fmVelocity].some((v) => v !== undefined)) {
       // no envelope by default
       modulator.connect(param);
     } else {
