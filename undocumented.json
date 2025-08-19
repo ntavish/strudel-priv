@@ -32,7 +32,12 @@
   "/packages/codemirror/keybindings.mjs": [
     "keybindings"
   ],
-  "/packages/codemirror/themes/strudel-theme.mjs": [],
+  "/packages/codemirror/themes/theme-helper.mjs": [
+    "createTheme"
+  ],
+  "/packages/codemirror/themes/strudel-theme.mjs": [
+    "settings"
+  ],
   "/packages/codemirror/themes/bluescreen.mjs": [
     "settings"
   ],
@@ -48,7 +53,103 @@
   "/packages/codemirror/themes/algoboy.mjs": [
     "settings"
   ],
-  "/packages/codemirror/themes/terminal.mjs": [
+  "/packages/codemirror/themes/CutiePi.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/sonic-pink.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/red-text.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/green-text.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/archBtw.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/fruitDaw.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/bluescreenlight.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/androidstudio.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/atomone.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/aura.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/darcula.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/dracula.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/duotoneDark.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/eclipse.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/githubDark.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/githubLight.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/gruvboxDark.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/gruvboxLight.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/materialDark.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/materialLight.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/nord.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/monokai.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/solarizedDark.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/solarizedLight.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/sublime.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/tokyoNight.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/tokioNightStorm.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/tokyoNightDay.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/vscodeDark.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/vscodeLight.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/xcodeLight.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/bbedit.mjs": [
+    "settings"
+  ],
+  "/packages/codemirror/themes/noctisLilac.mjs": [
     "settings"
   ],
   "/packages/codemirror/themes.mjs": [
@@ -85,6 +186,7 @@
   "/packages/codemirror/index.mjs": [],
   "/packages/core/logger.mjs": [
     "logKey",
+    "errorLogger",
     "logger"
   ],
   "/packages/core/util.mjs": [
@@ -132,7 +234,8 @@
     "ClockCollator",
     "getPerformanceTimeSeconds",
     "keyAlias",
-    "getCurrentKeyboardState"
+    "getCurrentKeyboardState",
+    "stringifyValues"
   ],
   "/packages/core/fraction.mjs": [
     "gcd",
@@ -155,7 +258,7 @@
   ],
   "/packages/core/drawLine.mjs": [],
   "/packages/core/pattern.mjs": [
-    "calculateTactus",
+    "calculateSteps",
     "setStringParser",
     "nothing",
     "isPattern",
@@ -205,22 +308,34 @@
     "_fitslice",
     "_match",
     "_polymeterListSteps",
-    "s_extend",
+    "shrinklist",
+    "s_cat",
+    "s_alt",
+    "s_polymeter",
+    "s_taper",
+    "s_taperlist",
+    "s_add",
+    "s_sub",
     "s_expand",
-    "s_contract"
+    "s_extend",
+    "s_contract",
+    "s_tour",
+    "s_zip",
+    "steps",
+    "_morph"
   ],
   "/packages/core/controls.mjs": [
     "createParam",
+    "isControlName",
     "registerControl",
     "fmrelease",
     "fmvelocity",
     "analyze",
     "fft",
-    "dec",
     "hold",
+    "duck",
     "phaserrate",
     "phasdp",
-    "lock",
     "fadeTime",
     "fadeOutTime",
     "fadeInTime",
@@ -260,10 +375,6 @@
     "waveloss",
     "expression",
     "sustainpedal",
-    "tremolodepth",
-    "tremdp",
-    "tremolorate",
-    "tremr",
     "fshift",
     "fshiftnote",
     "fshiftphase",
@@ -289,20 +400,10 @@
     "binshift",
     "hbrick",
     "lbrick",
-    "midichan",
-    "control",
-    "ccn",
-    "ccv",
-    "polyTouch",
-    "midibend",
-    "miditouch",
-    "ctlNum",
     "frameRate",
     "frames",
     "hours",
-    "midicmd",
     "minutes",
-    "progNum",
     "seconds",
     "songPtr",
     "uid",
@@ -319,26 +420,31 @@
     "zmod",
     "zcrush",
     "zdelay",
-    "tremolo",
     "zzfx",
     "createParams",
     "ad",
     "ds",
-    "ar"
+    "ar",
+    "midimap",
+    "ctlNum",
+    "polyTouch",
+    "getControlName"
   ],
   "/packages/core/euclid.mjs": [
     "bjork",
+    "e",
     "euclidrot"
   ],
   "/packages/core/zyklus.mjs": [],
   "/packages/core/signal.mjs": [
     "randrun",
-    "shuffle",
-    "scramble",
     "_brandBy",
     "_irand",
     "__chooseWith",
+    "chooseIn",
+    "chooseOut",
     "perlinWith",
+    "berlinWith",
     "degradeByWith",
     "_keyDown"
   ],
@@ -347,6 +453,7 @@
     "speak"
   ],
   "/packages/core/evaluate.mjs": [
+    "strudelScope",
     "evalScope",
     "evaluate"
   ],
@@ -413,6 +520,7 @@
     "convertHexToNumber"
   ],
   "/packages/draw/pianoroll.mjs": [
+    "__pianoroll",
     "getDrawOptions",
     "getPunchcardPainter",
     "drawPianoroll"
@@ -423,7 +531,8 @@
   "/packages/midi/midi.mjs": [
     "WebMidi",
     "enableWebMidi",
-    "midin"
+    "midicontrolMap",
+    "midisoundMap"
   ],
   "/packages/midi/index.mjs": [],
   "/packages/mini/krill-parser.js": [],
@@ -447,6 +556,7 @@
   "/packages/repl/index.mjs": [],
   "/packages/soundfonts/gm.mjs": [],
   "/packages/soundfonts/fontloader.mjs": [
+    "setSoundfontUrl",
     "getFontBufferSource",
     "getFontPitch",
     "registerSoundfonts"
@@ -467,6 +577,7 @@
     "vowelFormant"
   ],
   "/packages/superdough/logger.mjs": [
+    "errorLogger",
     "logger",
     "setLogger"
   ],
@@ -479,9 +590,17 @@
     "valueToMidi",
     "nanFallback",
     "_mod",
-    "getSoundIndex"
+    "getSoundIndex",
+    "cycleToSeconds",
+    "secondsToCycle"
+  ],
+  "/packages/superdough/noise.mjs": [
+    "getNoiseBuffer",
+    "getNoiseOscillator",
+    "getNoiseMix"
   ],
   "/packages/superdough/helpers.mjs": [
+    "noises",
     "gainNode",
     "getWorklet",
     "getParamADSR",
@@ -507,9 +626,17 @@
     "onTriggerSample"
   ],
   "/packages/superdough/superdough.mjs": [
+    "DEFAULT_MAX_POLYPHONY",
+    "setMaxPolyphony",
+    "setMultiChannelOrbits",
     "soundMap",
     "registerSound",
+    "applyGainCurve",
+    "setGainCurve",
     "getSound",
+    "getAudioDevices",
+    "setDefault",
+    "resetDefaults",
     "setDefaultValue",
     "getDefaultValue",
     "setDefaultValues",
@@ -524,6 +651,7 @@
     "initializeAudioOutput",
     "connectToDestination",
     "panic",
+    "getLfo",
     "analysers",
     "analysersData",
     "getAnalyserById",
@@ -531,10 +659,6 @@
     "resetGlobalEffects",
     "superdough",
     "superdoughTrigger"
-  ],
-  "/packages/superdough/noise.mjs": [
-    "getNoiseOscillator",
-    "getNoiseMix"
   ],
   "/packages/superdough/synth.mjs": [
     "registerSynthSounds",
@@ -593,6 +717,7 @@
   ],
   "/packages/transpiler/transpiler.mjs": [
     "registerWidgetType",
+    "registerLanguage",
     "transpiler",
     "getWidgetID"
   ],
