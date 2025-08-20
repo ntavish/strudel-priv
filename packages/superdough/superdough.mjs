@@ -9,7 +9,7 @@ import './reverb.mjs';
 import './vowel.mjs';
 import { clamp, nanFallback, _mod, cycleToSeconds, secondsToCycle } from './util.mjs';
 import workletsUrl from './worklets.mjs?audioworklet';
-import { createFilter, gainNode, getCompressor, getWorklet, webAudioTimeout } from './helpers.mjs';
+import { createFilter, gainNode, getCompressor, getWorklet, webAudioTimeout, getADSRValues, getParamADSR } from './helpers.mjs';
 import { map } from 'nanostores';
 import { logger, errorLogger } from './logger.mjs';
 import { loadBuffer } from './sampler.mjs';
@@ -532,6 +532,7 @@ function _getNodeParams(node) {
   return Array.from(params);
 }
 
+let lfos = {};
 function _connectLFO(params) {
   const {
     frequency = 1,
@@ -574,7 +575,7 @@ function _connectLFO(params) {
   }
 }
 
-function connectLFOs(time, params) {
+function connectLFOs(params) {
   // We break down params specifying multiple LFOs into a set of parameters for
   // a single LFO
   const numLFOs = [
@@ -597,6 +598,72 @@ function connectLFOs(time, params) {
   }
 }
 
+function _connectEnvelope(params) {
+  const {
+    envNum = 1, // default to envelope 1
+    envTarget,
+    envParam,
+    envDepth,
+    begin,
+    end,
+    attack,
+    decay,
+    sustain,
+    release,
+    curve,
+    ...filteredParams
+  } = params;
+  const targetNodes = nodes[envTarget];
+  if (targetNodes === undefined) {
+    const keys = Object.keys(nodes);
+    errorLogger(new Error(`Could not connect to target ${envTarget} -- it does not exist. Available options are ${keys.join(", ")}`), 'superdough');
+    return;
+  }
+  targetNodes.forEach((targetNode) => {
+    const targetParam = _getNodeParam(targetNode, envParam);
+    if (targetParam === undefined) {
+      const parameters = _getNodeParams(targetNode);
+      errorLogger(new Error(`Could not connect to parameter ${envParam} on node ${envTarget}. Available parameters are ${parameters.join(", ")}`), 'superdough');
+    }
+    const [att, dec, sus, rel] = getADSRValues(
+      [
+        attack,
+        decay,
+        sustain,
+        release,
+      ],
+      curve,
+      [0.005, 0.14, 0, 0.1]
+    );
+    const min = 0;
+    const max = envDepth;
+    getParamADSR(targetParam, att, dec, sus, rel, min, max, begin, end, curve);
+  });
+}
+
+function connectEnvelopes(params) {
+  // We break down params specifying multiple envelopes into a set of parameters for
+  // a single envelopes
+  const numEnvelopes = [
+    [params.envNum].flat().length,
+    [params.envTarget].flat().length,
+    [params.envParam].flat().length,
+  ].reduce((a, v) => Math.max(a, v)); // Number of envelopes is the max as implied by these values
+  for (let i = 0; i < numEnvelopes; i++) {
+    let singleParams = {};
+    for (const k in params) {
+      const v = params[k];
+      const flatV = [v].flat();
+      if (flatV.length !== numEnvelopes && flatV.length !== 1) {
+        errorLogger(new Error(`Could not setup envelopes. We derived ${numEnvelopes} as the intended number of envelopes, but ${k}: ${flatV} does not have matching length nor length 1`));
+        return;
+      }
+      singleParams[k] = flatV[i] ?? flatV[0];
+    }
+    _connectEnvelope(singleParams);
+  }
+}
+
 let activeSoundSources = new Map();
 //music programs/audio gear usually increments inputs/outputs from 1, we need to subtract 1 from the input because the webaudio API channels start at 0
 
@@ -605,7 +672,6 @@ function mapChannelNumbers(channels) {
 }
 
 let nodes = {};
-let lfos = {};
 
 export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) => {
   // new: t is always expected to be the absolute target onset time
@@ -726,6 +792,15 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     lfoSkew,
     lfoCurve,
     lfoSynced,
+    envNum,
+    envTarget,
+    envParam,
+    envAttack,
+    envDecay,
+    envSustain,
+    envRelease,
+    envCurve,
+    envDepth,
   } = value;
 
   delaytime = delaytime ?? cycleToSeconds(delaysync, cps);
@@ -1013,9 +1088,9 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   chain.slice(1).reduce((last, current) => last.connect(current), chain[0]);
   audioNodes = audioNodes.concat(chain);
 
-  // finally, now that `nodes` is populated, set up LFOs
+  // finally, now that `nodes` is populated, set up LFOs and envelopes
   if (lfoTarget !== undefined && lfoParam !== undefined) {
-    connectLFOs(t, {
+    connectLFOs({
       lfoNum,
       lfoTarget,
       lfoParam,
@@ -1029,6 +1104,21 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       begin: t,
       synced: lfoSynced,
       cps: cps,
+    });
+  }
+  if (envTarget !== undefined && envParam !== undefined) {
+    connectEnvelopes({
+      envNum,
+      envTarget,
+      envParam,
+      envDepth,
+      attack: envAttack,
+      decay: envDecay,
+      sustain: envSustain,
+      release: envRelease,
+      curve: envCurve,
+      begin: t,
+      end: endWithRelease,
     });
   }
 };

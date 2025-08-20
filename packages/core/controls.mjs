@@ -1439,6 +1439,17 @@ export const { lfoSkew } = registerControl('lfoSkew');
 export const { lfoCurve } = registerControl('lfoCurve');
 export const { lfoSynced } = registerControl('lfoSynced');
 
+
+export const { envNum } = registerControl('envNum');
+export const { envTarget } = registerControl('envTarget');
+export const { envParam } = registerControl('envParam');
+export const { envAttack } = registerControl('envAttack');
+export const { envDecay } = registerControl('envDecay');
+export const { envSustain } = registerControl('envSustain');
+export const { envRelease } = registerControl('envRelease');
+export const { envCurve } = registerControl('envCurve');
+export const { envDepth } = registerControl('envDepth');
+
 // TODO: slide param for certain synths
 export const { slide } = registerControl('slide');
 // TODO: detune? https://tidalcycles.org/docs/patternlib/tutorials/synthesizers/#supersquare
