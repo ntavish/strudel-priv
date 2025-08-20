@@ -1807,6 +1807,19 @@ export const ratio = register('ratio', (pat) =>
   }),
 );
 
+/**
+ * Assumes a numerical pattern
+ * Returns a new pattern with the absolute values
+ * @name abs
+ * @memberof Pattern
+ * @returns Pattern
+ * @example
+ * note(irand(24).sub(12).mul(3).abs().add(24)).seg(8).s("piano")
+ */
+export const abs = register('abs', function (pat) {
+  return pat.fmap(Math.abs);
+});
+
 //////////////////////////////////////////////////////////////////////
 // Structural and temporal transformations
 

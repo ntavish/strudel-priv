@@ -565,6 +565,43 @@ exports[`runs examples > example "_euclidRot" example index 20 1`] = `
 ]
 `;
 
+exports[`runs examples > example "abs" example index 0 1`] = `
+[
+  "[ 0/1 → 1/8 | note:60 s:piano ]",
+  "[ 1/8 → 1/4 | note:36 s:piano ]",
+  "[ 1/4 → 3/8 | note:36 s:piano ]",
+  "[ 3/8 → 1/2 | note:33 s:piano ]",
+  "[ 1/2 → 5/8 | note:42 s:piano ]",
+  "[ 5/8 → 3/4 | note:51 s:piano ]",
+  "[ 3/4 → 7/8 | note:48 s:piano ]",
+  "[ 7/8 → 1/1 | note:33 s:piano ]",
+  "[ 1/1 → 9/8 | note:24 s:piano ]",
+  "[ 9/8 → 5/4 | note:36 s:piano ]",
+  "[ 5/4 → 11/8 | note:39 s:piano ]",
+  "[ 11/8 → 3/2 | note:48 s:piano ]",
+  "[ 3/2 → 13/8 | note:30 s:piano ]",
+  "[ 13/8 → 7/4 | note:27 s:piano ]",
+  "[ 7/4 → 15/8 | note:48 s:piano ]",
+  "[ 15/8 → 2/1 | note:30 s:piano ]",
+  "[ 2/1 → 17/8 | note:57 s:piano ]",
+  "[ 17/8 → 9/4 | note:51 s:piano ]",
+  "[ 9/4 → 19/8 | note:36 s:piano ]",
+  "[ 19/8 → 5/2 | note:48 s:piano ]",
+  "[ 5/2 → 21/8 | note:27 s:piano ]",
+  "[ 21/8 → 11/4 | note:51 s:piano ]",
+  "[ 11/4 → 23/8 | note:33 s:piano ]",
+  "[ 23/8 → 3/1 | note:60 s:piano ]",
+  "[ 3/1 → 25/8 | note:45 s:piano ]",
+  "[ 25/8 → 13/4 | note:36 s:piano ]",
+  "[ 13/4 → 27/8 | note:57 s:piano ]",
+  "[ 27/8 → 7/2 | note:33 s:piano ]",
+  "[ 7/2 → 29/8 | note:33 s:piano ]",
+  "[ 29/8 → 15/4 | note:54 s:piano ]",
+  "[ 15/4 → 31/8 | note:45 s:piano ]",
+  "[ 31/8 → 4/1 | note:39 s:piano ]",
+]
+`;
+
 exports[`runs examples > example "accelerate" example index 0 1`] = `
 [
   "[ 0/1 → 2/1 | s:sax accelerate:0 ]",
