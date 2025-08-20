@@ -9,7 +9,15 @@ import './reverb.mjs';
 import './vowel.mjs';
 import { clamp, nanFallback, _mod, cycleToSeconds, secondsToCycle } from './util.mjs';
 import workletsUrl from './worklets.mjs?audioworklet';
-import { createFilter, gainNode, getCompressor, getWorklet, webAudioTimeout, getADSRValues, getParamADSR } from './helpers.mjs';
+import {
+  createFilter,
+  gainNode,
+  getCompressor,
+  getWorklet,
+  webAudioTimeout,
+  getADSRValues,
+  getParamADSR,
+} from './helpers.mjs';
 import { map } from 'nanostores';
 import { logger, errorLogger } from './logger.mjs';
 import { loadBuffer } from './sampler.mjs';
@@ -527,8 +535,9 @@ function _getNodeParams(node) {
     node.parameters.forEach((_v, k) => params.add(k));
   }
   // Guesses based on common parameters
-  ["gain", "frequency", "detune", "Q", "pan", "playbackRate", "delayTime"]
-    .forEach((k) => { if (node?.[k] instanceof AudioParam) params.add(k); });
+  ['gain', 'frequency', 'detune', 'Q', 'pan', 'playbackRate', 'delayTime'].forEach((k) => {
+    if (node?.[k] instanceof AudioParam) params.add(k);
+  });
   return Array.from(params);
 }
 
@@ -540,7 +549,7 @@ function _getNodeParams(node) {
  * @returns {Object[]} - Array of parameter objects, one per parameter modulation
  */
 function _splitParams(params, countKeys) {
-  const num = ["num", "target", "parameter"] // names used to indicate individual parameter modulations
+  const num = ['num', 'target', 'parameter'] // names used to indicate individual parameter modulations
     .map((k) => [params[k] ?? 0].flat().length)
     .reduce((a, v) => Math.max(a, v), 1);
 
@@ -552,9 +561,9 @@ function _splitParams(params, countKeys) {
       if (flatV.length !== num && flatV.length !== 1) {
         errorLogger(
           new Error(
-            `Could not set up modulations. We derived ${num} items, but ${k}: ${JSON.stringify(flatV)} has length ${flatV.length} (needs 1 or ${num}).`
+            `Could not set up modulations. We derived ${num} items, but ${k}: ${JSON.stringify(flatV)} has length ${flatV.length} (needs 1 or ${num}).`,
           ),
-          'superdough'
+          'superdough',
         );
         return [];
       }
@@ -582,8 +591,10 @@ function _getTargetParams(targetName, paramName) {
   if (!targetNodes) {
     const keys = Object.keys(nodes);
     errorLogger(
-      new Error(`Could not connect to target '${targetName}' — it does not exist. Available targets: ${keys.join(", ")}`),
-      'superdough'
+      new Error(
+        `Could not connect to target '${targetName}' — it does not exist. Available targets: ${keys.join(', ')}`,
+      ),
+      'superdough',
     );
     return [];
   }
@@ -595,9 +606,9 @@ function _getTargetParams(targetName, paramName) {
       const available = _getNodeParams(targetNode);
       errorLogger(
         new Error(
-          `Could not connect to parameter '${paramName}' on '${targetName}'. Available parameters: ${available.join(", ")}`
+          `Could not connect to parameter '${paramName}' on '${targetName}'. Available parameters: ${available.join(', ')}`,
         ),
-        'superdough'
+        'superdough',
       );
       return;
     }
@@ -629,7 +640,7 @@ function _connectLFO(params) {
     ...filteredParams
   } = params;
   filteredParams['frequency'] = synced ? frequency / cps : frequency;
-  let lfoNode = lfos[lfoNum];
+  let lfoNode = lfos[num];
   if (lfoNode == null) {
     const ac = getAudioContext();
     lfoNode = getLfo(ac, filteredParams);
@@ -646,30 +657,9 @@ function _connectLFO(params) {
 }
 
 function _connectEnvelope(params) {
-  const {
-    target,
-    param,
-    envDepth,
-    begin,
-    end,
-    attack,
-    decay,
-    sustain,
-    release,
-    curve,
-    ...filteredParams
-  } = params;
+  const { target, param, envDepth, begin, end, attack, decay, sustain, release, curve, ...filteredParams } = params;
   const targets = _getTargetParams(target, param);
-  const [att, dec, sus, rel] = getADSRValues(
-    [
-      attack,
-      decay,
-      sustain,
-      release,
-    ],
-    curve,
-    [0.005, 0.14, 0, 0.1]
-  );
+  const [att, dec, sus, rel] = getADSRValues([attack, decay, sustain, release], curve, [0.005, 0.14, 0, 0.1]);
   targets.forEach((targetParam) => {
     const currentValue = targetParam.value;
     const min = currentValue;
@@ -682,9 +672,9 @@ function connectModulators(params, modulatorType) {
   // We break down params specifying multiple modulators into a set of parameters for
   // a single one
   const individualParams = _splitParams(params);
-  if (modulatorType === "lfo") {
+  if (modulatorType === 'lfo') {
     individualParams.forEach(_connectLFO);
-  } else if (modulatorType === "envelope") {
+  } else if (modulatorType === 'envelope') {
     individualParams.forEach(_connectEnvelope);
   }
 }
@@ -1041,7 +1031,14 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   }
 
   if (compressorThreshold !== undefined) {
-    const compressorNode = getCompressor(ac, compressorThreshold, compressorRatio, compressorKnee, compressorAttack, compressorRelease);
+    const compressorNode = getCompressor(
+      ac,
+      compressorThreshold,
+      compressorRatio,
+      compressorKnee,
+      compressorAttack,
+      compressorRelease,
+    );
     nodes['compressor'] = compressorNode;
     chain.push(compressorNode);
   }
@@ -1114,35 +1111,41 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
 
   // finally, now that `nodes` is populated, set up LFOs and envelopes
   if (lfoTarget !== undefined && lfoParam !== undefined) {
-    connectModulators({
-      num: lfoNum,
-      target: lfoTarget,
-      param: lfoParam,
-      frequency: lfoRate,
-      depth: lfoDepth,
-      dcoffset: lfoDCOffset ?? 0, // override default value of 0.5
-      shape: lfoShape,
-      skew: lfoSkew,
-      curve: lfoCurve,
-      persistent: 1,
-      begin: t,
-      synced: lfoSynced,
-      cps: cps,
-    }, "lfo");
+    connectModulators(
+      {
+        num: lfoNum,
+        target: lfoTarget,
+        param: lfoParam,
+        frequency: lfoRate,
+        depth: lfoDepth,
+        dcoffset: lfoDCOffset ?? 0, // override default value of 0.5
+        shape: lfoShape,
+        skew: lfoSkew,
+        curve: lfoCurve,
+        persistent: 1,
+        begin: t,
+        synced: lfoSynced,
+        cps: cps,
+      },
+      'lfo',
+    );
   }
   if (envTarget !== undefined && envParam !== undefined) {
-    connectModulators({
-      target: envTarget,
-      param: envParam,
-      envDepth,
-      attack: envAttack,
-      decay: envDecay,
-      sustain: envSustain,
-      release: envRelease,
-      curve: envCurve,
-      begin: t,
-      end: endWithRelease,
-    }, "envelope");
+    connectModulators(
+      {
+        target: envTarget,
+        param: envParam,
+        envDepth,
+        attack: envAttack,
+        decay: envDecay,
+        sustain: envSustain,
+        release: envRelease,
+        curve: envCurve,
+        begin: t,
+        end: endWithRelease,
+      },
+      'envelope',
+    );
   }
 };
 

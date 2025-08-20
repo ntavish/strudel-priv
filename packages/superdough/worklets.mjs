@@ -128,7 +128,7 @@ class LFOProcessor extends AudioWorkletProcessor {
     const begin = parameters['begin'][0];
     const end = parameters['end'][0];
     const persistent = parameters['persistent'][0];
-    if ((persistent < 0.5) && currentTime >= end) {
+    if (persistent < 0.5 && currentTime >= end) {
       return false;
     }
     if (currentTime <= begin) {
@@ -165,7 +165,7 @@ class LFOProcessor extends AudioWorkletProcessor {
       }
       this.incrementPhase(dt);
     }
-    
+
     return true;
   }
 }
