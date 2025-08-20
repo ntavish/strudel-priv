@@ -510,6 +510,66 @@ export function resetGlobalEffects() {
   orbits = {};
   analysers = {};
   analysersData = {};
+  lfos = {};
+  nodes = {};
+}
+
+function _getNodeParam(node, name) {
+  // Worklet case
+  if (node?.parameters) {
+    const p = node.parameters.get(name);
+    if (p instanceof AudioParam) {
+      return p;
+    }
+  }
+  // Built-in node case
+  const p = node?.[name];
+  if (p instanceof AudioParam) {
+    return p;
+  }
+  return undefined;
+}
+
+function _getNodeParams(node) {
+  const params = new Set();
+  // Worklet case
+  if (node?.parameters) {
+    node.parameters.forEach((_v, k) => params.add(k));
+  }
+  // Guesses based on common parameters
+  ["gain", "frequency", "detune", "Q", "pan", "playbackRate", "delayTime"]
+    .forEach((k) => { if (node?.[k] instanceof AudioParam) params.add(k); });
+  return Array.from(params);
+}
+
+function connectLFO(lfoNum, target, param, frequency, depth, shape, bipolar, start, end) {
+  debugger;
+  let lfoNode = lfos[lfoNum];
+  const params = {
+    frequency,
+    depth,
+  }
+  if (lfoNode == null) {
+    const ac = getAudioContext();
+    const dcoffset = bipolar > 0.5 ? -0.5 : 0;
+    lfoNode = getLfo(ac, start, 1e9, { frequency, depth, shape, dcoffset});
+    lfos[lfoNum] = lfoNode;
+  }
+  lfoNode.disconnect();
+  const targetNodes = nodes[target];
+  targetNodes.forEach((targetNode) => {
+    if (targetNode === undefined) {
+      const keys = Object.keys(nodes);
+      errorLogger(new Error(`Could not connect to target ${target} -- it does not exist. Available options are ${keys.join(", ")}`), 'superdough');
+      return;
+    }
+    const targetParam = _getNodeParam(targetNode, param);
+    if (targetParam === undefined) {
+      const parameters = _getNodeParams(targetNode);
+      errorLogger(new Error(`Could not connect to parameter ${param} on node ${target}. Available parameters are ${parameters.join(", ")}`), 'superdough');
+    }
+    lfoNode.connect(targetParam);
+  });
 }
 
 let activeSoundSources = new Map();
@@ -518,6 +578,9 @@ let activeSoundSources = new Map();
 function mapChannelNumbers(channels) {
   return (Array.isArray(channels) ? channels : [channels]).map((ch) => ch - 1);
 }
+
+let nodes = {};
+let lfos = {};
 
 export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) => {
   // new: t is always expected to be the absolute target onset time
@@ -628,6 +691,13 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     compressorKnee,
     compressorAttack,
     compressorRelease,
+    lfo,
+    lfoNum,
+    rate,
+    lfoTarget,
+    lfoParam,
+    lfoBipolar,
+    lfoShape,
   } = value;
 
   delaytime = delaytime ?? cycleToSeconds(delaysync, cps);
@@ -681,7 +751,9 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   let sourceNode;
   if (source) {
     sourceNode = source(t, value, hapDuration, cps);
+    nodes['source'] = [sourceNode];
   } else if (getSound(s)) {
+    debugger;
     const { onTrigger } = getSound(s);
     const onEnded = () => {
       audioNodes.forEach((n) => n?.disconnect());
@@ -692,6 +764,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     if (soundHandle) {
       sourceNode = soundHandle.node;
       activeSoundSources.set(chainID, soundHandle);
+      nodes['source'] = [soundHandle.oscillator];
     }
   } else {
     throw new Error(`sound ${s} not found! Is it loaded?`);
@@ -711,12 +784,14 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   stretch !== undefined && chain.push(getWorklet(ac, 'phase-vocoder-processor', { pitchFactor: stretch }));
 
   // gain stage
-  chain.push(gainNode(gain));
+  const initialGain = gainNode(gain);
+  nodes['gain'] = [initialGain];
+  chain.push(initialGain);
 
   //filter
   const ftype = getFilterType(value.ftype);
   if (cutoff !== undefined) {
-    let lp = () =>
+    const lp = () =>
       createFilter(
         ac,
         'lowpass',
@@ -733,14 +808,18 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
         ftype,
         drive,
       );
-    chain.push(lp());
+    const lp1 = lp();
+    nodes['lpf'] = [lp1];
+    chain.push(lp1);
     if (ftype === '24db') {
-      chain.push(lp());
+      const lp2 = lp();
+      nodes['lpf'].push(lp2);
+      chain.push(lp2);
     }
   }
 
   if (hcutoff !== undefined) {
-    let hp = () =>
+    const hp = () =>
       createFilter(
         ac,
         'highpass',
@@ -755,31 +834,56 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
         end,
         fanchor,
       );
-    chain.push(hp());
+    const hp1 = hp();
+    nodes['hpf'] = [hp1];
+    chain.push(hp1);
     if (ftype === '24db') {
-      chain.push(hp());
+      const hp2 = hp();
+      nodes['hpf'].push(hp1);
+      chain.push(hp2);
     }
   }
 
   if (bandf !== undefined) {
     let bp = () =>
       createFilter(ac, 'bandpass', bandf, bandq, bpattack, bpdecay, bpsustain, bprelease, bpenv, t, end, fanchor);
-    chain.push(bp());
+    const bp1 = bp();
+    nodes['bpf'] = [bp1];
+    chain.push(bp1);
     if (ftype === '24db') {
-      chain.push(bp());
+      const bp2 = bp();
+      nodes['bpf'].push(bp2);
+      chain.push(bp2);
     }
   }
 
   if (vowel !== undefined) {
     const vowelFilter = ac.createVowelFilter(vowel);
+    nodes['vowel'] = vowelFilter;
     chain.push(vowelFilter);
   }
 
   // effects
-  coarse !== undefined && chain.push(getWorklet(ac, 'coarse-processor', { coarse }));
-  crush !== undefined && chain.push(getWorklet(ac, 'crush-processor', { crush }));
-  shape !== undefined && chain.push(getWorklet(ac, 'shape-processor', { shape, postgain: shapevol }));
-  distort !== undefined && chain.push(getWorklet(ac, 'distort-processor', { distort, postgain: distortvol }));
+  if (coarse !== undefined) {
+    const coarseNode = getWorklet(ac, 'coarse-processor', { coarse });
+    nodes['coarse'] = coarseNode;
+    chain.push(coarseNode);
+  }
+  if (crush !== undefined) {
+    const crushNode = getWorklet(ac, 'crush-processor', { crush });
+    nodes['crush'] = crushNode;
+    chain.push(crushNode);
+  }
+  if (shape !== undefined) {
+    const shapeNode = getWorklet(ac, 'shape-processor', { shape });
+    nodes['shape'] = shapeNode;
+    chain.push(shapeNode);
+  }
+  if (distort !== undefined) {
+    const distortNode = getWorklet(ac, 'distort-processor', { distort });
+    nodes['distort'] = distortNode;
+    chain.push(distortNode);
+  }
 
   if (tremolosync != null) {
     tremolo = cps * tremolosync;
@@ -808,10 +912,11 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     chain.push(amGain);
   }
 
-  compressorThreshold !== undefined &&
-    chain.push(
-      getCompressor(ac, compressorThreshold, compressorRatio, compressorKnee, compressorAttack, compressorRelease),
-    );
+  if (compressorThreshold !== undefined) {
+    const compressorNode = getCompressor(ac, compressorThreshold, compressorRatio, compressorKnee, compressorAttack, compressorRelease);
+    nodes['compressor'] = compressorNode;
+    chain.push(compressorNode);
+  }
 
   // panning
   if (pan !== undefined) {
@@ -822,17 +927,20 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   // phaser
   if (phaser !== undefined && phaserdepth > 0) {
     const phaserFX = getPhaser(t, endWithRelease, phaser, phaserdepth, phasercenter, phasersweep);
+    nodes['phaser'] = phaserFX;
     chain.push(phaserFX);
   }
 
   // last gain
   const post = new GainNode(ac, { gain: postgain });
+  nodes['post'] = post;
   chain.push(post);
 
   // delay
   let delaySend;
   if (delay > 0 && delaytime > 0 && delayfeedback > 0) {
     const delayNode = getDelay(orbit, delaytime, delayfeedback, t, orbitChannels);
+    nodes['delay'] = delayNode;
     delaySend = effectSend(post, delayNode, delay);
     audioNodes.push(delaySend);
   }
@@ -851,6 +959,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       roomIR = await loadBuffer(url, ac, ir, 0);
     }
     const reverbNode = getReverb(orbit, roomsize, roomfade, roomlp, roomdim, roomIR, orbitChannels);
+    nodes['room'] = reverbNode;
     reverbSend = effectSend(post, reverbNode, room);
     audioNodes.push(reverbSend);
   }
@@ -874,6 +983,9 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   // connect chain elements together
   chain.slice(1).reduce((last, current) => last.connect(current), chain[0]);
   audioNodes = audioNodes.concat(chain);
+
+  // finally, now that `nodes` is populated, set up LFOs
+  connectLFO(lfoNum, lfoTarget, lfoParam, rate, lfo, lfoBipolar, lfoShape, t, endWithRelease);
 };
 
 export const superdoughTrigger = (t, hap, ct, cps) => {

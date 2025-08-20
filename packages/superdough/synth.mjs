@@ -87,6 +87,7 @@ export function registerSynthSounds() {
         stop(envEnd);
         return {
           node,
+          oscillator: o,
           stop: (endTime) => {
             stop(endTime);
           },
@@ -156,6 +157,7 @@ export function registerSynthSounds() {
 
       return {
         node,
+        oscillator: o,
         stop: (endTime) => {
           o.stop(endTime);
         },
@@ -222,6 +224,7 @@ export function registerSynthSounds() {
 
       return {
         node: envGain,
+        oscillator: o,
         stop: (time) => {
           timeoutNode.stop(time);
         },
@@ -298,6 +301,7 @@ export function registerSynthSounds() {
 
       return {
         node: envGain,
+        oscillator: o,
         stop: (time) => {
           timeoutNode.stop(time);
         },
@@ -375,6 +379,7 @@ export function registerSynthSounds() {
 
       return {
         node: envGain,
+        oscillator: o,
         stop: (time) => {
           timeoutNode.stop(time);
         },
@@ -420,6 +425,7 @@ export function registerSynthSounds() {
         stop(envEnd);
         return {
           node,
+          oscillator: o,
           stop: (endTime) => {
             stop(endTime);
           },
@@ -492,6 +498,7 @@ export function getOscillator(s, t, value) {
 
   return {
     node: noiseMix?.node || o,
+    oscillator: o,
     stop: (time) => {
       fmModulator.stop(time);
       vibratoOscillator?.stop(time);
