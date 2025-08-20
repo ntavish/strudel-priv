@@ -1428,13 +1428,17 @@ export const { panorient } = registerControl('panorient');
 // ['pitch2'],
 // ['pitch3'],
 // ['portamento'],
-// TODO: LFO rate see https://tidalcycles.org/docs/patternlib/tutorials/synthesizers/#supersquare
-export const { rate } = registerControl('rate');
+export const { lfoNum } = registerControl('lfoNum');
 export const { lfoTarget } = registerControl('lfoTarget');
 export const { lfoParam } = registerControl('lfoParam');
-export const { lfoNum } = registerControl('lfoNum');
-export const { lfoBipolar } = registerControl('lfoBipolar');
+export const { lfoRate } = registerControl('lfoRate');
+export const { lfoDepth } = registerControl('lfoDepth');
+export const { lfoDCOffset } = registerControl('lfoDCOffset');
 export const { lfoShape } = registerControl('lfoShape');
+export const { lfoSkew } = registerControl('lfoSkew');
+export const { lfoCurve } = registerControl('lfoCurve');
+export const { lfoSynced } = registerControl('lfoSynced');
+
 // TODO: slide param for certain synths
 export const { slide } = registerControl('slide');
 // TODO: detune? https://tidalcycles.org/docs/patternlib/tutorials/synthesizers/#supersquare

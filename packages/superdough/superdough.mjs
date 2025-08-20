@@ -345,31 +345,21 @@ function getDelay(orbit, delaytime, delayfeedback, t, channels) {
   return orbits[orbit].delayNode;
 }
 
-export function getLfo(audioContext, begin, end, properties = {}) {
-  const { shape = 0, ...props } = properties;
-  const { dcoffset = -0.5, depth = 1 } = properties;
+export function getLfo(audioContext, properties = {}) {
+  // Extract some params we need for deriving other params
+  const { begin, shape = 0, ...props } = properties;
   const lfoprops = {
-    frequency: 1,
-    depth,
-    skew: 0.5,
-    phaseoffset: 0,
     time: begin,
-    begin,
-    end,
     shape: getModulationShapeInput(shape),
-    dcoffset,
-    min: dcoffset * depth,
-    max: dcoffset * depth + depth,
-    curve: 1,
     ...props,
   };
 
   return getWorklet(audioContext, 'lfo-processor', lfoprops);
 }
 
-function getPhaser(time, end, frequency = 1, depth = 0.5, centerFrequency = 1000, sweep = 2000) {
+function getPhaser(begin, end, frequency = 1, depth = 0.5, centerFrequency = 1000, sweep = 2000) {
   const ac = getAudioContext();
-  const lfoGain = getLfo(ac, time, end, { frequency, depth: sweep * 2 });
+  const lfoGain = getLfo(ac, { frequency, depth: sweep * 2, begin, end });
 
   //filters
   const numStages = 2; //num of filters in series
@@ -542,34 +532,69 @@ function _getNodeParams(node) {
   return Array.from(params);
 }
 
-function connectLFO(lfoNum, target, param, frequency, depth, shape, bipolar, start, end) {
-  debugger;
+function _connectLFO(params) {
+  const {
+    frequency = 1,
+    synced = 0,
+    cps = 0.5,
+    lfoNum = 1, // default to LFO 1
+    lfoTarget,
+    lfoParam,
+    ...filteredParams
+  } = params;
+  filteredParams['frequency'] = synced ? frequency / cps : frequency;
   let lfoNode = lfos[lfoNum];
-  const params = {
-    frequency,
-    depth,
-  }
   if (lfoNode == null) {
     const ac = getAudioContext();
-    const dcoffset = bipolar > 0.5 ? -0.5 : 0;
-    lfoNode = getLfo(ac, start, 1e9, { frequency, depth, shape, dcoffset});
+    lfoNode = getLfo(ac, filteredParams);
     lfos[lfoNum] = lfoNode;
   }
   lfoNode.disconnect();
-  const targetNodes = nodes[target];
+  const targetNodes = nodes[lfoTarget];
+  if (targetNodes === undefined) {
+    const keys = Object.keys(nodes);
+    errorLogger(new Error(`Could not connect to target ${lfoTarget} -- it does not exist. Available options are ${keys.join(", ")}`), 'superdough');
+    return;
+  }
   targetNodes.forEach((targetNode) => {
-    if (targetNode === undefined) {
-      const keys = Object.keys(nodes);
-      errorLogger(new Error(`Could not connect to target ${target} -- it does not exist. Available options are ${keys.join(", ")}`), 'superdough');
-      return;
-    }
-    const targetParam = _getNodeParam(targetNode, param);
+    const targetParam = _getNodeParam(targetNode, lfoParam);
     if (targetParam === undefined) {
       const parameters = _getNodeParams(targetNode);
-      errorLogger(new Error(`Could not connect to parameter ${param} on node ${target}. Available parameters are ${parameters.join(", ")}`), 'superdough');
+      errorLogger(new Error(`Could not connect to parameter ${lfoParam} on node ${lfoTarget}. Available parameters are ${parameters.join(", ")}`), 'superdough');
     }
     lfoNode.connect(targetParam);
   });
+  const time = filteredParams.begin;
+  for (const [name, value] of Object.entries(filteredParams)) {
+    if (value == null) continue;
+    const p = lfoNode.parameters?.get(name);
+    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(time);
+    else p.cancelScheduledValues(time);
+    p.setValueAtTime(value, time);
+  }
+}
+
+function connectLFOs(time, params) {
+  // We break down params specifying multiple LFOs into a set of parameters for
+  // a single LFO
+  const numLFOs = [
+    [params.lfoNum].flat().length,
+    [params.lfoTarget].flat().length,
+    [params.lfoParam].flat().length,
+  ].reduce((a, v) => Math.max(a, v)); // Number of LFOs is the max as implied by these values
+  for (let i = 0; i < numLFOs; i++) {
+    let singleParams = {};
+    for (const k in params) {
+      const v = params[k];
+      const flatV = [v].flat();
+      if (flatV.length !== numLFOs && flatV.length !== 1) {
+        errorLogger(new Error(`Could not setup LFOs. We derived ${numLFOs} as the intended number of LFOs, but ${k}: ${flatV} does not have matching length nor length 1`));
+        return;
+      }
+      singleParams[k] = flatV[i] ?? flatV[0];
+    }
+    _connectLFO(singleParams);
+  }
 }
 
 let activeSoundSources = new Map();
@@ -691,13 +716,16 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     compressorKnee,
     compressorAttack,
     compressorRelease,
-    lfo,
     lfoNum,
-    rate,
     lfoTarget,
     lfoParam,
-    lfoBipolar,
+    lfoRate,
+    lfoDepth,
+    lfoDCOffset,
     lfoShape,
+    lfoSkew,
+    lfoCurve,
+    lfoSynced,
   } = value;
 
   delaytime = delaytime ?? cycleToSeconds(delaysync, cps);
@@ -753,7 +781,6 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     sourceNode = source(t, value, hapDuration, cps);
     nodes['source'] = [sourceNode];
   } else if (getSound(s)) {
-    debugger;
     const { onTrigger } = getSound(s);
     const onEnded = () => {
       audioNodes.forEach((n) => n?.disconnect());
@@ -896,7 +923,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     const amGain = new GainNode(ac, { gain });
 
     const time = cycle / cps;
-    const lfo = getLfo(ac, t, endWithRelease, {
+    const lfo = getLfo(ac, {
       skew: tremoloskew ?? (tremoloshape != null ? 0.5 : 1),
       frequency: tremolo,
       depth: tremolodepth,
@@ -907,6 +934,8 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       min: 0,
       max: 1,
       curve: 1.5,
+      begin: t,
+      end: endWithRelease,
     });
     lfo.connect(amGain.gain);
     chain.push(amGain);
@@ -985,7 +1014,23 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   audioNodes = audioNodes.concat(chain);
 
   // finally, now that `nodes` is populated, set up LFOs
-  connectLFO(lfoNum, lfoTarget, lfoParam, rate, lfo, lfoBipolar, lfoShape, t, endWithRelease);
+  if (lfoTarget !== undefined && lfoParam !== undefined) {
+    connectLFOs(t, {
+      lfoNum,
+      lfoTarget,
+      lfoParam,
+      frequency: lfoRate,
+      depth: lfoDepth,
+      dcoffset: lfoDCOffset ?? 0, // override default value of 0.5
+      shape: lfoShape,
+      skew: lfoSkew,
+      curve: lfoCurve,
+      persistent: 1,
+      begin: t,
+      synced: lfoSynced,
+      cps: cps,
+    });
+  }
 };
 
 export const superdoughTrigger = (t, hap, ct, cps) => {
