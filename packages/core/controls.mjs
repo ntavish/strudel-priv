@@ -1439,8 +1439,6 @@ export const { lfoSkew } = registerControl('lfoSkew');
 export const { lfoCurve } = registerControl('lfoCurve');
 export const { lfoSynced } = registerControl('lfoSynced');
 
-
-export const { envNum } = registerControl('envNum');
 export const { envTarget } = registerControl('envTarget');
 export const { envParam } = registerControl('envParam');
 export const { envAttack } = registerControl('envAttack');

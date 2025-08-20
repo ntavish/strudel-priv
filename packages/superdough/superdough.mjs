@@ -532,15 +532,100 @@ function _getNodeParams(node) {
   return Array.from(params);
 }
 
+/**
+ * Split parameters (which might be arrays -- implying multiple-parameter modulation -- or a single number) into independent
+ * objects which only account for single-parameter modulation
+ *
+ * @param {Object} params - Dictionary of modulation parameters.
+ * @returns {Object[]} - Array of parameter objects, one per parameter modulation
+ */
+function _splitParams(params, countKeys) {
+  const num = ["num", "target", "parameter"] // names used to indicate individual parameter modulations
+    .map((k) => [params[k] ?? 0].flat().length)
+    .reduce((a, v) => Math.max(a, v), 1);
+
+  const individualParams = [];
+  for (let i = 0; i < num; i++) {
+    const paramsI = {};
+    for (const k in params) {
+      const flatV = [params[k]].flat();
+      if (flatV.length !== num && flatV.length !== 1) {
+        errorLogger(
+          new Error(
+            `Could not set up modulations. We derived ${num} items, but ${k}: ${JSON.stringify(flatV)} has length ${flatV.length} (needs 1 or ${num}).`
+          ),
+          'superdough'
+        );
+        return [];
+      }
+      paramsI[k] = flatV[i] ?? flatV[0];
+    }
+    individualParams.push(paramsI);
+  }
+  return individualParams;
+}
+
+/**
+ * Given a node name and the name of a parameter on that node, attempt to retrieve
+ * all nodes corresponding to the name and their associated parameters
+ *
+ * Note that we say nodes, plural, because some nodes have multiple sub-nodes, like a
+ * 24db filter which is two filters in series
+ *
+ * @param {string} targetName - Name of the node to modulate parameters on (e.g. `lpf`, `source`, etc.)
+ * @param {string} paramName - Name of the parameter to modulate on that node
+ * @returns {AudioParam[]} - Array of audio parameter objects for modulation
+ *
+ */
+function _getTargetParams(targetName, paramName) {
+  const targetNodes = nodes[targetName];
+  if (!targetNodes) {
+    const keys = Object.keys(nodes);
+    errorLogger(
+      new Error(`Could not connect to target '${targetName}' — it does not exist. Available targets: ${keys.join(", ")}`),
+      'superdough'
+    );
+    return [];
+  }
+
+  const audioParams = [];
+  targetNodes.forEach((targetNode) => {
+    const targetParam = _getNodeParam(targetNode, paramName);
+    if (!targetParam) {
+      const available = _getNodeParams(targetNode);
+      errorLogger(
+        new Error(
+          `Could not connect to parameter '${paramName}' on '${targetName}'. Available parameters: ${available.join(", ")}`
+        ),
+        'superdough'
+      );
+      return;
+    }
+    audioParams.push(targetParam);
+  });
+  return audioParams;
+}
+
+function _setWorkletParamsAtTime(audioParams, params, time) {
+  for (const [name, value] of params) {
+    if (value == null) continue;
+    const p = audioParams.get(name);
+    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(time);
+    else p.cancelScheduledValues(time);
+    p.setValueAtTime(value, time);
+  }
+}
+
 let lfos = {};
 function _connectLFO(params) {
   const {
     frequency = 1,
     synced = 0,
     cps = 0.5,
-    lfoNum = 1, // default to LFO 1
-    lfoTarget,
-    lfoParam,
+    num = 1, // default to LFO 1
+    target,
+    param,
+    begin,
     ...filteredParams
   } = params;
   filteredParams['frequency'] = synced ? frequency / cps : frequency;
@@ -548,61 +633,22 @@ function _connectLFO(params) {
   if (lfoNode == null) {
     const ac = getAudioContext();
     lfoNode = getLfo(ac, filteredParams);
-    lfos[lfoNum] = lfoNode;
+    lfos[num] = lfoNode;
   }
-  lfoNode.disconnect();
-  const targetNodes = nodes[lfoTarget];
-  if (targetNodes === undefined) {
-    const keys = Object.keys(nodes);
-    errorLogger(new Error(`Could not connect to target ${lfoTarget} -- it does not exist. Available options are ${keys.join(", ")}`), 'superdough');
-    return;
+  try {
+    lfoNode.disconnect();
+  } catch {
+    // pass
   }
-  targetNodes.forEach((targetNode) => {
-    const targetParam = _getNodeParam(targetNode, lfoParam);
-    if (targetParam === undefined) {
-      const parameters = _getNodeParams(targetNode);
-      errorLogger(new Error(`Could not connect to parameter ${lfoParam} on node ${lfoTarget}. Available parameters are ${parameters.join(", ")}`), 'superdough');
-    }
-    lfoNode.connect(targetParam);
-  });
-  const time = filteredParams.begin;
-  for (const [name, value] of Object.entries(filteredParams)) {
-    if (value == null) continue;
-    const p = lfoNode.parameters?.get(name);
-    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(time);
-    else p.cancelScheduledValues(time);
-    p.setValueAtTime(value, time);
-  }
-}
-
-function connectLFOs(params) {
-  // We break down params specifying multiple LFOs into a set of parameters for
-  // a single LFO
-  const numLFOs = [
-    [params.lfoNum].flat().length,
-    [params.lfoTarget].flat().length,
-    [params.lfoParam].flat().length,
-  ].reduce((a, v) => Math.max(a, v)); // Number of LFOs is the max as implied by these values
-  for (let i = 0; i < numLFOs; i++) {
-    let singleParams = {};
-    for (const k in params) {
-      const v = params[k];
-      const flatV = [v].flat();
-      if (flatV.length !== numLFOs && flatV.length !== 1) {
-        errorLogger(new Error(`Could not setup LFOs. We derived ${numLFOs} as the intended number of LFOs, but ${k}: ${flatV} does not have matching length nor length 1`));
-        return;
-      }
-      singleParams[k] = flatV[i] ?? flatV[0];
-    }
-    _connectLFO(singleParams);
-  }
+  const targets = _getTargetParams(target, param);
+  targets.forEach((target) => lfoNode.connect(target));
+  _setWorkletParamsAtTime(lfoNode.parameters, Object.entries(filteredParams), begin);
 }
 
 function _connectEnvelope(params) {
   const {
-    envNum = 1, // default to envelope 1
-    envTarget,
-    envParam,
+    target,
+    param,
     envDepth,
     begin,
     end,
@@ -613,54 +659,33 @@ function _connectEnvelope(params) {
     curve,
     ...filteredParams
   } = params;
-  const targetNodes = nodes[envTarget];
-  if (targetNodes === undefined) {
-    const keys = Object.keys(nodes);
-    errorLogger(new Error(`Could not connect to target ${envTarget} -- it does not exist. Available options are ${keys.join(", ")}`), 'superdough');
-    return;
-  }
-  targetNodes.forEach((targetNode) => {
-    const targetParam = _getNodeParam(targetNode, envParam);
-    if (targetParam === undefined) {
-      const parameters = _getNodeParams(targetNode);
-      errorLogger(new Error(`Could not connect to parameter ${envParam} on node ${envTarget}. Available parameters are ${parameters.join(", ")}`), 'superdough');
-    }
-    const [att, dec, sus, rel] = getADSRValues(
-      [
-        attack,
-        decay,
-        sustain,
-        release,
-      ],
-      curve,
-      [0.005, 0.14, 0, 0.1]
-    );
-    const min = 0;
-    const max = envDepth;
+  const targets = _getTargetParams(target, param);
+  const [att, dec, sus, rel] = getADSRValues(
+    [
+      attack,
+      decay,
+      sustain,
+      release,
+    ],
+    curve,
+    [0.005, 0.14, 0, 0.1]
+  );
+  targets.forEach((targetParam) => {
+    const currentValue = targetParam.value;
+    const min = currentValue;
+    const max = currentValue + envDepth;
     getParamADSR(targetParam, att, dec, sus, rel, min, max, begin, end, curve);
   });
 }
 
-function connectEnvelopes(params) {
-  // We break down params specifying multiple envelopes into a set of parameters for
-  // a single envelopes
-  const numEnvelopes = [
-    [params.envNum].flat().length,
-    [params.envTarget].flat().length,
-    [params.envParam].flat().length,
-  ].reduce((a, v) => Math.max(a, v)); // Number of envelopes is the max as implied by these values
-  for (let i = 0; i < numEnvelopes; i++) {
-    let singleParams = {};
-    for (const k in params) {
-      const v = params[k];
-      const flatV = [v].flat();
-      if (flatV.length !== numEnvelopes && flatV.length !== 1) {
-        errorLogger(new Error(`Could not setup envelopes. We derived ${numEnvelopes} as the intended number of envelopes, but ${k}: ${flatV} does not have matching length nor length 1`));
-        return;
-      }
-      singleParams[k] = flatV[i] ?? flatV[0];
-    }
-    _connectEnvelope(singleParams);
+function connectModulators(params, modulatorType) {
+  // We break down params specifying multiple modulators into a set of parameters for
+  // a single one
+  const individualParams = _splitParams(params);
+  if (modulatorType === "lfo") {
+    individualParams.forEach(_connectLFO);
+  } else if (modulatorType === "envelope") {
+    individualParams.forEach(_connectEnvelope);
   }
 }
 
@@ -792,7 +817,6 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     lfoSkew,
     lfoCurve,
     lfoSynced,
-    envNum,
     envTarget,
     envParam,
     envAttack,
@@ -1090,10 +1114,10 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
 
   // finally, now that `nodes` is populated, set up LFOs and envelopes
   if (lfoTarget !== undefined && lfoParam !== undefined) {
-    connectLFOs({
-      lfoNum,
-      lfoTarget,
-      lfoParam,
+    connectModulators({
+      num: lfoNum,
+      target: lfoTarget,
+      param: lfoParam,
       frequency: lfoRate,
       depth: lfoDepth,
       dcoffset: lfoDCOffset ?? 0, // override default value of 0.5
@@ -1104,13 +1128,12 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       begin: t,
       synced: lfoSynced,
       cps: cps,
-    });
+    }, "lfo");
   }
   if (envTarget !== undefined && envParam !== undefined) {
-    connectEnvelopes({
-      envNum,
-      envTarget,
-      envParam,
+    connectModulators({
+      target: envTarget,
+      param: envParam,
       envDepth,
       attack: envAttack,
       decay: envDecay,
@@ -1119,7 +1142,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       curve: envCurve,
       begin: t,
       end: endWithRelease,
-    });
+    }, "envelope");
   }
 };
 
