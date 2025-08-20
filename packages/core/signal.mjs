@@ -403,16 +403,22 @@ export const chooseInWith = (pat, xs) => {
 
 /**
  * Chooses randomly from the given list of elements.
+ * @synonyms chooseOut
  * @param  {...any} xs values / patterns to choose from.
  * @returns {Pattern} - a continuous pattern.
  * @example
  * note("c2 g2!2 d2 f1").s(choose("sine", "triangle", "bd:6"))
  */
 export const choose = (...xs) => chooseWith(rand, xs);
-
-// todo: doc
-export const chooseIn = (...xs) => chooseInWith(rand, xs);
 export const chooseOut = choose;
+
+/**
+ * As with {choose}, but the structure comes from the chosen values, rather
+ * than the pattern you're using to choose with.
+ * @param  {...any} xs
+ * @returns
+ */
+export const chooseIn = (...xs) => chooseInWith(rand, xs);
 
 /**
  * Chooses from the given list of values (or patterns of values), according
@@ -510,6 +516,7 @@ function _perlin(t) {
   const v = interp(t - ta)(timeToRand(ta))(timeToRand(tb));
   return v;
 }
+
 export const perlinWith = (tpat) => {
   return tpat.fmap(_perlin);
 };
@@ -555,6 +562,15 @@ export const perlin = perlinWith(time.fmap((v) => Number(v)));
  */
 export const berlin = berlinWith(time.fmap((v) => Number(v)));
 
+/**
+ * Removes events from a pattern given a signal of numbers and a cutoff
+ * value for interpreting that pattern as true or false.
+ * @param {number} withPat - A numeric pattern for comparing the main pattern
+ * against. Values higher than the cutoff will let events through and lower
+ * values will remove events from the main pattern
+ * @param {number} cutoff - The threshold value to use when interpreting the
+ * `withPat`
+ */
 export const degradeByWith = register(
   'degradeByWith',
   (withPat, x, pat) => pat.fmap((a) => (_) => a).appLeft(withPat.filterValues((v) => v > x)),
