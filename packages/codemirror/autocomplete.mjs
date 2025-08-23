@@ -54,15 +54,18 @@ const buildExamples = (examples) =>
   `
     : '';
 
-export const Autocomplete = ({ doc, label }) =>
-  h`
+export const Autocomplete = ({ doc, label }) => {
+  const linkPattern = /\{@link\s+(?<class>[a-zA-Z.]+)?#?(?<member>[a-zA-Z]*)?(?:\|(?<label>[^}]+))?\}/g;
+  const description = doc.description?.replaceAll(linkPattern, (_, cls, mem, label) => label || mem || cls || '') ?? '';
+  return h`
   <div class="autocomplete-info-tooltip">
     <h3 class="autocomplete-info-function-name">${label || getDocLabel(doc)}</h3>
-    ${doc.description ? `<p class="autocomplete-info-function-description">${doc.description}</p>` : ''}
+    <p class="autocomplete-info-function-description">${description}</p>
     ${buildParamsList(doc.params)}
     ${buildExamples(doc.examples)}
   </div>
 `[0];
+};
 
 const isValidDoc = (doc) => {
   const label = getDocLabel(doc);

@@ -8,6 +8,8 @@
   --lineHighlight: #00000050;
   --gutterBackground: transparent;
   --gutterForeground: #8a919966;
+  --link: #7dcfff;
+  --linkVisited: #b48ead;
 }
 
 .darken::before {
@@ -198,4 +200,18 @@
 }
 
 .autocomplete-info-tooltip::-webkit-scrollbar-thumb:hover {
+}
+
+.cm-tooltip .autocomplete-info-tooltip a {
+  color: var(--link, #7dcfff);
+  text-decoration: underline;
+}
+
+.cm-tooltip .autocomplete-info-tooltip a:hover {
+  text-decoration: underline;
+  filter: brightness(1.1);
+}
+
+.cm-tooltip .autocomplete-info-tooltip a:visited {
+  color: var(--linkVisited, #b48ead);
 }
