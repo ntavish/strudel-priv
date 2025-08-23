@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { flushSync } from 'react-dom'
+import { flushSync } from 'react-dom';
 
 import jsdocJson from '../../../../../doc.json';
 import { replaceLinkWithReference } from '../../../docs/util';
@@ -18,7 +18,7 @@ const _scrollToReference = (id) => {
   const el = document.getElementById(`doc-${id}`);
   const container = document.getElementById('reference-container');
   container.scrollTo(0, el.offsetTop);
-}
+};
 
 export function Reference() {
   const [search, setSearch] = useState('');
@@ -45,8 +45,8 @@ export function Reference() {
       });
       _scrollToReference(0);
     };
-    window.addEventListener("open-reference", onOpenReference);
-    return () => window.removeEventListener("open-reference", onOpenReference);
+    window.addEventListener('open-reference', onOpenReference);
+    return () => window.removeEventListener('open-reference', onOpenReference);
   }, []);
 
   useEffect(() => {

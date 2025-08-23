@@ -2,7 +2,7 @@ import jsdoc from '../../doc.json';
 import { autocompletion } from '@codemirror/autocomplete';
 import { setIsPanelOpened, setActiveFooter as setTab } from '../../website/src/settings';
 import { h } from './html';
-import { replaceLinkWithReference } from '../../website/src/docs/util'
+import { replaceLinkWithReference } from '../../website/src/docs/util';
 
 const escapeHtml = (str) => {
   const div = document.createElement('div');
@@ -67,17 +67,19 @@ export const Autocomplete = ({ doc, label }) => {
   `[0];
 
   node.addEventListener('click', (e) => {
+    // See if clicked element was a jsdoc link
     const a = e.target.closest('a.jsdoc-ref[data-ref]');
     if (!a) return;
+    // If so, open the corresponding page in the Reference tab
     e.preventDefault();
     const targetId = a.getAttribute('data-ref');
     setIsPanelOpened(true);
     setTab('reference');
-    window.dispatchEvent(new CustomEvent("open-reference", { detail: { id: a.getAttribute('data-ref') } }));
+    window.dispatchEvent(new CustomEvent('open-reference', { detail: { id: a.getAttribute('data-ref') } }));
   });
 
   return node;
-}
+};
 
 const isValidDoc = (doc) => {
   const label = getDocLabel(doc);
