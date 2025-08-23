@@ -1,6 +1,8 @@
 import jsdoc from '../../doc.json';
 import { autocompletion } from '@codemirror/autocomplete';
+import { setIsPanelOpened, setActiveFooter as setTab } from '../../website/src/settings';
 import { h } from './html';
+import { replaceLinkWithReference } from '../../website/src/docs/util'
 
 const escapeHtml = (str) => {
   const div = document.createElement('div');
@@ -55,17 +57,27 @@ const buildExamples = (examples) =>
     : '';
 
 export const Autocomplete = ({ doc, label }) => {
-  const linkPattern = /\{@link\s+(?<class>[a-zA-Z.]+)?#?(?<member>[a-zA-Z]*)?(?:\|(?<label>[^}]+))?\}/g;
-  const description = doc.description?.replaceAll(linkPattern, (_, cls, mem, label) => label || mem || cls || '') ?? '';
-  return h`
-  <div class="autocomplete-info-tooltip">
-    <h3 class="autocomplete-info-function-name">${label || getDocLabel(doc)}</h3>
-    <p class="autocomplete-info-function-description">${description}</p>
-    ${buildParamsList(doc.params)}
-    ${buildExamples(doc.examples)}
-  </div>
-`[0];
-};
+  const node = h`
+    <div class="autocomplete-info-tooltip">
+      <h3 class="autocomplete-info-function-name">${label || getDocLabel(doc)}</h3>
+      <p class="autocomplete-info-function-description">${replaceLinkWithReference(doc.description)}</p>
+      ${buildParamsList(doc.params)}
+      ${buildExamples(doc.examples)}
+    </div>
+  `[0];
+
+  node.addEventListener('click', (e) => {
+    const a = e.target.closest('a.jsdoc-ref[data-ref]');
+    if (!a) return;
+    e.preventDefault();
+    const targetId = a.getAttribute('data-ref');
+    setIsPanelOpened(true);
+    setTab('reference');
+    window.dispatchEvent(new CustomEvent("open-reference", { detail: { id: a.getAttribute('data-ref') } }));
+  });
+
+  return node;
+}
 
 const isValidDoc = (doc) => {
   const label = getDocLabel(doc);

@@ -215,3 +215,17 @@
 .cm-tooltip .autocomplete-info-tooltip a:visited {
   color: var(--linkVisited, #b48ead);
 }
+
+#reference-container a {
+  color: var(--link, #7dcfff);
+  text-decoration: underline;
+}
+
+#reference-container a:hover {
+  text-decoration: underline;
+  filter: brightness(1.1);
+}
+
+#reference-container a:visited {
+  color: var(--linkVisited, #b48ead);
+}
