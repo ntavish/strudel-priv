@@ -240,6 +240,17 @@ const __timeToRands = (t, n) => __timeToRandsPrime(__timeToIntSeed(t), n);
 // End old random
 
 let useOldRandomBool = false;
+/**
+ * Whether to use the old random number generator or not. Can be used to support legacy projects
+ *
+ * @name useOldRandom
+ * @param {boolean} b - Whether to use old RNG
+ * @example
+ * useOldRandom(true)
+ * // Repeats every 300 cycles
+ * $: n(irand(50)).seg(16).scale("C:minor").ribbon(88, 32)._punchcard()
+ * $: n(irand(50)).seg(16).scale("C:minor").ribbon(388, 32)._punchcard()
+ */
 export const useOldRandom = (b = true) => useOldRandomBool = b;
 
 // N samples at time t
