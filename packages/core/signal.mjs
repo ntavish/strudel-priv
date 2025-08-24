@@ -186,7 +186,7 @@ export const mouseY = signal(() => _mouseY);
 export const mousex = signal(() => _mouseX);
 export const mouseX = signal(() => _mouseX);
 
-// random signals
+// Random number generators
 
 // Produce "Avalanche effect" where flipping a single bit of x
 // results in all output bits flipping with probability 0.5
@@ -215,8 +215,38 @@ function randAt(t, i = 0) {
   return _murmurHashFinalizer(_decorrelate(t, i)) / 4294967296; // 2^32
 }
 
+// Deprecated: Old random signals. Configuration `useOldRandom` may be used for legacy songs
+
+// stretch 300 cycles over the range of [0,2**29 == 536870912) then apply the xorshift algorithm
+const __xorwise = (x) => {
+  const a = (x << 13) ^ x;
+  const b = (a >> 17) ^ a;
+  return (b << 5) ^ b;
+};
+const __frac = (x) => x - Math.trunc(x);
+const __timeToIntSeed = (x) => __xorwise(Math.trunc(__frac(x / 300) * 536870912));
+const __intSeedToRand = (x) => (x % 536870912) / 536870912;
+const __timeToRand = (x) => Math.abs(__intSeedToRand(__timeToIntSeed(x)));
+const __timeToRandsPrime = (seed, n) => {
+  const result = [];
+  for (let i = 0; i < n; i++) {
+    result.push(__intSeedToRand(seed));
+    seed = __xorwise(seed);
+  }
+  return result;
+};
+const __timeToRands = (t, n) => __timeToRandsPrime(__timeToIntSeed(t), n);
+
+// End old random
+
+let useOldRandomBool = false;
+export const useOldRandom = (b = true) => useOldRandomBool = b;
+
 // N samples at time t
 function timeToRands(t, n) {
+  if (useOldRandomBool) {
+    return __timeToRands(t, n);
+  }
   const out = new Array(n);
   for (let i = 0; i < n; i++) out[i] = randAt(t, i);
   return out;
@@ -224,6 +254,9 @@ function timeToRands(t, n) {
 
 // Single sample at time t
 function timeToRand(t) {
+  if (useOldRandomBool) {
+    return __timeToRand(t);
+  }
   return randAt(t, 0);
 }
 
