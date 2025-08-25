@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     reporters: 'verbose',
     isolate: false,
-    silent: true,
+    silent: false,
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
@@ -16,5 +16,6 @@ export default defineConfig({
       '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress}.config.*',
       '**/shared.test.mjs',
     ],
+    setupFiles: './vitest.setup.mjs',
   },
 });

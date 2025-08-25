@@ -201,9 +201,13 @@ function _murmurHashFinalizer(x) {
   return x >>> 0; // unsigned
 }
 
-// Used to decorrelate nearby t and i prior to hashing
-function _decorrelate(t, i = 0) {
-  const T = Math.floor(t * 536870912); // set 2^29 resolution
+// Convert t to a 32 bit integer, preserving temporal resolution down to 1/2^29
+function _tToT(t) {
+  return Math.floor(t * 536870912);
+}
+
+// Used to decorrelate nearby T and i prior to hashing
+function _decorrelate(T, i = 0) {
   const lowBits = (T >>> 0) >>> 0;
   const highBits = Math.floor(T / 4294967296) >>> 0; // 2^32
   let key = lowBits ^ Math.imul(highBits ^ 0x85ebca6b, 0xc2b2ae35);
@@ -211,8 +215,19 @@ function _decorrelate(t, i = 0) {
   return key >>> 0;
 }
 
-function randAt(t, i = 0) {
-  return _murmurHashFinalizer(_decorrelate(t, i)) / 4294967296; // 2^32
+function randAt(T, i = 0) {
+  return _murmurHashFinalizer(_decorrelate(T, i)) / 4294967296; // 2^32
+}
+
+// n samples at time t
+function timeToRands(t, n) {
+  const T = _tToT(t);
+  if (n === 1) {
+    return randAt(T, 0);
+  }
+  const out = new Array(n);
+  for (let i = 0; i < n; i++) out[i] = randAt(T, i);
+  return out;
 }
 
 // Deprecated: Old random signals. Configuration `useOldRandom` may be used for legacy songs
@@ -226,8 +241,10 @@ const __xorwise = (x) => {
 const __frac = (x) => x - Math.trunc(x);
 const __timeToIntSeed = (x) => __xorwise(Math.trunc(__frac(x / 300) * 536870912));
 const __intSeedToRand = (x) => (x % 536870912) / 536870912;
-const __timeToRand = (x) => Math.abs(__intSeedToRand(__timeToIntSeed(x)));
 const __timeToRandsPrime = (seed, n) => {
+  if (n === 1) {
+    return Math.abs(__intSeedToRand(seed));
+  }
   const result = [];
   for (let i = 0; i < n; i++) {
     result.push(__intSeedToRand(seed));
@@ -240,6 +257,10 @@ const __timeToRands = (t, n) => __timeToRandsPrime(__timeToIntSeed(t), n);
 // End old random
 
 let useOldRandomBool = false;
+const getRandsAtTime = (t, n = 1) => {
+  return useOldRandomBool ? __timeToRands(t, n) : timeToRands(t, n);
+};
+
 /**
  * Whether to use the old random number generator or not. Can be used to support legacy projects
  *
@@ -248,28 +269,10 @@ let useOldRandomBool = false;
  * @example
  * useOldRandom(true)
  * // Repeats every 300 cycles
- * $: n(irand(50)).seg(16).scale("C:minor").ribbon(88, 32)._punchcard()
- * $: n(irand(50)).seg(16).scale("C:minor").ribbon(388, 32)._punchcard()
+ * $: n(irand(50)).seg(16).scale("C:minor").ribbon(88, 32)
+ * $: n(irand(50)).seg(16).scale("C:minor").ribbon(388, 32)
  */
-export const useOldRandom = (b = true) => useOldRandomBool = b;
-
-// N samples at time t
-function timeToRands(t, n) {
-  if (useOldRandomBool) {
-    return __timeToRands(t, n);
-  }
-  const out = new Array(n);
-  for (let i = 0; i < n; i++) out[i] = randAt(t, i);
-  return out;
-}
-
-// Single sample at time t
-function timeToRand(t) {
-  if (useOldRandomBool) {
-    return __timeToRand(t);
-  }
-  return randAt(t, 0);
-}
+export const useOldRandom = (b = true) => (useOldRandomBool = b);
 
 /**
  * A discrete pattern of numbers from 0 to n-1
@@ -313,7 +316,7 @@ export const binaryN = (n, nBits = 16) => {
 export const randrun = (n) => {
   return signal((t) => {
     // Without adding 0.5, the first cycle is always 0,1,2,3,...
-    const rands = timeToRands(t.floor().add(0.5), n);
+    const rands = getRandsAtTime(t.floor().add(0.5), n);
     const nums = rands
       .map((n, i) => [n, i])
       .sort((a, b) => (a[0] > b[0]) - (a[0] < b[0]))
@@ -363,7 +366,7 @@ export const scramble = register('scramble', (n, pat) => {
  * s("bd*4,hh*8").cutoff(rand.range(500,8000))
  *
  */
-export const rand = signal(timeToRand);
+export const rand = signal(getRandsAtTime);
 /**
  * A continuous pattern of random numbers, between -1 and 1
  */
@@ -545,7 +548,7 @@ function _perlin(t) {
   let tb = ta + 1;
   const smootherStep = (x) => 6.0 * x ** 5 - 15.0 * x ** 4 + 10.0 * x ** 3;
   const interp = (x) => (a) => (b) => a + smootherStep(x) * (b - a);
-  const v = interp(t - ta)(timeToRand(ta))(timeToRand(tb));
+  const v = interp(t - ta)(getRandsAtTime(ta))(getRandsAtTime(tb));
   return v;
 }
 export const perlinWith = (tpat) => {
@@ -556,8 +559,8 @@ function _berlin(t) {
   const prevRidgeStartIndex = Math.floor(t);
   const nextRidgeStartIndex = prevRidgeStartIndex + 1;
 
-  const prevRidgeBottomPoint = timeToRand(prevRidgeStartIndex);
-  const nextRidgeTopPoint = timeToRand(nextRidgeStartIndex) + prevRidgeBottomPoint;
+  const prevRidgeBottomPoint = getRandsAtTime(prevRidgeStartIndex);
+  const nextRidgeTopPoint = getRandsAtTime(nextRidgeStartIndex) + prevRidgeBottomPoint;
 
   const currentPercent = (t - prevRidgeStartIndex) / (nextRidgeStartIndex - prevRidgeStartIndex);
   const interp = (a, b, t) => {

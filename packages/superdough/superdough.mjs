@@ -19,6 +19,17 @@ const DEFAULT_AUDIO_DEVICE_NAME = 'System Standard';
 
 let maxPolyphony = DEFAULT_MAX_POLYPHONY;
 
+/**
+ * Set the max polyphony. If notes are ringing out via `release` then they will
+ * start to die out in first-in-first-out order once the max polyphony has been hit
+ *
+ * @name setMaxPolyphony
+ * @param {number} Max polyphony. Defaults to 128
+ * @example
+ * setMaxPolyphony(4)
+ * n(irand(24).seg(8)).scale("C#3:minor").room(1).release(4).gain(0.5)
+ *
+ */
 export function setMaxPolyphony(polyphony) {
   maxPolyphony = parseInt(polyphony) ?? DEFAULT_MAX_POLYPHONY;
 }
@@ -48,6 +59,17 @@ export function applyGainCurve(val) {
   return gainCurveFunc(val);
 }
 
+/**
+ * Apply a function to all gains provided in patterns. Can be used to rescale gain to be
+ * quadratic, exponential, etc. rather than linear
+ *
+ * @name setGainCurve
+ * @param {Function} function to apply to all gain values
+ * @example
+ * setGainCurve((x) => x * x) // quadratic gain
+ * s("bd*4").gain(0.5) // equivalent to 0.25 gain normally
+ *
+ */
 export function setGainCurve(newGainCurveFunc) {
   gainCurveFunc = newGainCurveFunc;
 }
