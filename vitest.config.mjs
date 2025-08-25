@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     reporters: 'verbose',
     isolate: false,
-    silent: false,
+    silent: true,
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
