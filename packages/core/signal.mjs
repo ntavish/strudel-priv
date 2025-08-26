@@ -567,9 +567,9 @@ function _standardNormal(t) {
  *
  * @name normal
  * @returns {Pattern}
- * @param {mu} mean of the distribution (where it's centered)
- * @param {sigma} standard deviation of the distribution (how much it deviates from that center)
- * @param {chaos} speed multiplier for how often the noise is sampled (otherwise it interpolates between values)
+ * @param {number | Pattern} mu - mean of the distribution (where it's centered)
+ * @param {number | Pattern} sigma - standard deviation of the distribution (how much it deviates from that center)
+ * @param {number | Pattern} chaos - speed multiplier for how often the noise is sampled (otherwise it interpolates between values)
  * @example
  * note("d1!16").s("saw")
  *   .penv(normal(0, 2, 16)).pdecay(100)
