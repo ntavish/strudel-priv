@@ -548,7 +548,7 @@ function _getNodeParams(node) {
  * @param {Object} params - Dictionary of modulation parameters.
  * @returns {Object[]} - Array of parameter objects, one per parameter modulation
  */
-function _splitParams(params, countKeys) {
+function _splitParams(params) {
   const num = ['num', 'target', 'parameter'] // names used to indicate individual parameter modulations
     .map((k) => [params[k] ?? 0].flat().length)
     .reduce((a, v) => Math.max(a, v), 1);
