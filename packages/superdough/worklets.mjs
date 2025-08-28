@@ -907,3 +907,97 @@ class ByteBeatProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('byte-beat-processor', ByteBeatProcessor);
+
+class EnvelopeProcessor extends AudioWorkletProcessor {
+  static get parameterDescriptors() {
+    return [
+      { name: 'start', defaultValue: 0 },
+      { name: 'end', defaultValue: 0 },
+      { name: 'attack', defaultValue: 0.005, minValue: 0 },
+      { name: 'decay', defaultValue: 0.14, minValue: 0 },
+      { name: 'sustain', defaultValue: 0, minValue: 0, maxValue: 1 },
+      { name: 'release', defaultValue: 0.1, minValue: 0 },
+      { name: 'attackCurve', defaultValue: 0, minValue: -1, maxValue: 1 },
+      { name: 'decayCurve', defaultValue: 0, minValue: -1, maxValue: 1 },
+      { name: 'releaseCurve', defaultValue: 0, minValue: -1, maxValue: 1 },
+      { name: 'peak', defaultValue: 1 },
+      { name: 'retrigger', defaultValue: 1, minValue: 0,  maxValue: 1 },
+    ];
+  }
+
+  constructor() {
+    super();
+    this.val = 0;
+    this.segIdx = 0;
+    this.state = 0;
+    this.startTime = 0;
+    this.endTime = 0;
+  }
+
+  _shape(u, c) {
+    if (c === 0) return u;
+    const k = 4;
+    if (c > 0) {
+      const p = 1 + k * c;
+      return 1 - Math.pow(1 - u, p);
+    } else {
+      const p = 1 + k * (-c);
+      return Math.pow(u, p);
+    }
+  }
+
+  _advance(start, target, length, curve) {
+    if (length <= 1 || start === target) {
+      this.val = target;
+    } else {
+      const u = Math.min(1, this.segIdx / (length - 1));
+      const us = this._shape(u, curve);
+      this.val = start + (target - start) * us;
+    }
+    this.segIdx++;
+  }
+
+  process(_inputs, outputs, params) {
+    const out = outputs[0][0];
+    if (!out) return true;
+    const start = pv(params.start, 0);
+    this.endTime = pv(params.end, 0);
+    const retrig = pv(params.retrig, 0) >= 0.5; // convert to bool
+    if (start !== this.startTime) {
+      // triggered
+      this.startTime = start;
+      if (this.state === 0 || retrig) {
+        this.state = 1;
+        this._resetSegment(this.env, pv(params.peak, 0), pv(params.attack, 0));
+      }
+    }
+    for (let i = 0; i < out.length; i++) {
+      const attack = pv(params.attack, i);
+      const decay = pv(params.decay, i);
+      const sustain = pv(params.sustain, i);
+      const release = pv(params.release, i);
+      const aCurve = pv(params.aCurve, i);
+      const dCurve = pv(params.dCurve, i);
+      const rCurve = pv(params.rCurve, i);
+      const peak = pv(params.peak, i);
+      const states = [
+        { time: Number.POSITIVE_INFINITY, start: 0, target: 0 }, // idle
+        { time: attack, start: 0, target: peak, curve: aCurve },
+        { time: decay, start: peak, target: sustain * peak, curve: dCurve },
+        { time: this.endTime - this.startTime - attack - decay },
+        { time: release, start: sustain * peak, target: 0, curve: rCurve },
+      ]
+      const {time, start, target, curve} = states[this.state];
+      const length = Math.floor(time * sampleRate);
+      this._advance(start, target, length, curve);
+      if (this.segIdx >= length) {
+        this.state = (this.state + 1) % states.length;
+      }
+      out[i] = this.val * peak;
+    }
+
+    return true;
+  }
+}
+
+registerProcessor('envelope-processor', EnvelopeProcessor);
