@@ -922,7 +922,7 @@ class EnvelopeProcessor extends AudioWorkletProcessor {
       { name: 'decayCurve', defaultValue: 0, minValue: -1, maxValue: 1 },
       { name: 'releaseCurve', defaultValue: 0, minValue: -1, maxValue: 1 },
       { name: 'peak', defaultValue: 1 },
-      { name: 'retrigger', defaultValue: 1, minValue: 0,  maxValue: 1 },
+      { name: 'retrigger', defaultValue: 1, minValue: 0, maxValue: 1 },
     ];
   }
 
@@ -943,7 +943,7 @@ class EnvelopeProcessor extends AudioWorkletProcessor {
       const p = 1 + k * c;
       return 1 - Math.pow(1 - u, p);
     } else {
-      const p = 1 + k * (-c);
+      const p = 1 + k * -c;
       return Math.pow(u, p);
     }
   }
@@ -986,8 +986,8 @@ class EnvelopeProcessor extends AudioWorkletProcessor {
         { time: attack + decay, start: 1, target: sustain, curve: dCurve },
         { time: susTime, start: sustain, target: sustain },
         { time: susTime + release, start: sustain, target: 0, curve: rCurve },
-      ]
-      let {time, start, target, curve} = states[this.state];
+      ];
+      let { time, start, target, curve } = states[this.state];
       this._advance(start, target, time, curve);
       while (currentTime - this.beginTime >= time) {
         this.state = (this.state + 1) % states.length;
