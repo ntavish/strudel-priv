@@ -933,6 +933,7 @@ class EnvelopeProcessor extends AudioWorkletProcessor {
     this.state = 0;
     this.beginTime = 0;
     this.endTime = 0;
+    this.attackStart = 0;
   }
 
   _shape(u, c) {
@@ -947,29 +948,29 @@ class EnvelopeProcessor extends AudioWorkletProcessor {
     }
   }
 
-  _advance(start, target, length, curve) {
-    if (length <= 1 || start === target) {
+  _advance(start, target, time, curve) {
+    if (time === 0 || start === target) {
       this.val = target;
     } else {
-      const u = Math.min(1, this.segIdx / (length - 1));
+      const u = Math.min(1, (currentTime - this.beginTime) / time);
       const us = this._shape(u, curve);
       this.val = start + (target - start) * us;
     }
-    this.segIdx++;
   }
 
   process(_inputs, outputs, params) {
     const out = outputs[0][0];
     if (!out) return true;
     const begin = pv(params.begin, 0);
-    this.endTime = pv(params.end, 0);
     const retrigger = pv(params.retrigger, 0) >= 0.5; // convert to bool
     if (begin !== this.beginTime && (this.state === 0 || retrigger)) {
       // triggered
       this.beginTime = begin;
       this.state = 1;
-      this.segIdx = 0;
+      this.endTime = pv(params.end, 0);
+      this.attackStart = this.val;
     }
+    const susTime = this.endTime - this.beginTime;
     for (let i = 0; i < out.length; i++) {
       const attack = pv(params.attack, i);
       const decay = pv(params.decay, i);
@@ -981,17 +982,16 @@ class EnvelopeProcessor extends AudioWorkletProcessor {
       const peak = pv(params.peak, i);
       const states = [
         { time: Number.POSITIVE_INFINITY, start: 0, target: 0 }, // idle
-        { time: attack, start: 0, target: peak, curve: aCurve },
-        { time: decay, start: 1, target: sustain, curve: dCurve },
-        { time: this.endTime - this.beginTime - attack - decay, start: sustain, target: sustain },
-        { time: release, start: sustain, target: 0, curve: rCurve },
+        { time: attack, start: this.attackStart, target: 1, curve: aCurve },
+        { time: attack + decay, start: 1, target: sustain, curve: dCurve },
+        { time: susTime, start: sustain, target: sustain },
+        { time: susTime + release, start: sustain, target: 0, curve: rCurve },
       ]
-      const {time, start, target, curve} = states[this.state];
-      const length = Math.floor(time * sampleRate);
-      this._advance(start, target, length, curve);
-      if (this.segIdx >= length) {
+      let {time, start, target, curve} = states[this.state];
+      this._advance(start, target, time, curve);
+      while (currentTime - this.beginTime >= time) {
         this.state = (this.state + 1) % states.length;
-        this.segIdx = 0;
+        time = states[this.state].time;
       }
       out[i] = this.val * peak;
     }
