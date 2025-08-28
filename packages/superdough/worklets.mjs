@@ -7,6 +7,7 @@ import FFT from './fft.js';
 
 const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
 const _mod = (n, m) => ((n % m) + m) % m;
+const pv = (arr, idx) => arr[idx] ?? arr[0];
 
 // Restrict phase to the range [0, maxPhase) via wrapping
 function wrapPhase(phase, maxPhase = 1) {
@@ -911,7 +912,7 @@ registerProcessor('byte-beat-processor', ByteBeatProcessor);
 class EnvelopeProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
-      { name: 'start', defaultValue: 0 },
+      { name: 'begin', defaultValue: 0 },
       { name: 'end', defaultValue: 0 },
       { name: 'attack', defaultValue: 0.005, minValue: 0 },
       { name: 'decay', defaultValue: 0.14, minValue: 0 },
@@ -930,13 +931,13 @@ class EnvelopeProcessor extends AudioWorkletProcessor {
     this.val = 0;
     this.segIdx = 0;
     this.state = 0;
-    this.startTime = 0;
+    this.beginTime = 0;
     this.endTime = 0;
   }
 
   _shape(u, c) {
     if (c === 0) return u;
-    const k = 4;
+    const k = 8;
     if (c > 0) {
       const p = 1 + k * c;
       return 1 - Math.pow(1 - u, p);
@@ -960,38 +961,37 @@ class EnvelopeProcessor extends AudioWorkletProcessor {
   process(_inputs, outputs, params) {
     const out = outputs[0][0];
     if (!out) return true;
-    const start = pv(params.start, 0);
+    const begin = pv(params.begin, 0);
     this.endTime = pv(params.end, 0);
-    const retrig = pv(params.retrig, 0) >= 0.5; // convert to bool
-    if (start !== this.startTime) {
+    const retrigger = pv(params.retrigger, 0) >= 0.5; // convert to bool
+    if (begin !== this.beginTime && (this.state === 0 || retrigger)) {
       // triggered
-      this.startTime = start;
-      if (this.state === 0 || retrig) {
-        this.state = 1;
-        this._resetSegment(this.env, pv(params.peak, 0), pv(params.attack, 0));
-      }
+      this.beginTime = begin;
+      this.state = 1;
+      this.segIdx = 0;
     }
     for (let i = 0; i < out.length; i++) {
       const attack = pv(params.attack, i);
       const decay = pv(params.decay, i);
       const sustain = pv(params.sustain, i);
       const release = pv(params.release, i);
-      const aCurve = pv(params.aCurve, i);
-      const dCurve = pv(params.dCurve, i);
-      const rCurve = pv(params.rCurve, i);
+      const aCurve = pv(params.attackCurve, i);
+      const dCurve = pv(params.decayCurve, i);
+      const rCurve = pv(params.releaseCurve, i);
       const peak = pv(params.peak, i);
       const states = [
         { time: Number.POSITIVE_INFINITY, start: 0, target: 0 }, // idle
         { time: attack, start: 0, target: peak, curve: aCurve },
-        { time: decay, start: peak, target: sustain * peak, curve: dCurve },
-        { time: this.endTime - this.startTime - attack - decay },
-        { time: release, start: sustain * peak, target: 0, curve: rCurve },
+        { time: decay, start: 1, target: sustain, curve: dCurve },
+        { time: this.endTime - this.beginTime - attack - decay, start: sustain, target: sustain },
+        { time: release, start: sustain, target: 0, curve: rCurve },
       ]
       const {time, start, target, curve} = states[this.state];
       const length = Math.floor(time * sampleRate);
       this._advance(start, target, length, curve);
       if (this.segIdx >= length) {
         this.state = (this.state + 1) % states.length;
+        this.segIdx = 0;
       }
       out[i] = this.val * peak;
     }
