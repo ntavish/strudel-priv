@@ -184,7 +184,7 @@ export function getPitchEnvelope(param, value, t, holdEnd) {
     curve,
     [0.2, 0.001, 1, 0.001],
   );
-  let panchor = value.panchor ?? psustain;
+  let panchor = value.panchor ?? 0;
   const cents = penv * 100; // penv is in semitones
   const min = 0 - cents * panchor;
   const max = cents - cents * panchor;
