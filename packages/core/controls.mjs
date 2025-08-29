@@ -300,11 +300,13 @@ export const { fmvelocity } = registerControl('fmvelocity');
 
 /**
  * Select the sound bank to use. To be used together with `s`. The bank name (+ "_") will be prepended to the value of `s`.
+ * You can optionally pass a number after ":" to apply an offset to the chosen sound number.
  *
  * @name bank
  * @param {string | Pattern} bank the name of the bank
  * @example
- * s("bd sd [~ bd] sd").bank('RolandTR909') // = s("RolandTR909_bd RolandTR909_sd")
+ * s("bd sd [~ bd] sd:1").bank('tr909')   // = s("tr909_bd tr909_sd:1")
+ * s("bd sd [~ bd] sd:1").bank('tr909:1') // = s("tr909_bd:1 tr909_sd:2")
  *
  */
 export const { bank } = registerControl(['bank', 'bankOffset']);
