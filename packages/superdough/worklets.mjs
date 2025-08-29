@@ -936,25 +936,29 @@ class EnvelopeProcessor extends AudioWorkletProcessor {
     this.attackStart = 0;
   }
 
-  _shape(u, c) {
-    if (c === 0) return u;
-    const k = 8;
-    if (c > 0) {
-      const p = 1 + k * c;
-      return 1 - Math.pow(1 - u, p);
+  _warp(phase, curvature, strength = 8) {
+    if (phase === 0 || phase === 1) return phase; // fast exit
+    if (curvature > 0) {
+      // snappier
+      const exp = 1 + strength * curvature;
+      return 1 - Math.pow(1 - phase, exp);
     } else {
-      const p = 1 + k * -c;
-      return Math.pow(u, p);
+      // more calm
+      const exp = 1 - strength * curvature;
+      return Math.pow(phase, exp);
     }
   }
 
-  _advance(start, target, time, curve) {
+  _advance(start, target, time, curvature) {
     if (time === 0 || start === target) {
       this.val = target;
     } else {
-      const u = Math.min(1, (currentTime - this.beginTime) / time);
-      const us = this._shape(u, curve);
-      this.val = start + (target - start) * us;
+      // We compute our progress through this section of the envelope in time
+      // as a `phase` value, which is warped by the curvature, and then used
+      // to compute the value of the envelope at that time
+      const phase = Math.min(1, (currentTime - this.beginTime) / time);
+      const phaseWarped = this._warp(phase, curvature);
+      this.val = start + (target - start) * phaseWarped;
     }
   }
 
