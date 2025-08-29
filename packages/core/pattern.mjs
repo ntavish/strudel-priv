@@ -2339,14 +2339,17 @@ export const { juxBy, juxby } = register(['juxBy', 'juxby'], function (by, func,
 
 /**
  * Like juxBy, except it flips the ears each cycle.
- * @name fluxBy
- * @synonyms fluxby
+ * @name juxFlipBy
+ * @synonyms juxflipby, fluxBy, fluxby
  * @example
- * s("bd lt [~ ht] mt cp ~ bd hh").fluxBy(".8", rev)
+ * s("bd lt [~ ht] mt cp ~ bd hh").juxFlipBy(".8", rev)
  */
-export const { fluxBy, fluxby } = register(['fluxBy', 'fluxby'], function (by, func, pat) {
-  return slowcat(pat._juxBy(by, func, pat), pat._juxBy(-by, func, pat));
-});
+export const { juxFlipBy, juxflipby, fluxBy, fluxby } = register(
+  ['juxFlipBy', 'juxflipby', 'fluxBy', 'fluxby'],
+  function (by, func, pat) {
+    return slowcat(pat._juxBy(by, func, pat), pat._juxBy(-by, func, pat));
+  },
+);
 
 /**
  * The jux function creates strange stereo effects, by applying a function to a pattern, but only in the right-hand channel.
@@ -2363,15 +2366,17 @@ export const jux = register('jux', function (func, pat) {
 
 /**
  * Like jux, but flips the ears each cycle.
+ * @name juxFlip
+ * @synonyms flux
  * @example
- * s("bd lt [~ ht] mt cp ~ bd hh").flux(rev)
+ * s("bd lt [~ ht] mt cp ~ bd hh").juxFlip(rev)
  * @example
- * s("bd lt [~ ht] mt cp ~ bd hh").flux(press)
+ * s("bd lt [~ ht] mt cp ~ bd hh").juxFlip(press)
  * @example
- * s("bd lt [~ ht] mt cp ~ bd hh").flux(iter(4))
+ * s("bd lt [~ ht] mt cp ~ bd hh").juxFlip(iter(4))
  */
-export const flux = register('flux', function (func, pat) {
-  return pat._fluxBy(1, func, pat);
+export const { juxFlip, flux } = register(['juxFlip', 'flux'], function (func, pat) {
+  return pat._jux(1, func, pat);
 });
 
 /**
