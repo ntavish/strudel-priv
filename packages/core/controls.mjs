@@ -307,7 +307,7 @@ export const { fmvelocity } = registerControl('fmvelocity');
  * s("bd sd [~ bd] sd").bank('RolandTR909') // = s("RolandTR909_bd RolandTR909_sd")
  *
  */
-export const { bank } = registerControl('bank');
+export const { bank } = registerControl(['bank', 'bankOffset']);
 
 // analyser node send amount 0 - 1 (used by scope)
 export const { analyze } = registerControl('analyze');

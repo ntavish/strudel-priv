@@ -556,6 +556,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     tremoloshape,
     s = getDefaultValue('s'),
     bank,
+    bankOffset,
     source,
     gain = getDefaultValue('gain'),
     postgain = getDefaultValue('postgain'),
@@ -672,6 +673,11 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   if (['-', '~', '_'].includes(s)) {
     return;
   }
+
+  if (bankOffset) {
+    value.n = (value.n ?? 0) + bankOffset;
+  }
+
   if (bank && s) {
     s = `${bank}_${s}`;
     value.s = s;
