@@ -181,11 +181,17 @@ export function useReplContext() {
     
     const checkMcpBridge = async () => {
       try {
+        // Create timeout with fallback for older browsers
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        
         const response = await fetch('http://localhost:3457/next', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(2000) // 2 second timeout
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
           throw new Error(`MCP Bridge responded with status ${response.status}`);
@@ -216,14 +222,13 @@ export function useReplContext() {
             
             // Then handle playback with a slight delay
             setTimeout(() => {
-              // Only call evaluate() - let Strudel handle the state
-              editorRef.current.evaluate();
-              
-              // If not playing, start it
+              // Use toggle() to evaluate and auto-start
+              // This mimics clicking the play button
               if (!editorRef.current.repl.started) {
-                setTimeout(() => {
-                  editorRef.current.start();
-                }, 100);
+                editorRef.current.toggle();
+              } else {
+                // If already playing, just evaluate the new pattern
+                editorRef.current.evaluate();
               }
             }, 200);
           } catch (execError) {
