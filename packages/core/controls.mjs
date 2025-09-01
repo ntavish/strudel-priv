@@ -1762,7 +1762,16 @@ export const { zcrush } = registerControl('zcrush');
 export const { zdelay } = registerControl('zdelay');
 export const { zzfx } = registerControl('zzfx');
 
-export const { pID } = registerControl('pID');
+/**
+ * Sets the glide amount in seconds. This is an "always" glide which is unaffected by legato
+ * (i.e. notes in succession will always glide towards one another, even if they do not overlap)
+ * 
+ * In the event of chords being played, the glide will begin from the ending frequency of the _nearest
+ * note_ that was previously played
+ *
+ * @name glide
+ * @param {number | Pattern} time Glide time in seconds
+ */
 export const { glide } = registerControl('glide');
 
 /**

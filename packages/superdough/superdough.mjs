@@ -520,8 +520,9 @@ function mapChannelNumbers(channels) {
   return (Array.isArray(channels) ? channels : [channels]).map((ch) => ch - 1);
 }
 
-// An object to track received values (by `patternID`) over time
-const VALUE_STORE = {};
+// Used to track values (by `patternID`) over time
+const prevValues = {};
+const currValues = {};
 
 export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) => {
   // new: t is always expected to be the absolute target onset time
@@ -637,10 +638,18 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   } = value;
   const end = t + hapDuration;
   const endWithRelease = end + release;
-  const prevValues = VALUE_STORE[patternID];
+  const prevVals = prevValues[patternID];
+  const currVals = currValues[patternID];
   const freqT = getFrequencyFromValue(value, s === "sbd" ? 29 : 36);
-  if (prevValues !== undefined) {
-    const initialFrequency = prevValues.reduce((closest, v) => {
+  if (!currVals) {
+    currValues[patternID] = [];
+  } else if (currVals[0].t !== t) {
+    // push currValues down to prevValues
+    prevValues[patternID] = currValues[patternID];
+    currValues[patternID] = [];
+  }
+  if (prevVals !== undefined) {
+    const initialFrequency = prevVals.reduce((closest, v) => {
         const cand = v.value.finalFrequency;
         if (closest == null) return cand;
         return Math.abs(cand - freqT) < Math.abs(closest - freqT) ? cand : closest;
@@ -660,14 +669,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     value.finalFrequency = freqT;
     value.targetFrequency = freqT;
   }
-  if (patternID !== undefined) {
-    const vals = VALUE_STORE[patternID];
-    if (!vals || vals[0].t !== t) {
-      VALUE_STORE[patternID] = [{ value, t }];
-    } else {
-      vals.push({ value, t });
-    }
-  }
+  currValues[patternID].push({ value, t });
   delaytime = delaytime ?? cycleToSeconds(delaysync, cps);
 
   const orbitChannels = mapChannelNumbers(
