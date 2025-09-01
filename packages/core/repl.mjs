@@ -143,8 +143,12 @@ export function repl({
         id = `$${anonymousIndex}`;
         anonymousIndex++;
       }
-      pPatterns[id] = this;
-      return this;
+      const labeledPattern = this.withValue(v => {
+        v.pID = id;
+        return v;
+      });
+      pPatterns[id] = labeledPattern;
+      return labeledPattern;
     };
     Pattern.prototype.q = function (id) {
       return silence;
@@ -206,8 +210,11 @@ export function repl({
           patterns = patterns.map((x) => eachTransform(x));
         }
         pattern = stack(...patterns);
-      } else if (eachTransform) {
-        pattern = eachTransform(pattern);
+      } else {
+        pattern = pattern.p("$");
+        if (eachTransform) {
+          pattern = eachTransform(pattern);
+        }
       }
       if (allTransforms.length) {
         for (let i in allTransforms) {

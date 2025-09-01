@@ -13,6 +13,7 @@ import { createFilter, gainNode, getCompressor, getWorklet, webAudioTimeout } fr
 import { map } from 'nanostores';
 import { logger, errorLogger } from './logger.mjs';
 import { loadBuffer } from './sampler.mjs';
+import { getFrequencyFromValue } from './util.mjs';
 
 export const DEFAULT_MAX_POLYPHONY = 128;
 const DEFAULT_AUDIO_DEVICE_NAME = 'System Standard';
@@ -519,6 +520,9 @@ function mapChannelNumbers(channels) {
   return (Array.isArray(channels) ? channels : [channels]).map((ch) => ch - 1);
 }
 
+// An object to track received values (by `patternID`) over time
+const VALUE_STORE = {};
+
 export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) => {
   // new: t is always expected to be the absolute target onset time
   const ac = getAudioContext();
@@ -628,8 +632,42 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     compressorKnee,
     compressorAttack,
     compressorRelease,
+    pID: patternID,
+    glide,
   } = value;
-
+  const end = t + hapDuration;
+  const endWithRelease = end + release;
+  const prevValues = VALUE_STORE[patternID];
+  const freqT = getFrequencyFromValue(value, s === "sbd" ? 29 : 36);
+  if (prevValues !== undefined) {
+    const initialFrequency = prevValues.reduce((closest, v) => {
+        const cand = v.value.finalFrequency;
+        if (closest == null) return cand;
+        return Math.abs(cand - freqT) < Math.abs(closest - freqT) ? cand : closest;
+      },
+      null,
+    );
+    let finalFrequency = initialFrequency;
+    if (glide > 0) {
+      const phase = Math.min((hapDuration + release) / glide, 1);
+      finalFrequency = initialFrequency + phase * (freqT - initialFrequency);
+    }
+    value.initialFrequency = initialFrequency;
+    value.finalFrequency = finalFrequency;
+    value.targetFrequency = freqT;
+  } else {
+    value.initialFrequency = freqT;
+    value.finalFrequency = freqT;
+    value.targetFrequency = freqT;
+  }
+  if (patternID !== undefined) {
+    const vals = VALUE_STORE[patternID];
+    if (!vals || vals[0].t !== t) {
+      VALUE_STORE[patternID] = [{ value, t }];
+    } else {
+      vals.push({ value, t });
+    }
+  }
   delaytime = delaytime ?? cycleToSeconds(delaysync, cps);
 
   const orbitChannels = mapChannelNumbers(
@@ -652,8 +690,6 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   tremolodepth = applyGainCurve(tremolodepth);
   gain *= velocity; // velocity currently only multiplies with gain. it might do other things in the future
 
-  const end = t + hapDuration;
-  const endWithRelease = end + release;
   const chainID = Math.round(Math.random() * 1000000);
 
   // oldest audio nodes will be destroyed if maximum polyphony is exceeded

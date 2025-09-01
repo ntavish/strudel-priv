@@ -1762,6 +1762,9 @@ export const { zcrush } = registerControl('zcrush');
 export const { zdelay } = registerControl('zdelay');
 export const { zzfx } = registerControl('zzfx');
 
+export const { pID } = registerControl('pID');
+export const { glide } = registerControl('glide');
+
 /**
  * Sets the color of the hap in visualizations like pianoroll or highlighting.
  * @name color

@@ -1,4 +1,4 @@
-import { clamp, midiToFreq, noteToMidi } from './util.mjs';
+import { clamp, midiToFreq, noteToMidi, getFrequencyFromValue } from './util.mjs';
 import { registerSound, getAudioContext, soundMap, getLfo } from './superdough.mjs';
 import {
   applyFM,
@@ -13,19 +13,6 @@ import {
 } from './helpers.mjs';
 import { getNoiseMix, getNoiseOscillator } from './noise.mjs';
 
-const getFrequencyFromValue = (value, defaultNote = 36) => {
-  let { note, freq } = value;
-  note = note || defaultNote;
-  if (typeof note === 'string') {
-    note = noteToMidi(note); // e.g. c3 => 48
-  }
-  // get frequency
-  if (!freq && typeof note === 'number') {
-    freq = midiToFreq(note); // + 48);
-  }
-
-  return Number(freq);
-};
 function destroyAudioWorkletNode(node) {
   if (node == null) {
     return;
@@ -51,6 +38,16 @@ function makeSaturationCurve(amount, n_samples) {
     curve[i] = Math.tanh(x * k);
   }
   return curve;
+}
+
+const _applyGlide = (freqParam, t, value) => {
+  const glide = value.glide;
+  const targetFrequency = value.targetFrequency;
+  if (glide > 0) {
+    freqParam.linearRampToValueAtTime(targetFrequency, t + glide);
+  } else {
+    freqParam.setValueAtTime(targetFrequency, t);
+  }
 }
 
 export function registerSynthSounds() {
@@ -108,7 +105,8 @@ export function registerSynthSounds() {
 
       const o = ctx.createOscillator();
       o.type = 'triangle';
-      o.frequency.value = getFrequencyFromValue(value, 29);
+      o.frequency.value = value.initialFrequency;
+      _applyGlide(o.frequency, t, value);
       o.detune.setValueAtTime(penv * 100, 0);
       o.detune.setValueAtTime(penv * 100, t);
       o.detune.exponentialRampToValueAtTime(0.001, t + pdecay);
@@ -170,7 +168,7 @@ export function registerSynthSounds() {
       const ac = getAudioContext();
       let { duration, n, unison = 5, spread = 0.6, detune } = value;
       detune = detune ?? n ?? 0.18;
-      const frequency = getFrequencyFromValue(value);
+      const frequency = value.initialFrequency;
 
       const [attack, decay, sustain, release] = getADSRValues(
         [value.attack, value.decay, value.sustain, value.release],
@@ -197,11 +195,13 @@ export function registerSynthSounds() {
           outputChannelCount: [2],
         },
       );
+      const freqParam = o.parameters.get('frequency');
+      _applyGlide(freqParam, begin, value);
 
       const gainAdjustment = 1 / Math.sqrt(voices);
       getPitchEnvelope(o.parameters.get('detune'), value, begin, holdend);
       const vibratoOscillator = getVibratoOscillator(o.parameters.get('detune'), value, begin);
-      const fm = applyFM(o.parameters.get('frequency'), value, begin);
+      const fm = applyFM(freqParam, value, begin);
       let envGain = gainNode(1);
       envGain = o.connect(envGain);
 
@@ -251,7 +251,7 @@ export function registerSynthSounds() {
         '((t^t/2+t+64)%7 * 24)',
       ];
       const { n = 0 } = value;
-      const frequency = getFrequencyFromValue(value);
+      const frequency = value.initialFrequency;
       const { byteBeatExpression = defaultBeats[n % defaultBeats.length], byteBeatStartTime } = value;
 
       const ac = getAudioContext();
@@ -277,6 +277,8 @@ export function registerSynthSounds() {
           outputChannelCount: [2],
         },
       );
+      const freqParam = o.parameters.get('frequency');
+      _applyGlide(freqParam, begin, value);
 
       o.port.postMessage({ codeText: byteBeatExpression, byteBeatStartTime, frequency });
 
@@ -324,7 +326,7 @@ export function registerSynthSounds() {
       }
 
       let { duration, pw: pulsewidth = 0.5 } = value;
-      const frequency = getFrequencyFromValue(value);
+      const frequency = value.initialFrequency;
 
       const [attack, decay, sustain, release] = getADSRValues(
         [value.attack, value.decay, value.sustain, value.release],
@@ -346,10 +348,12 @@ export function registerSynthSounds() {
           outputChannelCount: [2],
         },
       );
+      const freqParam = o.parameters.get('frequency');
+      _applyGlide(freqParam, begin, value);
 
       getPitchEnvelope(o.parameters.get('detune'), value, begin, holdend);
       const vibratoOscillator = getVibratoOscillator(o.parameters.get('detune'), value, begin);
-      const fm = applyFM(o.parameters.get('frequency'), value, begin);
+      const fm = applyFM(freqParam, value, begin);
       let envGain = gainNode(1);
       envGain = o.connect(envGain);
 
@@ -464,7 +468,7 @@ export function waveformN(partials, type) {
 
 // expects one of waveforms as s
 export function getOscillator(s, t, value) {
-  let { n: partials, duration, noise = 0 } = value;
+  let { n: partials, duration, noise = 0, glide = 0 } = value;
   let o;
   // If no partials are given, use stock waveforms
   if (!partials || s === 'sine') {
@@ -476,7 +480,16 @@ export function getOscillator(s, t, value) {
     o = waveformN(partials, s);
   }
   // set frequency
-  o.frequency.value = getFrequencyFromValue(value);
+  o.frequency.value = value.initialFrequency;
+  _applyGlide(o.frequency, t, value);
+  // const targetFreq = getFrequencyFromValue(value);
+  // const prevValue = value.prevValue;
+  // if (glide > 0 && prevValue !== undefined) {
+  //   o.frequency.value = getFrequencyFromValue(prevValue);
+  //   o.frequency.linearRampToValueAtTime(targetFreq, t + glide);
+  // } else {
+  //   o.frequency.value = targetFreq;
+  // }
   o.start(t);
 
   let vibratoOscillator = getVibratoOscillator(o.detune, value, t);
