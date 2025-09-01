@@ -26,6 +26,7 @@ class PatternBridge {
   constructor(port = 3457) {
     this.port = port;
     this.patternQueue = [];
+    this.currentPattern = null;
     this.server = null;
   }
 
@@ -50,6 +51,9 @@ class PatternBridge {
             break;
           case '/next':
             this.handleNext(req, res);
+            break;
+          case '/current':
+            this.handleCurrent(req, res);
             break;
           case '/inject':
             this.handleInject(req, res);
@@ -109,6 +113,30 @@ class PatternBridge {
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(pattern || null));
+  }
+
+  handleCurrent(req, res) {
+    if (req.method === 'POST') {
+      // Update current pattern from REPL
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        try {
+          const { code } = JSON.parse(body);
+          this.currentPattern = code;
+          console.error(`📝 Current pattern updated`);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true }));
+        } catch (e) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+    } else {
+      // GET current pattern for MCP
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ code: this.currentPattern || '' }));
+    }
   }
 
   handleInject(req, res) {
@@ -266,6 +294,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'getCurrentPattern',
+        description: 'Get the current pattern from the Strudel REPL',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
         name: 'drum',
         description: 'Create a drum pattern',
         inputSchema: {
@@ -301,6 +337,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   
   let code;
   switch (name) {
+    case 'getCurrentPattern': {
+      try {
+        const response = await fetch('http://localhost:3457/current');
+        const data = await response.json();
+        return {
+          content: [{
+            type: 'text',
+            text: data.code ? `Current pattern:\n\`\`\`javascript\n${data.code}\n\`\`\`` : 'No pattern currently in the REPL'
+          }]
+        };
+      } catch (e) {
+        return {
+          content: [{
+            type: 'text',
+            text: 'Failed to get current pattern. Make sure Strudel REPL is open.'
+          }]
+        };
+      }
+    }
+    
     case 'pattern':
       code = args.code;
       break;

@@ -156,6 +156,20 @@ export function useReplContext() {
   const [mcpConnected, setMcpConnected] = useState(false);
   const lastPatternId = useRef(null);
 
+  // Send current pattern to MCP bridge
+  const sendCurrentPattern = useCallback(async (code) => {
+    if (!mcpConnected) return;
+    try {
+      await fetch('http://localhost:3457/current', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+    } catch (e) {
+      // Silently fail
+    }
+  }, [mcpConnected]);
+
   // MCP Bridge Integration
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -196,6 +210,9 @@ export function useReplContext() {
           try {
             // Always set the code first
             editorRef.current.setCode(pattern.code);
+            
+            // Send the new pattern to MCP bridge
+            sendCurrentPattern(pattern.code);
             
             // Then handle playback with a slight delay
             setTimeout(() => {
@@ -243,7 +260,17 @@ export function useReplContext() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [mcpConnected]);
+  }, [mcpConnected, sendCurrentPattern]);
+
+  // Send current pattern to MCP when editor is ready or code changes
+  useEffect(() => {
+    if (mcpConnected && editorRef.current) {
+      const currentCode = editorRef.current.getCode?.();
+      if (currentCode) {
+        sendCurrentPattern(currentCode);
+      }
+    }
+  }, [mcpConnected, activeCode, sendCurrentPattern]);
 
   // this can be simplified once SettingsTab has been refactored to change codemirrorSettings directly!
   // this will be the case when the main repl is being replaced
