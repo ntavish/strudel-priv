@@ -1,0 +1,25 @@
+{
+  "name": "@strudel/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP (Model Context Protocol) server for Strudel live coding",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "strudel-mcp": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0"
+  },
+  "keywords": [
+    "mcp",
+    "strudel",
+    "live-coding",
+    "music",
+    "tidal"
+  ],
+  "license": "AGPL-3.0",
+  "author": "Strudel contributors"
+}

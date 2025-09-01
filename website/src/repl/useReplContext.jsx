@@ -153,6 +153,97 @@ export function useReplContext() {
   const { started, isDirty, error, activeCode, pending } = replState;
   const editorRef = useRef();
   const containerRef = useRef();
+  const [mcpConnected, setMcpConnected] = useState(false);
+  const lastPatternId = useRef(null);
+
+  // MCP Bridge Integration
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') return;
+    
+    let intervalId;
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    const checkMcpBridge = async () => {
+      try {
+        const response = await fetch('http://localhost:3457/next', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(2000) // 2 second timeout
+        });
+        
+        if (!response.ok) {
+          throw new Error(`MCP Bridge responded with status ${response.status}`);
+        }
+        
+        const pattern = await response.json();
+        
+        // Reset retry count on successful connection
+        if (retryCount > 0) {
+          retryCount = 0;
+        }
+        
+        if (!mcpConnected) {
+          setMcpConnected(true);
+          logger('🎵 MCP Bridge connected! Patterns will auto-execute.', 'highlight');
+        }
+        
+        if (pattern && pattern.id !== lastPatternId.current && editorRef.current) {
+          lastPatternId.current = pattern.id;
+          logger(`🎵 Executing MCP pattern: ${pattern.id}`, 'highlight');
+          
+          try {
+            // Always set the code first
+            editorRef.current.setCode(pattern.code);
+            
+            // Then handle playback with a slight delay
+            setTimeout(() => {
+              // Only call evaluate() - let Strudel handle the state
+              editorRef.current.evaluate();
+              
+              // If not playing, start it
+              if (!editorRef.current.repl.started) {
+                setTimeout(() => {
+                  editorRef.current.start();
+                }, 100);
+              }
+            }, 200);
+          } catch (execError) {
+            logger(`🎵 Failed to execute pattern: ${execError.message}`, 'error');
+          }
+        }
+      } catch (e) {
+        retryCount++;
+        
+        if (mcpConnected) {
+          setMcpConnected(false);
+          if (retryCount >= maxRetries) {
+            logger('MCP Bridge disconnected after multiple retries', 'dim');
+          } else {
+            logger(`MCP Bridge connection lost, retrying... (${retryCount}/${maxRetries})`, 'dim');
+          }
+        }
+        
+        // Back off on retries
+        if (retryCount >= maxRetries && intervalId) {
+          clearInterval(intervalId);
+          // Try reconnecting after 5 seconds
+          setTimeout(() => {
+            retryCount = 0;
+            intervalId = setInterval(checkMcpBridge, 500);
+          }, 5000);
+        }
+      }
+    };
+    
+    intervalId = setInterval(checkMcpBridge, 500);
+    checkMcpBridge();
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [mcpConnected]);
 
   // this can be simplified once SettingsTab has been refactored to change codemirrorSettings directly!
   // this will be the case when the main repl is being replaced
@@ -229,6 +320,7 @@ export function useReplContext() {
     error,
     editorRef,
     containerRef,
+    mcpConnected,
   };
   return context;
 }
