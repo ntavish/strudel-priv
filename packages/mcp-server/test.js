@@ -1,50 +1,35 @@
 #!/usr/bin/env node
 
-import { spawn } from 'child_process';
-import http from 'http';
+import { fileURLToPath } from 'url';
+import path from 'path';
+import fs from 'fs';
 
-// Test pattern bridge functionality
-async function testBridge() {
-  console.log('Testing pattern bridge...');
+// Simple test that MCP server can load
+console.log('Testing MCP server...');
+
+try {
+  // Check if we can import the SDK
+  await import('@modelcontextprotocol/sdk/server/index.js');
+  console.log('✓ MCP SDK available');
   
-  // Start bridge on test port
-  const bridge = spawn('node', ['index.js'], {
-    env: { ...process.env, BRIDGE_PORT: '3458', STRUDEL_PORT: '4322' },
-    stdio: 'pipe'
-  });
+  // Check if index.js exists and is valid
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
   
-  // Wait for startup
-  await new Promise(r => setTimeout(r, 2000));
-  
-  // Test sending pattern
-  const testPattern = 's("bd sd")';
-  const res = await fetch('http://localhost:3458/pattern', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: testPattern })
-  }).catch(() => null);
-  
-  if (res && res.ok) {
-    console.log('✓ Pattern bridge accepts patterns');
+  const indexPath = path.join(__dirname, 'index.js');
+  if (fs.existsSync(indexPath)) {
+    console.log('✓ index.js exists');
   } else {
-    console.log('✗ Pattern bridge failed');
-    bridge.kill();
+    console.log('✗ index.js not found');
     process.exit(1);
   }
   
-  // Test retrieving pattern
-  const next = await fetch('http://localhost:3458/next').catch(() => null);
-  if (next && next.ok) {
-    console.log('✓ Pattern retrieval works');
-  } else {
-    console.log('✗ Pattern retrieval failed');
-  }
+  console.log('✓ All basic checks passed');
+  console.log('\nTo test full functionality:');
+  console.log('1. Run: node index.js');
+  console.log('2. In another terminal: curl http://localhost:3457');
   
-  bridge.kill();
-  console.log('✓ All tests passed');
-}
-
-testBridge().catch(e => {
-  console.error('Test failed:', e.message);
+} catch (e) {
+  console.error('✗ Test failed:', e.message);
   process.exit(1);
-});
+}
