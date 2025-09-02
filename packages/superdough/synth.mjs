@@ -482,14 +482,6 @@ export function getOscillator(s, t, value) {
   // set frequency
   o.frequency.value = value.initialFrequency;
   _applyGlide(o.frequency, t, value);
-  // const targetFreq = getFrequencyFromValue(value);
-  // const prevValue = value.prevValue;
-  // if (glide > 0 && prevValue !== undefined) {
-  //   o.frequency.value = getFrequencyFromValue(prevValue);
-  //   o.frequency.linearRampToValueAtTime(targetFreq, t + glide);
-  // } else {
-  //   o.frequency.value = targetFreq;
-  // }
   o.start(t);
 
   let vibratoOscillator = getVibratoOscillator(o.detune, value, t);
