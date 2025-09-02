@@ -1316,7 +1316,18 @@ export function sequenceP(pats) {
 export function stack(...pats) {
   // Array test here is to avoid infinite recursions..
   pats = pats.map((pat) => (Array.isArray(pat) ? sequence(...pat) : reify(pat)));
-  const query = (state) => flatten(pats.map((pat) => pat.query(state)));
+  const query = (state) =>
+    flatten(
+      pats.map((pat, idx) => {
+        const newPat = pat.withValue((v) => {
+          if (typeof v === 'object') {
+            v.pID = v.pID ? `${v.pID}_${idx}` : `${idx}`;
+          }
+          return v;
+        });
+        return newPat.query(state);
+      }),
+    );
   const result = new Pattern(query);
   if (__steps) {
     result._steps = lcm(...pats.map((pat) => pat._steps));

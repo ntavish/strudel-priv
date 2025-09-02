@@ -144,7 +144,7 @@ export function repl({
         anonymousIndex++;
       }
       const labeledPattern = this.withValue((v) => {
-        v.pID = id;
+        v.pID = id + (v.pID ? `_${v.pID}` : '');
         return v;
       });
       pPatterns[id] = labeledPattern;
