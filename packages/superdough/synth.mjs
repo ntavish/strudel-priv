@@ -48,7 +48,7 @@ const _applyGlide = (freqParam, t, value) => {
   } else {
     freqParam.setValueAtTime(targetFrequency, t);
   }
-}
+};
 
 export function registerSynthSounds() {
   [...waveforms].forEach((s) => {

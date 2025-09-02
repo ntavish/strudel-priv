@@ -638,38 +638,27 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   } = value;
   const end = t + hapDuration;
   const endWithRelease = end + release;
-  const prevVals = prevValues[patternID];
-  const currVals = currValues[patternID];
-  const freqT = getFrequencyFromValue(value, s === "sbd" ? 29 : 36);
-  if (!currVals) {
-    currValues[patternID] = [];
-  } else if (currVals[0].t !== t) {
-    // push currValues down to prevValues
-    prevValues[patternID] = currValues[patternID];
+  if (!currValues[patternID] || currValues[patternID][0].t !== t) {
+    if (currValues[patternID]) prevValues[patternID] = currValues[patternID];
     currValues[patternID] = [];
   }
-  if (prevVals !== undefined) {
-    const initialFrequency = prevVals.reduce((closest, v) => {
+  const currArr = currValues[patternID];
+  const prevArr = prevValues[patternID] ?? [];
+  const freqT = getFrequencyFromValue(value, s === 'sbd' ? 29 : 36); // target
+  const freqI = prevArr.length
+    ? prevArr.reduce((closest, v) => {
         const cand = v.value.finalFrequency;
         if (closest == null) return cand;
         return Math.abs(cand - freqT) < Math.abs(closest - freqT) ? cand : closest;
-      },
-      null,
-    );
-    let finalFrequency = initialFrequency;
-    if (glide > 0) {
-      const phase = Math.min((hapDuration + release) / glide, 1);
-      finalFrequency = initialFrequency + phase * (freqT - initialFrequency);
-    }
-    value.initialFrequency = initialFrequency;
-    value.finalFrequency = finalFrequency;
-    value.targetFrequency = freqT;
-  } else {
-    value.initialFrequency = freqT;
-    value.finalFrequency = freqT;
-    value.targetFrequency = freqT;
-  }
-  currValues[patternID].push({ value, t });
+      }, null)
+    : freqT; // initial
+  const phase = glide > 0 ? Math.min((hapDuration + release) / glide, 1) : 1;
+  const freqF = freqI + phase * (freqT - freqI); // final
+  value.initialFrequency = freqI;
+  value.finalFrequency = freqF;
+  value.targetFrequency = freqT;
+  currArr.push({ value, t });
+
   delaytime = delaytime ?? cycleToSeconds(delaysync, cps);
 
   const orbitChannels = mapChannelNumbers(

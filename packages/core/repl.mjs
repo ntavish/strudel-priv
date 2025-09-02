@@ -143,7 +143,7 @@ export function repl({
         id = `$${anonymousIndex}`;
         anonymousIndex++;
       }
-      const labeledPattern = this.withValue(v => {
+      const labeledPattern = this.withValue((v) => {
         v.pID = id;
         return v;
       });
@@ -211,7 +211,7 @@ export function repl({
         }
         pattern = stack(...patterns);
       } else {
-        pattern = pattern.p("$");
+        pattern = pattern.p('$');
         if (eachTransform) {
           pattern = eachTransform(pattern);
         }
