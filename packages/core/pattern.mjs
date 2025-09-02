@@ -2317,6 +2317,74 @@ export const palindrome = register(
 );
 
 /**
+ * Morphs between two patterns using a musical tension curve
+ * @param {Pattern} targetPattern - The pattern to morph to
+ * @param {string|Function} curve - The tension curve type or custom function
+ * @param {number} cycles - Number of cycles for the morph (default 4)
+ * @example
+ * s("bd sd").morphTo("bd*4 cp*2", "arc", 4)
+ * @example
+ * s("bd sd").morphTo("bd*4 cp*2", t => Math.pow(t, 3), 2)
+ */
+Pattern.prototype.morphTo = function(targetPattern, curve = 'arc', cycles = 4) {
+  const target = reify(targetPattern);
+  const curveFunc = typeof curve === 'function' ? curve : tensionCurves[curve] || tensionCurves.arc;
+  const self = this;
+  
+  return slowcat(...Array(cycles).fill(0).map((_, i) => {
+    const t = i / cycles;
+    const tension = curveFunc(t);
+    return stack(
+      self.gain(1 - tension),
+      target.gain(tension)
+    );
+  }));
+};
+
+/**
+ * Morphs the density/speed of a pattern
+ * @param {number} targetDensity - Target density multiplier
+ * @param {string|Function} curve - The tension curve type
+ * @param {number} cycles - Number of cycles for the morph
+ * @example
+ * s("bd").densityMorph(16, "cliff", 8)
+ */
+Pattern.prototype.densityMorph = function(targetDensity, curve = 'arc', cycles = 4) {
+  const curveFunc = typeof curve === 'function' ? curve : tensionCurves[curve] || tensionCurves.arc;
+  const self = this;
+  
+  return slowcat(...Array(cycles).fill(0).map((_, i) => {
+    const t = i / cycles;
+    const tension = curveFunc(t);
+    const morphedDensity = 1 + (targetDensity - 1) * tension;
+    return self.fast(morphedDensity);
+  }));
+};
+
+/**
+ * Performs spectral morphing between patterns using frequency filters
+ * @param {Pattern} targetPattern - The pattern to morph to
+ * @param {string|Function} curve - The tension curve type
+ * @param {number} cycles - Number of cycles for the morph
+ * @example
+ * s("bd sd").spectralMorph("bd*4 cp*2", "wave", 4)
+ */
+Pattern.prototype.spectralMorph = function(targetPattern, curve = 'arc', cycles = 4) {
+  const target = reify(targetPattern);
+  const curveFunc = typeof curve === 'function' ? curve : tensionCurves[curve] || tensionCurves.arc;
+  const self = this;
+  
+  return slowcat(...Array(cycles).fill(0).map((_, i) => {
+    const t = i / cycles;
+    const tension = curveFunc(t);
+    return stack(
+      self.hpf(20 + (20000 - 20) * tension).hpq(0.5 + tension * 2).gain(Math.sqrt(1 - tension)),
+      target.lpf(20000 - (20000 - 20) * (1 - tension)).lpq(0.5 + (1 - tension) * 2).gain(Math.sqrt(tension))
+    );
+  }));
+};
+
+/**
  * Jux with adjustable stereo width. 0 = mono, 1 = full stereo.
  * @name juxBy
  * @synonyms juxby
@@ -3482,4 +3550,46 @@ export const morph = (frompat, topat, bypat) => {
   topat = reify(topat);
   bypat = reify(bypat);
   return frompat.innerBind((from) => topat.innerBind((to) => bypat.innerBind((by) => _morph(from, to, by))));
+};
+
+// Musical tension curve functions for morphing
+export const tensionCurves = {
+  // Classic build-up and release
+  arc: (t) => Math.sin(t * Math.PI),
+  
+  // Sudden drop after buildup
+  cliff: (t) => t < 0.8 ? Math.pow(t / 0.8, 2) : 1 - ((t - 0.8) / 0.2) * 5,
+  
+  // Multiple peaks like a wave
+  wave: (t) => (Math.sin(t * Math.PI * 4) + 1) / 2,
+  
+  // Fibonacci golden ratio approach
+  golden: (t) => {
+    const phi = (1 + Math.sqrt(5)) / 2;
+    return Math.pow(t, 1/phi);
+  },
+  
+  // Rhythmic pulsing
+  pulse: (t) => {
+    const phase = (t * 8) % 1;
+    return phase < 0.2 ? 1 : 0.3;
+  },
+  
+  // Chaotic attractor-inspired
+  lorenz: (t) => {
+    let x = 0.1, y = 0, z = 0;
+    const dt = 0.01;
+    const sigma = 10, rho = 28, beta = 8/3;
+    const steps = Math.floor(t * 100);
+    
+    for (let i = 0; i < steps; i++) {
+      const dx = sigma * (y - x);
+      const dy = x * (rho - z) - y;
+      const dz = x * y - beta * z;
+      x += dx * dt;
+      y += dy * dt;
+      z += dz * dt;
+    }
+    return (Math.tanh(x / 10) + 1) / 2;
+  }
 };
