@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "strudel": {
+      "command": "node",
+      "args": ["./packages/mcp-server/index.js"],
+      "env": {
+        "STRUDEL_PORT": "4321",
+        "BRIDGE_PORT": "3457"
+      }
+    }
+  }
+}
