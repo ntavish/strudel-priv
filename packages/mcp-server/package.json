@@ -9,7 +9,9 @@
   },
   "scripts": {
     "start": "node index.js",
-    "test": "node test.js"
+    "test": "node test.js",
+    "test:advanced": "node test-advanced.js",
+    "test:all": "npm test && npm run test:advanced"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0"
