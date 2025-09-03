@@ -8,6 +8,30 @@ Fractal patterns bring the beauty of mathematical self-similarity to music, crea
 
 ## Available Fractal Generators
 
+### Perlin Noise & Variants
+
+Smooth, continuous noise functions creating organic variations.
+
+```javascript
+// Basic Perlin noise signal (0-1 range)
+note(60).add(perlin.range(-12, 12).slow(4)).s("piano")
+
+// Fractal Brownian Motion - layered Perlin
+note(48).add(fbmSignal.range(0, 24).slow(8)).s("sawtooth")
+
+// Turbulence - sharp, cloud-like features
+s("bd").gain(turbulenceSignal.range(0.1, 0.8).fast(2))
+
+// Ridge noise - mountain ridge patterns
+s("hh").struct(ridgeSignal.range(0, 1).segment(16).scale("0 1"))
+```
+
+Perlin noise properties:
+- **Continuous** - Smooth transitions between values
+- **Multi-octave** - FBM layers multiple frequencies
+- **Organic** - Natural-looking randomness
+- **Deterministic** - Same input always gives same output
+
 ### L-Systems (Lindenmayer Systems)
 
 String rewriting systems that model plant growth and create self-similar patterns.
