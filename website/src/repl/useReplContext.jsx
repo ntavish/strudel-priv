@@ -157,7 +157,7 @@ export function useReplContext() {
   
   // External Pattern Bridge - Optional integration for external tools
   // Enable external pattern sources like OSC, WebSocket, MIDI controllers, etc.
-  const { bridgeConnected, sendCurrentPattern } = useExternalBridge(editorRef, logger);
+  const { bridgeConnected, sendCurrentPattern } = useExternalBridge(editorRef, logger, error);
   
   // Send current pattern to external bridge when code changes
   useEffect(() => {
