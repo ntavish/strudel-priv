@@ -17,6 +17,7 @@ import { createServer } from 'http';
 import { parse } from 'url';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { transpiler } from '@strudel/transpiler';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,6 +59,12 @@ class PatternBridge {
           case '/inject':
             this.handleInject(req, res);
             break;
+          case '/error':
+            this.handleError(req, res);
+            break;
+          case '/status':
+            this.handleStatus(req, res);
+            break;
           default:
             res.writeHead(200);
             res.end('Pattern Bridge Active');
@@ -84,6 +91,26 @@ class PatternBridge {
     req.on('end', () => {
       try {
         const { code } = JSON.parse(body);
+        
+        // Validate pattern syntax
+        try {
+          transpiler(code);
+        } catch (syntaxError) {
+          // Report syntax error
+          this.lastError = {
+            error: syntaxError.message,
+            pattern: code,
+            timestamp: Date.now()
+          };
+          console.error(`❌ Pattern syntax error: ${syntaxError.message}`);
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ 
+            success: false, 
+            error: syntaxError.message 
+          }));
+          return;
+        }
+        
         this.patternQueue.push({
           id: Date.now(),
           code,
@@ -98,6 +125,7 @@ class PatternBridge {
       }
     });
   }
+
 
   handleNext(req, res) {
     // Peek at the first pattern without removing it
@@ -138,6 +166,44 @@ class PatternBridge {
       res.end(JSON.stringify({ code: this.currentPattern || '' }));
     }
   }
+
+  handleError(req, res) {
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        try {
+          const { error, pattern, timestamp } = JSON.parse(body);
+          console.error(`❌ Pattern error received:`);
+          console.error(`   Error: ${error}`);
+          console.error(`   Pattern: ${pattern?.substring(0, 50)}...`);
+          this.lastError = { error, pattern, timestamp: timestamp || Date.now() };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true }));
+        } catch (e) {
+          res.writeHead(400);
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+    } else {
+      // GET last error for debugging
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ lastError: this.lastError || null }));
+    }
+  }
+
+  handleStatus(req, res) {
+    // GET status including last error if any
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      connected: true,
+      queueLength: this.patternQueue.length,
+      currentPattern: this.currentPattern ? this.currentPattern.substring(0, 100) + '...' : null,
+      lastError: this.lastError || null,
+      uptime: process.uptime()
+    }));
+  }
+
 
   handleInject(req, res) {
     const script = `

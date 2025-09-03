@@ -156,7 +156,7 @@ export function useReplContext() {
   const containerRef = useRef();
   
   // MCP Bridge Integration - All logic isolated in custom hook
-  const { mcpConnected, sendCurrentPattern } = useMCPBridge(editorRef, logger);
+  const { mcpConnected, sendCurrentPattern } = useMCPBridge(editorRef, logger, error);
   
   // Send current pattern to MCP when editor is ready or code changes
   useEffect(() => {

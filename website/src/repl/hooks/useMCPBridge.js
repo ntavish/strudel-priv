@@ -1,10 +1,12 @@
 // MCP Bridge Hook - Isolated integration for Strudel REPL
 // All MCP-related logic extracted to this single file for easy removal
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { userPattern, createPatternID, setViewingPatternData, setActivePattern } from '../../user_pattern_utils.mjs';
 
-export function useMCPBridge(editorRef, logger) {
+export function useMCPBridge(editorRef, logger, error) {
   const [mcpConnected, setMcpConnected] = useState(false);
   const lastPatternId = useRef(null);
+  const lastError = useRef(null);
   const retryCount = useRef(0);
   const maxRetries = 3;
 
@@ -67,8 +69,25 @@ export function useMCPBridge(editorRef, logger) {
         
         if (pattern && pattern.id !== lastPatternId.current && editorRef.current) {
           lastPatternId.current = pattern.id;
+          
+          // Create a new pattern in Strudel's system
+          const patternId = createPatternID();
+          const patternData = {
+            id: patternId,
+            code: pattern.code,
+            created_at: Date.now(),
+            collection: 'user'
+          };
+          
+          // Save to Strudel's pattern system
+          userPattern.update(patternId, patternData);
+          
+          // Set as the viewing pattern
+          setViewingPatternData(patternData);
+          setActivePattern(patternId);
+          
           if (logger) {
-            logger(`🎵 Executing MCP pattern: ${pattern.id}`, 'highlight');
+            logger(`🎵 MCP pattern saved: ${patternId}`, 'highlight');
           }
           
           try {
@@ -79,20 +98,30 @@ export function useMCPBridge(editorRef, logger) {
             sendCurrentPattern(pattern.code);
             
             // Then handle playback with a slight delay
-            setTimeout(() => {
-              // Use toggle() to evaluate and auto-start
-              // This mimics clicking the play button
-              if (!editorRef.current.repl.started) {
-                editorRef.current.toggle();
-              } else {
-                // If already playing, just evaluate the new pattern
-                editorRef.current.evaluate();
+            setTimeout(async () => {
+              try {
+                // Use toggle() to evaluate and auto-start
+                // This mimics clicking the play button
+                if (!editorRef.current.repl.started) {
+                  editorRef.current.toggle();
+                } else {
+                  // If already playing, just evaluate the new pattern
+                  editorRef.current.evaluate();
+                }
+                
+                // Errors are now handled by the error monitoring effect
+              } catch (evalError) {
+                // Errors will be caught by the error monitoring effect
+                if (logger) {
+                  logger(`Evaluation failed: ${evalError.message}`, 'error');
+                }
               }
             }, 200);
           } catch (execError) {
             if (logger) {
               logger(`🎵 Failed to execute pattern: ${execError.message}`, 'error');
             }
+            console.error('MCP Bridge execution error:', execError);
           }
         }
       } catch (e) {
@@ -128,6 +157,33 @@ export function useMCPBridge(editorRef, logger) {
       if (intervalId) clearInterval(intervalId);
     };
   }, [mcpConnected, sendCurrentPattern, editorRef, logger, isLocalhost]);
+
+  // Monitor and report errors to MCP
+  useEffect(() => {
+    if (!mcpConnected || !isLocalhost || !error) return;
+    
+    // Only report if error changed
+    if (error !== lastError.current) {
+      lastError.current = error;
+      
+      // Report error to MCP server
+      fetch('http://localhost:3457/error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: error.message || error.toString(),
+          pattern: editorRef.current?.getCode?.() || '',
+          timestamp: Date.now()
+        })
+      }).catch(() => {
+        // Silently fail
+      });
+      
+      if (logger) {
+        logger(`❌ Pattern error detected: ${error.message || error}`, 'error');
+      }
+    }
+  }, [error, mcpConnected, isLocalhost, editorRef, logger]);
 
   return {
     mcpConnected,
