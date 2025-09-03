@@ -26,6 +26,7 @@ export * from './logger.mjs';
 export * from './time.mjs';
 export * from './ui.mjs';
 export { default as drawLine } from './drawLine.mjs';
+export * from './fractals.mjs';
 // below won't work with runtime.mjs (json import fails)
 /* import * as p from './package.json';
 export const version = p.version; */
