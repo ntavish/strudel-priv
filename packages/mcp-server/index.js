@@ -354,7 +354,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: 'object',
           properties: {
-            code: { type: 'string', description: 'Pattern code' },
+            code: { type: 'string', description: 'Strudel/TidalCycles pattern code' },
           },
           required: ['code'],
         },
@@ -365,31 +365,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: 'object',
           properties: {},
-        },
-      },
-      {
-        name: 'drum',
-        description: 'Create a drum pattern',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            kick: { type: 'string', description: 'Kick pattern', default: 'x ~ ~ ~' },
-            snare: { type: 'string', description: 'Snare', default: '~ ~ x ~' },
-            hihat: { type: 'string', description: 'Hihat', default: 'x x x x' },
-          },
-        },
-      },
-      {
-        name: 'euclidean',
-        description: 'Euclidean rhythm',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            pulses: { type: 'number' },
-            steps: { type: 'number' },
-            sound: { type: 'string', default: 'bd' },
-          },
-          required: ['pulses', 'steps'],
         },
       },
     ],
@@ -426,22 +401,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case 'pattern':
       code = args.code;
       break;
-      
-    case 'drum': {
-      const { kick = 'x ~ ~ ~', snare = '~ ~ x ~', hihat = 'x x x x' } = args;
-      const patterns = [];
-      if (kick) patterns.push(`s("${kick.replace(/x/g, 'bd')}")`);
-      if (snare) patterns.push(`s("${snare.replace(/x/g, 'sd')}")`);
-      if (hihat) patterns.push(`s("${hihat.replace(/x/g, 'hh')}")`);
-      code = patterns.length > 1 ? `stack(\n  ${patterns.join(',\n  ')}\n)` : patterns[0];
-      break;
-    }
-    
-    case 'euclidean': {
-      const { pulses, steps, sound = 'bd' } = args;
-      code = `s("${sound}").euclid(${pulses}, ${steps})`;
-      break;
-    }
     
     default:
       throw new Error(`Unknown tool: ${name}`);

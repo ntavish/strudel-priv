@@ -1,17 +1,17 @@
 # Strudel MCP Server
 
-Zero-configuration musical pattern execution for Claude + Strudel.
+Enables AI assistants to generate Strudel patterns via Model Context Protocol.
 
 ## What It Does
 
-This MCP server enables Claude to create and automatically execute musical patterns in Strudel, a live coding environment for music. When you ask Claude to create patterns, they instantly play in your browser - no copy-paste required!
+This MCP server allows Claude and other AI assistants to send musical patterns to Strudel through a standalone external server that communicates via the Pattern Bridge.
 
 ## Features
 
-- **Auto-starts everything** - Strudel web server and pattern bridge start automatically
-- **Zero copy-paste** - Patterns execute instantly in your browser
-- **Visual feedback** - Green "🎵 MCP" indicator shows when connected
-- **Built-in polling** - Strudel page automatically detects and executes patterns
+- Standalone server that runs separately from Strudel
+- Communicates through HTTP Pattern Bridge on port 3457
+- Simple interface with just two tools: pattern creation and retrieval
+- No direct UI integration - respects separation of concerns
 
 ## Installation
 
@@ -48,10 +48,10 @@ claude mcp list
 
 ## Usage
 
-1. **Restart Claude** - The MCP server loads automatically
-2. **Open browser** - Navigate to http://localhost:4321
-3. **Look for indicator** - Green "🎵 MCP" badge confirms connection
-4. **Create patterns** - Ask Claude to make music!
+1. **Start MCP server** - The server will launch the pattern bridge
+2. **Open Strudel** - Navigate to http://localhost:4321 
+3. **Use Claude** - Ask Claude to create patterns
+4. **Patterns execute** - Via the pattern bridge connection
 
 ## Available MCP Tools
 
@@ -60,19 +60,12 @@ Create any Strudel/TidalCycles pattern:
 ```javascript
 s("bd sd cp sd")
 note("c4 e4 g4 c5").s("piano")
+s("bd").euclid(3, 8)  // Euclidean rhythms
+stack(s("bd*4"), s("hh*8"))  // Layered patterns
 ```
 
-### `drum`
-Create drum patterns with kick, snare, hihat:
-- `kick`: "x ~ ~ ~" (x = hit, ~ = rest)
-- `snare`: "~ ~ x ~"
-- `hihat`: "x x x x"
-
-### `euclidean`
-Generate Euclidean rhythms:
-- `pulses`: Number of hits
-- `steps`: Total steps
-- `sound`: Sample to use (default: "bd")
+### `getCurrentPattern`
+Retrieve the current pattern from the Strudel REPL for analysis or modification.
 
 ## Architecture
 
@@ -85,35 +78,29 @@ Claude (MCP) → Pattern Bridge → Strudel Page → Audio Output
 
 ## How It Works
 
-1. **MCP Server starts** → Launches pattern bridge (port 3457) and Strudel (port 4321)
-2. **Strudel page loads** → Auto-detects bridge, shows indicator
-3. **Claude generates pattern** → Sends to bridge via HTTP
-4. **Page polls bridge** → Fetches and executes patterns automatically
-5. **Music plays** → With visual feedback (green flash)
+1. **MCP Server starts** → Launches pattern bridge on port 3457
+2. **Bridge waits** → Listens for pattern submissions
+3. **Claude generates pattern** → Sends to bridge via MCP tools
+4. **Strudel polls bridge** → If configured with External Bridge
+5. **Pattern executes** → Music plays in browser
 
 ## Troubleshooting
 
-### No "🎵 MCP" indicator
-- Check browser console for errors
+### Bridge not connecting
 - Verify bridge at http://localhost:3457
-- Ensure you're on http://localhost:4321 (not 3457)
+- Check if Strudel has External Bridge enabled
+- Ensure proper network permissions
 
 ### Patterns not playing
-- Refresh the Strudel page
 - Check if bridge is running: `curl http://localhost:3457`
+- Verify Strudel is configured to poll the bridge
 - Restart Claude to reload MCP
-
-### "doc.json not found" error
-The server now generates this automatically, but if needed:
-```bash
-cd ~/strudel && pnpm run jsdoc-json
-```
 
 ## Files
 
-- `index.js` - Main MCP server with embedded bridge
+- `index.js` - Main MCP server with embedded pattern bridge
 - `package.json` - Dependencies
-- Modified: `~/strudel/website/src/pages/index.astro` - Added auto-polling
+- `README.md` - This documentation
 
 ## License
 
