@@ -19,7 +19,6 @@ import { setVersionDefaultsFrom } from './util.mjs';
 import { StrudelMirror, defaultSettings } from '@strudel/codemirror';
 import { clearHydra } from '@strudel/hydra';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useMCPBridge } from './hooks/useMCPBridge';
 import { parseBoolean, settingsMap, useSettings } from '../settings.mjs';
 import {
   setActivePattern,
@@ -154,19 +153,6 @@ export function useReplContext() {
   const { started, isDirty, error, activeCode, pending } = replState;
   const editorRef = useRef();
   const containerRef = useRef();
-  
-  // MCP Bridge Integration - All logic isolated in custom hook
-  const { mcpConnected, sendCurrentPattern } = useMCPBridge(editorRef, logger, error);
-  
-  // Send current pattern to MCP when editor is ready or code changes
-  useEffect(() => {
-    if (mcpConnected && editorRef.current) {
-      const currentCode = editorRef.current.getCode?.();
-      if (currentCode) {
-        sendCurrentPattern(currentCode);
-      }
-    }
-  }, [mcpConnected, activeCode, sendCurrentPattern]);
 
   // this can be simplified once SettingsTab has been refactored to change codemirrorSettings directly!
   // this will be the case when the main repl is being replaced
@@ -243,7 +229,6 @@ export function useReplContext() {
     error,
     editorRef,
     containerRef,
-    mcpConnected,
   };
   return context;
 }
