@@ -155,8 +155,8 @@ export const ridge = (x, y, offset = 1) => {
 };
 
 // Create Strudel signals for Perlin noise
-export const perlin = signal((t) => (perlin1d(t * 4) + 1) / 2);
-export const perlin2 = signal((t) => perlin1d(t * 4)); // Bipolar version
+export const perlinNoise = signal((t) => (perlin1d(t * 4) + 1) / 2);
+export const perlinBipolar = signal((t) => perlin1d(t * 4)); // Bipolar version
 
 // Fractal Brownian Motion signal
 export const fbmSignal = signal((t) => (fbm(t * 2, 0, 4, 0.5, 2) + 1) / 2);
@@ -175,8 +175,8 @@ export default {
   fbm,
   turbulence,
   ridge,
-  perlin,
-  perlin2,
+  perlinNoise,
+  perlinBipolar,
   fbmSignal,
   turbulenceSignal,
   ridgeSignal
