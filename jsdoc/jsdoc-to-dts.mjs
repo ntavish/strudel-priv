@@ -29,4 +29,6 @@ for (const doc of coreDocs) {
 
 dts += '\n}'
 
-await writeFile(resolve(projectDir, 'strudel-core.d.ts'), dts)
+let filePath = resolve(projectDir, 'strudel-core.d.ts')
+await writeFile(filePath, dts)
+console.log('Saved to ' + filePath)
