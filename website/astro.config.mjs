@@ -134,6 +134,10 @@ export default defineConfig({
   ],
   site,
   base,
+  server: {
+    port: 4321,
+    host: true
+  },
   vite: {
     plugins: [bundleAudioWorkletPlugin()],
     ssr: {
