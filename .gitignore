@@ -33,6 +33,7 @@ out
 repl_old
 tutorial.rendered.mdx
 doc.json
+strudel-core.d.ts
 talk/public/EmuSP12
 talk/public/samples
 server/samples/old

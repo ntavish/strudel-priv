@@ -21,6 +21,7 @@
     "osc": "cd packages/osc && npm run server",
     "jsdoc": "jsdoc packages/ -c jsdoc/jsdoc.config.json",
     "jsdoc-json": "jsdoc packages/ --template ./node_modules/jsdoc-json --destination doc.json -c jsdoc/jsdoc.config.json",
+    "jsdoc-to-dts": "npm run jsdoc-json && node jsdoc/jsdoc-to-dts.mjs",
     "lint": "eslint . --quiet",
     "codeformat": "prettier --write .",
     "format-check": "prettier --check .",
