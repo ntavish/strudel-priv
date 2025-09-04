@@ -8,10 +8,19 @@ import { Pattern, sequence, silence, stack, pure, cat, fastcat } from './pattern
 
 /**
  * Generate a Cantor set rhythm pattern
+ * Creates recursive gaps by repeatedly removing middle thirds
  * @param {number} depth - Recursion depth (1-5 recommended)
- * @returns {Pattern} Binary rhythm pattern
+ * @returns {Pattern} Binary rhythm pattern (0s and 1s)
  * @example
+ * // Simple kick drum pattern with fractal gaps
  * s("bd").struct(cantor(3))
+ * 
+ * @example  
+ * // Layered rhythm
+ * stack(
+ *   s("bd").struct(cantor(3)),
+ *   s("hh").struct(cantor(4)).fast(2)
+ * )
  */
 export function cantor(depth = 3) {
   const generateCantor = (n) => {
@@ -33,10 +42,20 @@ export function cantor(depth = 3) {
 
 /**
  * Generate a Sierpinski triangle pattern
+ * Uses Pascal's triangle modulo 2 to create self-similar patterns
  * @param {number} depth - Recursion depth (1-5 recommended)
  * @returns {Pattern} Binary pattern based on Sierpinski triangle
  * @example
- * s("hh").struct(sierpinski(4))
+ * // Hi-hat pattern with self-similar structure
+ * s("hh").struct(sierpinski(4)).fast(2)
+ * 
+ * @example
+ * // Polyrhythmic percussion
+ * stack(
+ *   s("bd").struct(sierpinski(3)),
+ *   s("sd").struct(sierpinski(4)).fast(2),
+ *   s("hh").struct(sierpinski(5)).fast(4)
+ * )
  */
 export function sierpinski(depth = 3) {
   const size = Math.pow(2, depth);
@@ -61,10 +80,16 @@ export function sierpinski(depth = 3) {
 
 /**
  * Generate a Dragon curve rhythm pattern
+ * Creates complex folding patterns through iterative transformation
  * @param {number} iterations - Number of iterations (1-8 recommended)
  * @returns {Pattern} Binary rhythm following dragon curve
  * @example
- * s("sd").struct(dragon(5))
+ * // Snare pattern with dragon curve rhythm
+ * s("sd").struct(dragon(5)).fast(4)
+ * 
+ * @example
+ * // Complex drum pattern
+ * s("bd sd hh cp").struct(dragon(6))
  */
 export function dragon(iterations = 4) {
   let sequence = [1];
@@ -185,11 +210,26 @@ export function koch(depth = 3) {
 }
 
 /**
- * Generate Barnsley Fern pattern
- * @param {number} points - Number of points to generate
- * @returns {Pattern} Pattern based on Barnsley fern
+ * Generate Barnsley Fern pattern for melodies
+ * Creates organic, fern-like patterns using iterated function systems
+ * NOTE: Returns values 0-7, must wrap with n() to use .scale()
+ * @param {number} points - Number of points to generate (16-64 typical)
+ * @returns {Pattern} Pattern of values 0-7
  * @example
- * note(barnsleyFern(50)).scale("minor")
+ * // CORRECT: Melodic pattern with scale
+ * n(barnsleyFern(32))
+ *   .scale("C:minor:pentatonic")
+ *   .note()
+ *   .s("piano")
+ * 
+ * @example
+ * // Ambient melody
+ * n(barnsleyFern(64))
+ *   .scale("D:dorian")
+ *   .note()
+ *   .s("vibraphone")
+ *   .room(0.5)
+ *   .slow(2)
  */
 export function barnsleyFern(points = 30) {
   const pattern = [];
