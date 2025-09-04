@@ -1,0 +1,57 @@
+// Fractal Composition - Working Demo
+// Uses time-based modulation to create fractal-like patterns
+
+stack(
+  // Bass line with evolving cutoff
+  note("c2 eb2 g2 bb2")
+    .s("sawtooth")
+    .slow(4)
+    .gain(0.6)
+    .cutoff(saw.range(100, 800).slow(8))
+    .resonance(5),
+
+  // Melodic sequence with chaotic rhythm
+  note("c4 eb4 g4 bb4 c5 eb5")
+    .scale("minor")
+    .struct("t(<5 7 9 11>,16)")
+    .s("triangle")
+    .gain(perlin.range(0.2, 0.5).fast(0.5))
+    .pan(sine.slow(3))
+    .delay(0.125).delaytime(0.125).delayfeedback(0.6),
+
+  // Harmonic pad
+  chord("<Cm7 Fm7 Gm7 Ab^7>")
+    .voicing()
+    .s("pad")
+    .slow(8)
+    .gain(0.3)
+    .cutoff(perlin.range(400, 2000).slow(4))
+    .room(0.9).size(0.95),
+
+  // Arpeggios with euclidean rhythm
+  n("0 3 7 10 12 15")
+    .scale("major")
+    .add(60)
+    .s("triangle")
+    .euclidLegato(7, 12)
+    .fast(2)
+    .gain(0.25)
+    .pan(cosine.slow(5))
+    .room(0.5),
+
+  // Percussion with varying intensity
+  s("bd*4")
+    .gain(perlin.range(0.3, 0.8).slow(2))
+    .speed(0.9),
+  
+  s("~ sd ~ sd")
+    .fast(2)
+    .gain(0.4),
+  
+  s("[~ hh]*4")
+    .fast("<1 2 1.5 3>")
+    .gain(perlin.range(0.1, 0.3).fast(0.25))
+    .pan(cosine.slow(5))
+)
+.gain(0.7)
+.compressor("-20:4:10")

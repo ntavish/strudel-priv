@@ -1,0 +1,128 @@
+// Fractal Self-Similarity Pattern
+// Demonstrates recursive patterns and self-similar structures using fractal algorithms
+
+// Drum patterns with Sierpinski triangle modulation for self-similar rhythms
+$: stack(
+  s("bd*4").gain(x => fractal.sierpinski(x*0.5, saw*0.3, 4)*0.8 + 0.2),
+  s("~ sd ~ sd").fast(2).gain(x => fractal.sierpinski(x*0.3, tri*0.2, 3)*0.6 + 0.3),
+  s("[~ hh]*4").fast("<1 2 1.5 3>").gain(x => fractal.perlin(x*0.2, saw*0.5)*0.4 + 0.1),
+  s("cp*2").every(3, fast(2)).gain(x => fractal.julia(x*0.1, sine*0.2, -0.7, 0.27)*0.5 + 0.2)
+)
+.speed(x => 0.8 + fractal.fractalNoise(x*0.1, 0, 4, 0.5)*0.4)
+.sometimes(ply("<2 3 4>"))
+
+// Dragon curve melodic sequences with self-similar structure
+$: n(x => Math.floor(fractal.dragonCurve(x*8, 0.5, 5)*12))
+  .scale("phrygian")
+  .s("triangle")
+  .slow(2)
+  .gain(x => 0.3 + fractal.mandelbrot(sine*0.3, cosine*0.3, 30)*0.4)
+  .cutoff(x => 200 + fractal.julia(x*0.2, saw*0.3, -0.8, 0.156)*3000)
+  .resonance(8)
+  .delay(0.125).delaytime(x => 0.125 + fractal.perlin(x*0.5, saw)*0.25).delayfeedback(0.7)
+  .room(0.8)
+
+// Mandelbrot bass progression - low frequency self-similarity
+$: note(x => {
+  const mand = fractal.mandelbrot(sine*0.5, cosine*0.5, 50)
+  return ["c1", "g1", "bb1", "eb2"][Math.floor(mand*4) % 4]
+})
+  .s("sawtooth")
+  .slow(4)
+  .gain(0.6)
+  .cutoff(x => 100 + fractal.fractalNoise(x*0.1, 0, 5, 0.7)*500)
+  .resonance(5)
+  .attack(0.01).decay(0.2).sustain(0.3).release(0.5)
+
+// Julia set pad morphing with evolving parameters
+$: chord("<Cm7 Gm7 Fm7 Ab^7>")
+  .voicing()
+  .s("pad")
+  .slow(8)
+  .gain(x => 0.2 + fractal.julia(sine*0.8, cosine*0.8, -0.8, 0.156)*0.3)
+  .pan(x => fractal.perlin(x*0.5, saw*0.5, 0.1))
+  .cutoff(x => 800 + fractal.fractalNoise(x*0.3, 0, 4, 0.5)*2000)
+  .resonance(3)
+  .room(0.9).size(0.95)
+
+// Perlin noise texture layer - continuous evolution
+$: n(x => Math.floor(fractal.perlin(x*2, saw*3, 0.2)*24))
+  .scale("minor")
+  .s("glockenspiel")
+  .euclidLegato(x => 3 + Math.floor(fractal.sierpinski(x*0.3, sine*0.2, 3)*5), 8)
+  .fast(2)
+  .gain(x => 0.1 + fractal.fractalNoise(x*0.5, 0, 3, 0.4)*0.2)
+  .pan(sine.slow(3))
+  .delay(0.333).delaytime(0.125).delayfeedback(0.6)
+
+// Recursive arpeggios using Mandelbrot set
+$: n(x => {
+  const mand = fractal.mandelbrot(sine*0.3, cosine*0.3, 40)
+  return Math.floor(mand*12)
+})
+  .scale("hexPhrygian")
+  .s("sine:2")
+  .euclidLegato(x => 5 + Math.floor(fractal.mandelbrot(x*0.1, saw*0.1, 20)*3), 16)
+  .fast(x => 2 + Math.floor(fractal.sierpinski(x*0.1, sine*0.1, 3)*2))
+  .gain(0.2)
+  .pan(x => -0.5 + fractal.fractalNoise(x*0.7, 0, 3, 0.5))
+  .phaser(4).phaserrate(x => 0.5 + fractal.perlin(x*0.3, sine*0.3, 0.1)*2)
+
+// Fractal noise percussion with self-similar density
+$: s("shaker:2 shaker:5 shaker:8")
+  .euclidLegato(x => 7 + Math.floor(fractal.fractalNoise(x*0.2, 0, 4, 0.6)*4), 16)
+  .fast(1.5)
+  .gain(x => 0.1 + fractal.sierpinski(x*0.4, saw*0.3, 3)*0.2)
+  .speed(x => 0.7 + fractal.perlin(x*0.5, sine*0.5, 0.15)*0.6)
+  .pan(cosine.slow(5))
+  .room(0.3)
+
+// Dragon curve glitch effects - chaotic self-similarity
+$: s("glitch:1 glitch:3 glitch:5 glitch:7")
+  .struct(x => fractal.dragonCurve(x*4, 0.5, 4) > 0.6 ? "1" : "~")
+  .sometimesBy(x => fractal.julia(x*0.3, sine*0.3, -0.4, 0.6), fast(2))
+  .gain(0.15)
+  .speed(x => 0.5 + fractal.mandelbrot(sine*0.2, cosine*0.2, 30)*1.5)
+  .pan(x => -0.8 + fractal.fractalNoise(x*0.8, 0, 3, 0.4)*1.6)
+  .crush(x => 16 - Math.floor(fractal.perlin(x*0.3, saw*0.3, 0.1)*12))
+
+// Multi-octave fractal noise for evolving filter sweeps
+$: s("tech:4").loopAt(2)
+  .sometimes(chop(8))
+  .gain(0.4)
+  .lpf(x => 200 + fractal.fractalNoise(x*0.05, 0, 6, 0.65)*5000)
+  .lpq(x => 1 + fractal.sierpinski(x*0.2, sine*0.2, 3)*15)
+  .pan(x => fractal.julia(x*0.1, saw*0.1, -0.5, 0.3))
+  
+// Layered Mandelbrot/Julia set interplay  
+$: note(x => {
+  const julia = fractal.julia(sine*0.5, cosine*0.5, -0.7, 0.27, 30)
+  const mand = fractal.mandelbrot(x*0.2, julia*0.5, 40)
+  return Math.floor(mand*24) 
+})
+  .scale("egyptian")
+  .s("kalimba")
+  .euclidLegato(x => Math.floor(3 + fractal.dragonCurve(x*2, 0.5, 4)*5), 12)
+  .gain(x => 0.15 + fractal.perlin(x, sine, 0.1)*0.15)
+  .delay(0.5).delaytime(x => fractal.sierpinski(x*0.1, saw*0.1, 2)*0.5)
+  .room(0.7)
+
+// Global fractal-driven effects
+.sometimesBy(0.2, ply(x => 2 + Math.floor(fractal.sierpinski(x*0.2, sine*0.2, 2)*2)))
+.sometimesBy(0.3, fast(x => 1 + fractal.fractalNoise(x*0.15, 0, 3, 0.5)*0.5))
+.gain(0.8)
+.compressor("-20:4:10")
+
+setcpm(120)
+await samples('github:tidalcycles/Dirt-Samples/master')
+
+/*
+This pattern demonstrates self-similar fractal structures:
+- Sierpinski triangles modulate rhythm densities 
+- Dragon curves generate melodic contours
+- Mandelbrot sets drive harmonic progressions
+- Julia sets morph timbral parameters
+- Perlin noise creates smooth parameter evolution
+- Fractal noise with multiple octaves for complex textures
+- Each layer exhibits recursive, self-similar behaviors at different time scales
+*/

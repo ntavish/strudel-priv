@@ -1,0 +1,104 @@
+// Fractal Self-Similarity Pattern - Fixed Version
+// Using actual available fractal functions from Strudel
+
+// Drum patterns with fractal rhythms
+$: stack(
+  s("bd*4").struct(Pattern.cantor(3)),
+  s("~ sd ~ sd").fast(2).struct(Pattern.sierpinski(3)),
+  s("[~ hh]*4").fast("<1 2 1.5 3>").gain(perlinBipolar.range(0.2, 0.6).slow(8)),
+  s("cp*2").every(3, fast(2)).struct(Pattern.dragon(4))
+)
+.speed(perlinNoise.range(0.8, 1.2).slow(4))
+.sometimes(ply("<2 3 4>"))
+
+// Melodic sequences using Barnsley Fern pattern
+$: note(Pattern.barnsleyFern(32))
+  .scale("phrygian")
+  .s("triangle")
+  .slow(2)
+  .gain(perlinNoise.range(0.3, 0.7).slow(3))
+  .cutoff(perlinNoise.range(200, 3200).slow(5))
+  .resonance(8)
+  .delay(0.125).delaytime(0.125).delayfeedback(0.7)
+  .room(0.8)
+
+// Bass using cellular automaton pattern
+$: note(Pattern.cellularAutomaton(30, 16))
+  .scale("minor")
+  .add(note(-24))
+  .s("sawtooth")
+  .slow(4)
+  .gain(0.6)
+  .cutoff(fbm.range(100, 600).slow(8))
+  .resonance(5)
+  .attack(0.01).decay(0.2).sustain(0.3).release(0.5)
+
+// Pad chords with turbulence modulation
+$: chord("<Cm7 Gm7 Fm7 Ab^7>")
+  .voicing()
+  .s("pad")
+  .slow(8)
+  .gain(turbulence.range(0.2, 0.5).slow(4))
+  .pan(perlinBipolar.slow(3))
+  .cutoff(ridge.range(800, 2800).slow(6))
+  .resonance(3)
+  .room(0.9).size(0.95)
+
+// Perlin noise texture layer
+$: n(perlinNoise.range(0, 24).slow(2))
+  .scale("minor")
+  .s("glockenspiel")
+  .euclidLegato(5, 8)
+  .fast(2)
+  .gain(fbm.range(0.1, 0.3).slow(5))
+  .pan(sine.slow(3))
+  .delay(0.333).delaytime(0.125).delayfeedback(0.6)
+
+// Koch curve arpeggios
+$: note(Pattern.koch(3).mul(12))
+  .scale("hexPhrygian")
+  .s("sine:2")
+  .euclidLegato(7, 16)
+  .fast(2)
+  .gain(0.2)
+  .pan(perlinBipolar.slow(7))
+  .phaser(4).phaserrate(perlinNoise.range(0.5, 2.5).slow(4))
+
+// Fractal percussion using dragon curve
+$: s("shaker:2 shaker:5 shaker:8")
+  .struct(Pattern.dragon(5))
+  .fast(1.5)
+  .gain(turbulence.range(0.1, 0.3).slow(4))
+  .speed(perlinNoise.range(0.7, 1.3).slow(5))
+  .pan(cosine.slow(5))
+  .room(0.3)
+
+// L-system generated glitch pattern
+$: Pattern.lsystem("A", {"A": "AB", "B": "BA"}, 4)
+  .scale("ritusen")
+  .note()
+  .s("glitch")
+  .sometimes(fast(2))
+  .gain(0.15)
+  .speed(fbm.range(0.5, 2).slow(3))
+  .pan(ridge.range(-0.8, 0.8).slow(8))
+  .crush(perlinNoise.range(4, 16).slow(6).floor())
+
+// Global effects with fractal modulation
+.sometimesBy(0.2, ply(2))
+.sometimesBy(0.3, fast(perlinNoise.range(1, 1.5).slow(16)))
+.gain(0.8)
+.compressor("-20:4:10")
+
+setcpm(120)
+await samples('github:tidalcycles/Dirt-Samples/master')
+
+/*
+This pattern demonstrates self-similar fractal structures using actual Strudel fractal functions:
+- Cantor sets and Sierpinski triangles for rhythmic structures
+- Dragon curves and Koch curves for melodic patterns  
+- Cellular automata and L-systems for evolving sequences
+- Barnsley fern for organic melodic contours
+- Perlin noise and its variants (fbm, turbulence, ridge) for smooth parameter modulation
+- Each layer exhibits recursive, self-similar behaviors at different time scales
+*/

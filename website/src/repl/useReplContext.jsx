@@ -19,7 +19,6 @@ import { setVersionDefaultsFrom } from './util.mjs';
 import { StrudelMirror, defaultSettings } from '@strudel/codemirror';
 import { clearHydra } from '@strudel/hydra';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useExternalBridge } from './hooks/useExternalBridge';
 import { parseBoolean, settingsMap, useSettings } from '../settings.mjs';
 import {
   setActivePattern,
@@ -155,19 +154,6 @@ export function useReplContext() {
   const editorRef = useRef();
   const containerRef = useRef();
   
-  // External Pattern Bridge - Optional integration for external tools
-  // Enable external pattern sources like OSC, WebSocket, MIDI controllers, etc.
-  const { bridgeConnected, sendCurrentPattern } = useExternalBridge(editorRef, logger);
-  
-  // Send current pattern to external bridge when code changes
-  useEffect(() => {
-    if (bridgeConnected && editorRef.current) {
-      const currentCode = editorRef.current.getCode?.();
-      if (currentCode) {
-        sendCurrentPattern(currentCode);
-      }
-    }
-  }, [bridgeConnected, activeCode, sendCurrentPattern]);
 
   // this can be simplified once SettingsTab has been refactored to change codemirrorSettings directly!
   // this will be the case when the main repl is being replaced
@@ -244,7 +230,6 @@ export function useReplContext() {
     error,
     editorRef,
     containerRef,
-    bridgeConnected,
   };
   return context;
 }
