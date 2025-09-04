@@ -79,15 +79,9 @@ export function dragon(iterations = 4) {
 }
 
 /**
- * Generate an L-system pattern
- * @param {string} axiom - Starting string
- * @param {Object} rules - Replacement rules
- * @param {number} iterations - Number of iterations
- * @returns {Pattern} Pattern based on L-system
- * @example
- * lsystem("A", {A: "AB", B: "A"}, 4).s("bd sd")
+ * Internal L-system implementation
  */
-export function lsystem(axiom, rules, iterations = 3) {
+function _lsystem(axiom, rules, iterations = 3) {
   let result = axiom;
   
   for (let i = 0; i < iterations; i++) {
@@ -101,6 +95,28 @@ export function lsystem(axiom, rules, iterations = 3) {
   });
   
   return fastcat(...values);
+}
+
+/**
+ * Generate an L-system pattern
+ * @param {string} axiom - Starting string
+ * @param {Object} rules - Replacement rules
+ * @param {number} iterations - Number of iterations
+ * @returns {Pattern} Pattern based on L-system
+ * @example
+ * lsystem("A", {A: "AB", B: "A"}, 4).s("bd sd")
+ */
+export function lsystem(axiom, rules, iterations = 3) {
+  // If axiom is a Pattern, extract its value
+  if (axiom && typeof axiom === 'object' && axiom.firstCycle) {
+    // Get the first value from the pattern
+    const haps = axiom.firstCycle();
+    if (haps.length > 0) {
+      axiom = haps[0].value;
+    }
+  }
+  
+  return _lsystem(axiom, rules, iterations);
 }
 
 /**
