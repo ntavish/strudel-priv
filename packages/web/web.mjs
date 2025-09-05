@@ -6,7 +6,7 @@ export * from '@strudel/mini';
 export * from '@strudel/tonal';
 export * from '@strudel/webaudio';
 import { Pattern, evalScope, setTime } from '@strudel/core';
-import { initAudioOnFirstClick, registerSynthSounds, webaudioRepl } from '@strudel/webaudio';
+import { initAudioOnFirstClick, initAudio, registerSynthSounds, webaudioRepl } from '@strudel/webaudio';
 // import { registerSoundfonts } from '@strudel/soundfonts';
 import { evaluate as _evaluate, transpiler } from '@strudel/transpiler';
 import { miniAllStrings } from '@strudel/mini';

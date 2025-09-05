@@ -6,7 +6,7 @@ import { ButtonGroup } from './Forms.jsx';
 import { AudioDeviceSelector } from './AudioDeviceSelector.jsx';
 import { AudioEngineTargetSelector } from './AudioEngineTargetSelector.jsx';
 import { confirmDialog } from '../../util.mjs';
-import { DEFAULT_MAX_POLYPHONY, setMaxPolyphony, setMultiChannelOrbits } from '@strudel/webaudio';
+import { DEFAULT_MAX_POLYPHONY, setMaxPolyphony, setMultiChannelOrbits, initAudio } from '@strudel/webaudio';
 
 function Checkbox({ label, value, onChange, disabled = false }) {
   return (
@@ -122,12 +122,9 @@ export function SettingsTab({ started }) {
             isDisabled={started}
             audioDeviceName={audioDeviceName}
             onChange={(audioDeviceName) => {
-              confirmDialog(RELOAD_MSG).then((r) => {
-                if (r == true) {
-                  settingsMap.setKey('audioDeviceName', audioDeviceName);
-                  return window.location.reload();
-                }
-              });
+              settingsMap.setKey('audioDeviceName', audioDeviceName);
+              initAudio(settingsMap.value);
+              return true;
             }}
           />
         </FormItem>
@@ -170,13 +167,10 @@ export function SettingsTab({ started }) {
           label="Multi Channel Orbits"
           onChange={(cbEvent) => {
             const val = cbEvent.target.checked;
-            confirmDialog(RELOAD_MSG).then((r) => {
-              if (r == true) {
-                settingsMap.setKey('multiChannelOrbits', val);
-                setMultiChannelOrbits(val);
-                return window.location.reload();
-              }
-            });
+            settingsMap.setKey('multiChannelOrbits', val);
+            setMultiChannelOrbits(val);
+            initAudio(settingsMap.value);
+            return true;
           }}
           value={multiChannelOrbits}
         />
