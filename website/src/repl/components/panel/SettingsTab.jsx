@@ -119,7 +119,6 @@ export function SettingsTab({ started }) {
       {canChangeAudioDevice && (
         <FormItem label="Audio Output Device">
           <AudioDeviceSelector
-            isDisabled={started}
             audioDeviceName={audioDeviceName}
             onChange={(audioDeviceName) => {
               settingsMap.setKey('audioDeviceName', audioDeviceName);
@@ -169,7 +168,6 @@ export function SettingsTab({ started }) {
             const val = cbEvent.target.checked;
             settingsMap.setKey('multiChannelOrbits', val);
             setMultiChannelOrbits(val);
-            initAudio(settingsMap.value);
             return true;
           }}
           value={multiChannelOrbits}

@@ -26,6 +26,7 @@ export function setMaxPolyphony(polyphony) {
 let multiChannelOrbits = false;
 export function setMultiChannelOrbits(bool) {
   multiChannelOrbits = bool == true;
+  orbits = {};
 }
 
 function getModulationShapeInput(val) {
