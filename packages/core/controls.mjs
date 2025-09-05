@@ -1444,7 +1444,7 @@ export const { panorient } = registerControl('panorient');
  *   .lfoTarget("lpf")
  *   .lfoParam("frequency")
  *   .lfoNum(2)
- * 
+ *
  * reuse: note("F3").sound("square").lpf(50)
  *   .lfoTarget("lpf")
  *   .lfoParam("frequency")
