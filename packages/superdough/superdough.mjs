@@ -549,7 +549,7 @@ function _getNodeParams(node) {
  * @returns {Object[]} - Array of parameter objects, one per parameter modulation
  */
 function _splitParams(params) {
-  const num = ['num', 'target', 'parameter'] // names used to indicate individual parameter modulations
+  const num = ['num', 'target', 'param'] // names used to indicate individual parameter modulations
     .map((k) => [params[k] ?? 0].flat().length)
     .reduce((a, v) => Math.max(a, v), 1);
 
@@ -645,11 +645,6 @@ function _connectLFO(params) {
     const ac = getAudioContext();
     lfoNode = getLfo(ac, filteredParams);
     lfos[num] = lfoNode;
-  }
-  try {
-    lfoNode.disconnect();
-  } catch {
-    // pass
   }
   const targets = _getTargetParams(target, param);
   targets.forEach((target) => lfoNode.connect(target));
@@ -975,29 +970,29 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
 
   if (vowel !== undefined) {
     const vowelFilter = ac.createVowelFilter(vowel);
-    nodes['vowel'] = vowelFilter;
+    nodes['vowel'] = [vowelFilter];
     chain.push(vowelFilter);
   }
 
   // effects
   if (coarse !== undefined) {
     const coarseNode = getWorklet(ac, 'coarse-processor', { coarse });
-    nodes['coarse'] = coarseNode;
+    nodes['coarse'] = [coarseNode];
     chain.push(coarseNode);
   }
   if (crush !== undefined) {
     const crushNode = getWorklet(ac, 'crush-processor', { crush });
-    nodes['crush'] = crushNode;
+    nodes['crush'] = [crushNode];
     chain.push(crushNode);
   }
   if (shape !== undefined) {
     const shapeNode = getWorklet(ac, 'shape-processor', { shape });
-    nodes['shape'] = shapeNode;
+    nodes['shape'] = [shapeNode];
     chain.push(shapeNode);
   }
   if (distort !== undefined) {
     const distortNode = getWorklet(ac, 'distort-processor', { distort });
-    nodes['distort'] = distortNode;
+    nodes['distort'] = [distortNode];
     chain.push(distortNode);
   }
 
@@ -1039,7 +1034,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       compressorAttack,
       compressorRelease,
     );
-    nodes['compressor'] = compressorNode;
+    nodes['compressor'] = [compressorNode];
     chain.push(compressorNode);
   }
 
@@ -1052,20 +1047,20 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   // phaser
   if (phaser !== undefined && phaserdepth > 0) {
     const phaserFX = getPhaser(t, endWithRelease, phaser, phaserdepth, phasercenter, phasersweep);
-    nodes['phaser'] = phaserFX;
+    nodes['phaser'] = [phaserFX];
     chain.push(phaserFX);
   }
 
   // last gain
   const post = new GainNode(ac, { gain: postgain });
-  nodes['post'] = post;
+  nodes['post'] = [post];
   chain.push(post);
 
   // delay
   let delaySend;
   if (delay > 0 && delaytime > 0 && delayfeedback > 0) {
     const delayNode = getDelay(orbit, delaytime, delayfeedback, t, orbitChannels);
-    nodes['delay'] = delayNode;
+    nodes['delay'] = [delayNode];
     delaySend = effectSend(post, delayNode, delay);
     audioNodes.push(delaySend);
   }
@@ -1084,7 +1079,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       roomIR = await loadBuffer(url, ac, ir, 0);
     }
     const reverbNode = getReverb(orbit, roomsize, roomfade, roomlp, roomdim, roomIR, orbitChannels);
-    nodes['room'] = reverbNode;
+    nodes['room'] = [reverbNode];
     reverbSend = effectSend(post, reverbNode, room);
     audioNodes.push(reverbSend);
   }
