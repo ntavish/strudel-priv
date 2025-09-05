@@ -1633,6 +1633,7 @@ export const { scompressorRelease } = registerControl('scompressorRelease');
 export const { scompressorAutomakeup } = registerControl('scompressorAutomakeup');
 export const { scompressorUpward } = registerControl('scompressorUpward');
 export const { scompressorIsLimiter } = registerControl('scompressorIsLimiter');
+export const { scompressorMix } = registerControl('scompressorMix');
 
 /**
  * Limiter. The params are `limiter("threshold:attack:release:lookahead")`
@@ -1654,6 +1655,10 @@ export const { limiterLookahead } = registerControl('limiterLookahead');
  * @name sidechain
  */
 export const { sidechain } = registerControl('sidechain');
+
+export const { sidechainlpf } = registerControl('sidechainlpf');
+export const { sidechainhpf } = registerControl('sidechainhpf');
+export const { sidechainbpf } = registerControl('sidechainbpf');
 
 /**
  * Changes the speed of sample playback, i.e. a cheap way of changing pitch.
