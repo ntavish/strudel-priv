@@ -26,7 +26,7 @@ export function setMaxPolyphony(polyphony) {
 let multiChannelOrbits = false;
 export function setMultiChannelOrbits(bool) {
   multiChannelOrbits = bool == true;
-  orbits = {};
+  resetOrbits();
 }
 
 function getModulationShapeInput(val) {
@@ -509,8 +509,23 @@ function effectSend(input, effect, wet) {
   return send;
 }
 
-export function resetGlobalEffects() {
+function _disconnectNode(node) {
+  try {
+    node?.disconnect();
+  } catch {
+    // pass
+  }
+}
+
+function resetOrbits() {
+  for (let orbit of Object.values(orbits)) {
+    _disconnectNode(orbit?.gain);
+  }
   orbits = {};
+}
+
+export function resetGlobalEffects() {
+  resetOrbits();
   analysers = {};
   analysersData = {};
 }
