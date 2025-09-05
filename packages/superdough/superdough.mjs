@@ -702,6 +702,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     limiterAttack,
     limiterRelease,
     limiterLookahead,
+    limiterPostgain,
     scompressor: scompressorThreshold,
     scompressorRatio,
     scompressorKnee,
@@ -712,6 +713,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     scompressorIsLimiter,
     scompressorMix,
     scompressorSidechained,
+    scompressorPostgain,
     sidechain,
     sidechainlpf,
     sidechainhpf,
@@ -930,6 +932,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     attack: limiterAttack,
     release: limiterRelease,
     lookahead: limiterLookahead,
+    postgain: limiterPostgain,
   };
   getLimiter(ac, orbit, limiterParams, t, channels);
   const compressorParams = {
@@ -943,9 +946,9 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     islimiter: scompressorIsLimiter,
     mix: scompressorMix,
     sidechained: scompressorSidechained,
+    postgain: scompressorPostgain,
   };
   const compressor = getSCompressor(ac, orbit, compressorParams, t);
-  post.connect(compressor);
 
   if (sidechain) {
     setupSidechain(post, sidechain, sidechainlpf, sidechainhpf, sidechainbpf, t, end);

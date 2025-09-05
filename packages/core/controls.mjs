@@ -1635,6 +1635,7 @@ export const { scompressorUpward } = registerControl('scompressorUpward');
 export const { scompressorIsLimiter } = registerControl('scompressorIsLimiter');
 export const { scompressorMix } = registerControl('scompressorMix');
 export const { scompressorSidechained } = registerControl('scompressorSidechained');
+export const { scompressorPostgain } = registerControl('scompressorPostgain');
 
 /**
  * Limiter. The params are `limiter("threshold:attack:release:lookahead")`
@@ -1649,6 +1650,7 @@ export const { limiter } = registerControl(['limiter', 'limiterAttack', 'limiter
 export const { limiterAttack } = registerControl('limiterAttack');
 export const { limiterRelease } = registerControl('limiterRelease');
 export const { limiterLookahead } = registerControl('limiterLookahead');
+export const { limiterPostgain } = registerControl('limiterPostgain');
 
 /**
  * Sets the current pattern's output as a sidechain for the provided orbits

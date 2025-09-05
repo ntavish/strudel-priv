@@ -353,7 +353,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
       { name: 'release', defaultValue: 0.05, minValue: 1e-6, maxValue: 1 },
       { name: 'lookahead', defaultValue: 0.006, minValue: 0, maxValue: 0.05 },
       { name: 'postgain', defaultValue: 1 }, // linear
-      { name: 'ratio', defaultValue: 4, minValue: 1, maxValue: 20 },
+      { name: 'ratio', defaultValue: 4, minValue: 1, maxValue: 100 },
       { name: 'knee', defaultValue: 6, minValue: 0, maxValue: 24 },
       { name: 'mix', defaultValue: 0, minValue: 0, maxValue: 1 },
       // bools
@@ -428,7 +428,10 @@ class CompressorProcessor extends AudioWorkletProcessor {
       const magnitude = probed.reduce((max, ch) => Math.max(max, Math.abs(pv(ch, n))), 0);
       this.rms = mix(magnitude * magnitude, this.rms, this.rmsCoef);
       const rms = Math.sqrt(this.rms + 1e-20);
-      const target = rms;
+
+      // When not sidechained we use `magnitude` instead of the smoothed `rms` signal
+      // to add some warmth with light AM distortion (mimicking the WebAudio `compressor`)
+      const target = sidechained ? rms : magnitude;
       const coef = target > this.follower ? attackCoef : releaseCoef;
       this.follower = mix(target, this.follower, coef);
       const sgn = upward ? -1 : 1;
@@ -438,17 +441,11 @@ class CompressorProcessor extends AudioWorkletProcessor {
 
       // Smooth the instantaneous gain adjustment
       let gain = -sgn * slope * D;
-      // const delta = instGain - this.follower
-      // const isAttack = upward ? (delta > 0) : (delta < 0);
-      // const gainCoef = isAttack ? attackCoef : releaseCoef;
-      // this.follower = mix(instGain, this.follower, gainCoef);
-
-      // let gain = this.follower;
       if (rms > this.gate) {
         this.avgGain = mix(gain, this.avgGain, this.makeupCoef);
       }
       // Do not apply more makeup than we are reducing
-      const cap = Math.max(0, -gain);
+      const cap = Math.abs(gain);
       const makeupGain = -Math.sign(this.avgGain) * Math.min(Math.abs(this.avgGain), cap);
       if (autoMakeup) {
         gain += makeupGain;
