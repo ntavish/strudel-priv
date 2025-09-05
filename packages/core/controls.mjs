@@ -1634,6 +1634,7 @@ export const { scompressorAutomakeup } = registerControl('scompressorAutomakeup'
 export const { scompressorUpward } = registerControl('scompressorUpward');
 export const { scompressorIsLimiter } = registerControl('scompressorIsLimiter');
 export const { scompressorMix } = registerControl('scompressorMix');
+export const { scompressorSidechained } = registerControl('scompressorSidechained');
 
 /**
  * Limiter. The params are `limiter("threshold:attack:release:lookahead")`

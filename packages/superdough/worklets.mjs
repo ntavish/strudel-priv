@@ -358,6 +358,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
       { name: 'mix', defaultValue: 0, minValue: 0, maxValue: 1 },
       // bools
       { name: 'islimiter', defaultValue: 0 },
+      { name: 'sidechained', defaultValue: 0 },
       { name: 'automakeup', defaultValue: 0 },
       { name: 'upward', defaultValue: 0 },
     ];
@@ -369,11 +370,12 @@ class CompressorProcessor extends AudioWorkletProcessor {
     this.writePos = 0;
     this.readPos = 0;
     this.delayBuffers = [];
-    this.follower = 0; // envelope follower
+    this.follower = 0; // gain envelope follower
     this.avgGain = 0;
     this.rmsCoef = this._secToCoef(0.03); // 30ms
     this.rms = 0;
     this.makeupCoef = this._secToCoef(1); // 1s
+    this.gate = 1e-5; // used for preventing silence from pulling down makeup gain
   }
 
   _kneeSmooth(x, knee) {
@@ -411,13 +413,15 @@ class CompressorProcessor extends AudioWorkletProcessor {
       const upward = pv(params.upward, n) > 0.5;
       const autoMakeup = pv(params.automakeup, n) > 0.5;
       const isLimiter = pv(params.islimiter, n) > 0.5;
+      const sidechained = pv(params.sidechained, n) > 0.5;
       if (isLimiter) {
         ratio = 1e9;
         knee = 0;
       }
       const delaySamples = Math.floor(pv(params.lookahead, n) * sampleRate);
       this.readPos = _mod(this.writePos - delaySamples, this.bufferSize);
-      const probed = sidechain.length ? sidechain : input;
+      const probed = sidechained ? sidechain : input;
+
       // Calculate the maximum volume across all channels of the probed input
       // This ensures that all channels are limited jointly and thus there is
       // no wobbling back and forth in, say, stereo
@@ -430,17 +434,24 @@ class CompressorProcessor extends AudioWorkletProcessor {
       const sgn = upward ? -1 : 1;
       const d = sgn * (linToDB(this.follower) - threshold);
       const D = this._kneeSmooth(d, knee);
-      const D0 = this._kneeSmooth(-threshold, knee);
       const slope = 1 - 1 / ratio;
+
+      // Smooth the instantaneous gain adjustment
       let gain = -sgn * slope * D;
-      this.avgGain = mix(gain, this.avgGain, this.makeupCoef);
+      // const delta = instGain - this.follower
+      // const isAttack = upward ? (delta > 0) : (delta < 0);
+      // const gainCoef = isAttack ? attackCoef : releaseCoef;
+      // this.follower = mix(instGain, this.follower, gainCoef);
+
+      // let gain = this.follower;
+      if (rms > this.gate) {
+        this.avgGain = mix(gain, this.avgGain, this.makeupCoef);
+      }
       // Do not apply more makeup than we are reducing
       const cap = Math.max(0, -gain);
       const makeupGain = -Math.sign(this.avgGain) * Math.min(Math.abs(this.avgGain), cap);
       if (autoMakeup) {
-        // gain -= this.avgGain; // cancel out the average gain
-        // gain += makeupGain;
-        gain += 0.75 * slope * D0;
+        gain += makeupGain;
       }
       const gainLin = dBToLin(gain);
       for (let ch = 0; ch < numChannels; ch++) {

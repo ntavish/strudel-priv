@@ -469,10 +469,9 @@ function getReverb(orbit, duration, fade, lp, dim, ir, irspeed, irbegin) {
   return orbits[orbit].reverbNode;
 }
 
-function getLimiter(ac, orbit, params, postgain, currentTime, channels) {
+function getLimiter(ac, orbit, params, currentTime, channels) {
   params.mix = Object.values(params).some((v) => v !== undefined) ? 1 : 0; // turn on if a parameter is provided
   params.islimiter = true;
-  params.postgain = postgain;
   if (!orbits[orbit].limiter) {
     const limiter = getWorklet(ac, 'compressor-processor', params, { numberOfInputs: 2 });
     orbits[orbit].limiter = limiter;
@@ -712,6 +711,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     scompressorUpward,
     scompressorIsLimiter,
     scompressorMix,
+    scompressorSidechained,
     sidechain,
     sidechainlpf,
     sidechainhpf,
@@ -914,14 +914,14 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   }
 
   // end of main chain
-  const pre = new GainNode(ac, { gain: 1 });
-  chain.push(pre);
+  const post = new GainNode(ac, { gain: postgain });
+  chain.push(post);
 
   // analyser
   let analyserSend;
   if (analyze) {
     const analyserNode = getAnalyserById(analyze, 2 ** (fft + 5));
-    analyserSend = effectSend(pre, analyserNode, 1);
+    analyserSend = effectSend(post, analyserNode, 1);
     audioNodes.push(analyserSend);
   }
 
@@ -931,7 +931,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     release: limiterRelease,
     lookahead: limiterLookahead,
   };
-  getLimiter(ac, orbit, limiterParams, postgain, t, channels);
+  getLimiter(ac, orbit, limiterParams, t, channels);
   const compressorParams = {
     threshold: scompressorThreshold,
     attack: scompressorAttack,
@@ -942,18 +942,19 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     upward: scompressorUpward,
     islimiter: scompressorIsLimiter,
     mix: scompressorMix,
+    sidechained: scompressorSidechained,
   };
   const compressor = getSCompressor(ac, orbit, compressorParams, t);
-  pre.connect(compressor);
+  post.connect(compressor);
 
   if (sidechain) {
-    setupSidechain(pre, sidechain, sidechainlpf, sidechainhpf, sidechainbpf, t, end);
+    setupSidechain(post, sidechain, sidechainlpf, sidechainhpf, sidechainbpf, t, end);
   }
 
   // delay
   if (delay > 0 && delaytime > 0 && delayfeedback > 0) {
     const delayNode = getDelay(orbit, delaytime, delayfeedback, t);
-    effectSend(pre, delayNode, delay);
+    effectSend(post, delayNode, delay);
   }
 
   // reverb
@@ -978,7 +979,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     chain.push(dryGain);
     connectToOrbit(dryGain, orbit);
   } else {
-    connectToOrbit(pre, orbit);
+    connectToOrbit(post, orbit);
   }
 
   // connect chain elements together
