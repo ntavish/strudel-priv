@@ -11,10 +11,10 @@ const coreDocs = docs.filter(doc => doc.meta?.path?.startsWith(corePackageDir) ?
 
 var dts = ''
 
-for (const doc of coreDocs) {
+for (const doc of coreDocs.filter(doc=>!doc.memberof)) {
     for (const name of [doc.name, ...doc.synonyms ?? []]) {
         dts += doc.comment + '\n'
-        dts += 'function ' + name + '(' + (doc.params?.map(p=>p.name).join(',') ?? '') + '): Pattern\n\n'
+        dts += 'function ' + name + '(' + (doc.params?.map(p=>p.name).join(',') ?? '...args') + '): Pattern\n\n'
     }
 }
 
@@ -23,7 +23,7 @@ dts += 'interface Pattern {\n\t'
 for (const doc of coreDocs) {
     for (const name of [doc.name, ...doc.synonyms ?? []]) {
         dts += (doc.comment + '\n').replaceAll('\n', '\n\t')
-        dts += name + '(' + (doc.params?.map(p=>p.name).join(',') ?? '') + '): Pattern\n\n\t'
+        dts += name + '(' + (doc.params?.map(p=>p.name).join(',') ?? '...args') + '): this\n\n\t'
     }
 }
 
