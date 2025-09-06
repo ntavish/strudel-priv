@@ -345,7 +345,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       { name: 'frequency', defaultValue: 440, minValue: 8, maxValue: 22050 },
-      { name: 'q', defaultValue: 0.5, minValue: -1, maxValue: 1 },
+      { name: 'q', defaultValue: 0.5, minValue: -0.999, maxValue: 0.999 },
       { name: 'damp', defaultValue: 0, minValue: 0, maxValue: 0.9999 },
       { name: 'drive', defaultValue: 0, minValue: -24, maxValue: 24 }, // db
       { name: 'polarity', defaultValue: 1.0, minValue: -1.0, maxValue: 1.0 },
@@ -404,13 +404,12 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
       const res = parameters.q[n] ?? parameters.q[0];
       const damp = parameters.damp[n] ?? parameters.damp[0];
       const drive = parameters.drive[n] ?? parameters.drive[0];
-      const mix = 1; // parameters.mix[n] ?? parameters.mix[0];
+      const mix = 1;
       const polarity = (parameters.polarity[n] ?? parameters.polarity[0]) >= 0 ? 1 : -1;
       const spread = parameters.spread[n] ?? parameters.spread[0];
       const fb = res;
       const preGain = Math.pow(10, drive / 20);
       const stereo = (parameters.stereo[n] ?? parameters.stereo[0]);
-      const stereoPhase = Math.PI * stereo;
       const rate = (parameters.rate[n] ?? parameters.rate[0]);
       const depth = (parameters.depth[n] ?? parameters.depth[0]);
       const seriality = (parameters.seriality[n] ?? parameters.seriality[0]);
@@ -419,7 +418,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
         let y = x;
         let yTotal = 0;
         for (let s = 0; s < numStages; s++) {
-          const phaseSpread = this.phase + (2 * Math.PI * s / numStages) + (ch ? stereoPhase : 0);
+          const phaseSpread = this.phase + (2 * Math.PI * s / numStages) + (ch ? stereo : 0);
           const lfo = depth * Math.sin(phaseSpread * rate);
           const dhz = numStages > 1 ? -spread / 2 + (spread * s) / (numStages - 1) : 0;
           // const dhz = numStages > 1 ? hz * Math.pow(2, spread * 3 * (s - (numStages - 1) / 2) / (numStages - 1)) : 0;
@@ -428,7 +427,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           const buff = this.buffers[ch][s];
           const xBuff = this.xBuffers[ch][s];
           const dt = sampleRate / hzTot;
-          const stereoDt = 0.15 * stereo * (ch > 0 ? 1 : -1); // offset delay by up to 1.5ms on each channel
+          const stereoDt = 0.15 * stereo * (ch > 0 ? 1 : -1); // offset delay by up to 150ms on each channel
           const readPos = this.writeIndex - (dt + stereoDt);
           const base = Math.floor(readPos);
           const frac = readPos - base;
@@ -442,18 +441,14 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           let yp;
           const a = Math.sqrt(Math.max(0, 1 - (fb * fb)));
           if (this.mode === 'comb') {
-            yp = a * y + polarity * fb * lpNow;
+            yp = y + polarity * fb * lpNow;
           } else if (this.mode === 'flange') {
-            yp = a * y + polarity * fb * xDelayed;
+            yp = y + polarity * fb * xDelayed;
           } else if (this.mode === 'allpass') {
             yp = -fb * y + xDelayed + fb * delayed;
           }
           xBuff[this.writeIndex] = y;
           buff[this.writeIndex] = yp;
-          // if (this.mode !== 'allpass') {
-          //   // y = yp;
-          //   yp /= 1 + fb * fb; // normalize
-          // }
           yTotal += yp;
           y = seriality * yp + (1 - seriality) * y;
         }
@@ -462,7 +457,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
       }
       this.writeIndex++;
       if (this.writeIndex >= this.buffLen) this.writeIndex = 0;
-      this.phase += 2 * Math.PI * hz / sampleRate;
+      this.phase += 2 * Math.PI / sampleRate;
     }
     return true;
   }

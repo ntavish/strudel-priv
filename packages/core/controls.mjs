@@ -831,7 +831,7 @@ export const { sfenv } = registerControl('sfenv');
 /**
  * Sets the number of (cascaded) stages of a special filter
  *
- * @name sfenv
+ * @name sfstages
  * @param {number | Pattern} number of stages
  *
  */
