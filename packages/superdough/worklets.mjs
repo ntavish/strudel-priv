@@ -7,6 +7,9 @@ import FFT from './fft.js';
 
 const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
 const _mod = (n, m) => ((n % m) + m) % m;
+const pv = (arr, n) => arr[n] ?? arr[0];
+const ffloor = (x) => x | 0; // fast floor for positive numbers
+const mix = (a, b, t) => (1 - t) * a + t * b;
 
 // Restrict phase to the range [0, maxPhase) via wrapping
 function wrapPhase(phase, maxPhase = 1) {
@@ -348,7 +351,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
       { name: 'q', defaultValue: 0.5, minValue: -0.999, maxValue: 0.999 },
       { name: 'damp', defaultValue: 0, minValue: 0, maxValue: 0.9999 },
       { name: 'drive', defaultValue: 0, minValue: -24, maxValue: 24 }, // db
-      { name: 'polarity', defaultValue: 1.0, minValue: -1.0, maxValue: 1.0 },
+      { name: 'polarity', defaultValue: 1.0, minValue: -1, maxValue: 1 },
       { name: 'mix', defaultValue: 0.5, minValue: 0, maxValue: 1 },
       { name: 'stages', defaultValue: 1, minValue: 1, maxValue: 32 },
       { name: 'spread', defaultValue: 10, minValue: 10 },
@@ -356,26 +359,52 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
       { name: 'rate', defaultValue: 0.001 },
       { name: 'depth', defaultValue: 0 },
       { name: 'seriality', defaultValue: 1, minValue: 0, maxValue: 1 },
+      { name: 'position', defaultValue: 0.2, minValue: 0, maxValue: 0.99 },
+      { name: 'positionMix', defaultValue: 0, minValue: 0, maxValue: 1 },
+      { name: 'brightness', defaultValue: 0.5, minValue: 0, maxValue: 1 },
     ];
   }
 
   constructor(options) {
     super();
     this.mode = options.processorOptions?.mode ?? 'comb';
-    this.maxDelaySec = 2.0;
+    this.maxDelaySec = 0.05;
     this.buffLen = Math.ceil(this.maxDelaySec * sampleRate);
     this.buffers = [];
     this.xBuffers = [];
     this.lpState = [];
+    this.hpState = [];
     this.writeIndex = 0;
     this.initialized = false;
     this.phase = 0;
   }
 
+  // 3rd order Lagrange interpolation
   interp(buff, idxBase, f) {
+  // interp(buff, x) {
     const y0 = buff[_mod(idxBase, this.buffLen)];
     const y1 = buff[_mod(idxBase + 1, this.buffLen)];
-    return (1 - f) * y0 + f * y1;
+    return mix(y0, y1, f);
+    // const N = this.buffLen;
+    // const i0 = Math.floor(x);
+    // const f = x - i0,
+    //   im1 = _mod(i0 - 1, N),
+    //   i = i0 % N,
+    //   ip1 = (i0 + 1) % N,
+    //   ip2 = (i0 + 2) % N;
+    // const s_m1 = buff[im1],
+    //   s0 = buff[i],
+    //   s1 = buff[ip1],
+    //   s2 = buff[ip2];
+    // const c0 = (-f * (1 - f) * (1 - f)) / 6;
+    // const c1 = 1 - 0.5 * (f * f) - ((1 - f) * (1 - f)) / 6;
+    // const c2 = 0.5 * f * (1 + f) - (f * f * f) / 6;
+    // const c3 = (f * f * (f - 1)) / 6;
+    // return c0 * s_m1 + c1 * s0 + c2 * s1 + c3 * s2;
+  }
+
+  _secToCoef(sec) {
+    return sec <= 0 ? 0 : Math.exp(-1 / (sec * sampleRate));
   }
 
   process(inputs, outputs, parameters) {
@@ -383,45 +412,54 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
     const output = outputs[0];
     const numChannels = output.length;
     const numStages = Math.floor(parameters.stages[0]);
+    const hasInput = !(input[0] === undefined);
+    if (this.initialized && !hasInput) {
+      return false;
+    }
     // reset if parameters.stages changes
-    if (!this.buffers.length || (this.buffers[0].length < numStages)) this.initialized = false;
+    if (!this.buffers.length || this.buffers[0].length < numStages) this.initialized = false;
     if (!this.initialized) {
       for (let ch = 0; ch < numChannels; ch++) {
         this.buffers[ch] = [];
         this.xBuffers[ch] = [];
         this.lpState[ch] = [];
+        this.hpState[ch] = [];
         for (let s = 0; s < numStages; s++) {
           this.buffers[ch][s] = new Float32Array(this.buffLen);
           this.xBuffers[ch][s] = new Float32Array(this.buffLen);
           this.lpState[ch][s] = 0;
+          this.hpState[ch][s] = 0;
         }
       }
       this.initialized = true;
     }
 
     for (let n = 0; n < blockSize; n++) {
-      const hz = parameters.frequency[n] ?? parameters.frequency[0];
-      const res = parameters.q[n] ?? parameters.q[0];
-      const damp = parameters.damp[n] ?? parameters.damp[0];
-      const drive = parameters.drive[n] ?? parameters.drive[0];
-      const mix = 1;
-      const polarity = (parameters.polarity[n] ?? parameters.polarity[0]) >= 0 ? 1 : -1;
-      const spread = parameters.spread[n] ?? parameters.spread[0];
-      const fb = res;
-      const preGain = Math.pow(10, drive / 20);
-      const stereo = (parameters.stereo[n] ?? parameters.stereo[0]);
-      const rate = (parameters.rate[n] ?? parameters.rate[0]);
-      const depth = (parameters.depth[n] ?? parameters.depth[0]);
-      const seriality = (parameters.seriality[n] ?? parameters.seriality[0]);
+      const hz = pv(parameters.frequency, n);
+      const fb = pv(parameters.q, n);
+      const damp = pv(parameters.damp, n);
+      const drive = pv(parameters.drive, n);
+      const driveLin = Math.pow(10, drive / 20);
+      const dryMix = 1;
+      const polarity = pv(parameters.polarity, n) >= 0 ? 1 : -1;
+      const spread = pv(parameters.spread, n);
+      const stereo = pv(parameters.stereo, n);
+      const rate = pv(parameters.rate, n);
+      const depth = pv(parameters.depth, n);
+      const seriality = pv(parameters.seriality, n);
+      const position = pv(parameters.position, n);
+      const positionMix = pv(parameters.positionMix, n);
+      const brightness = pv(parameters.brightness, n);
       for (let ch = 0; ch < numChannels; ch++) {
-        const x = (input[ch]?.[n] ?? 0) * preGain;
-        let y = x;
+        // Softclip with the drive
+        // const x = Math.tanh(driveLin * (input[ch]?.[n] ?? 0));
+        const x = driveLin * (input[ch]?.[n] ?? 0);
+        let y;
         let yTotal = 0;
         for (let s = 0; s < numStages; s++) {
-          const phaseSpread = this.phase + (2 * Math.PI * s / numStages) + (ch ? stereo : 0);
+          const phaseSpread = this.phase + (2 * Math.PI * s) / numStages + (ch ? stereo : 0);
           const lfo = depth * Math.sin(phaseSpread * rate);
           const dhz = numStages > 1 ? -spread / 2 + (spread * s) / (numStages - 1) : 0;
-          // const dhz = numStages > 1 ? hz * Math.pow(2, spread * 3 * (s - (numStages - 1) / 2) / (numStages - 1)) : 0;
           const hzTot = hz + dhz + lfo;
           if (hzTot <= 0) continue;
           const buff = this.buffers[ch][s];
@@ -433,15 +471,30 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           const frac = readPos - base;
           const xDelayed = this.interp(xBuff, base, frac);
           const delayed = this.interp(buff, base, frac);
+          // const xDelayed = this.interp(xBuff, readPos);
+          // const delayed = this.interp(buff, readPos);
 
           // Lowpass the delayed signal
           const lpPrev = this.lpState[ch][s];
           const lpNow = (1 - damp) * delayed + damp * lpPrev;
           this.lpState[ch][s] = lpNow;
+
+          // Highpass to prevent low-end blowups
+          const hpPrev = this.hpState[ch][s];
+          const hpNow = hpPrev + 0.005 * (lpNow - hpPrev);
+          this.hpState[ch][s] = hpNow;
+
+          let loss = mix(lpNow, lpNow - hpNow, brightness);
+          loss = Math.tanh(loss * driveLin);
+          if (y === undefined) {
+            // const P = clamp(position * dt, 0, dt - 1);
+            // const xPos = x - this.interp(xBuff, this.writeIndex - P);
+            // y = mix(x, xPos, positionMix);
+            y = x;
+          }
           let yp;
-          const a = Math.sqrt(Math.max(0, 1 - (fb * fb)));
           if (this.mode === 'comb') {
-            yp = y + polarity * fb * lpNow;
+            yp = y + polarity * fb * loss;
           } else if (this.mode === 'flange') {
             yp = y + polarity * fb * xDelayed;
           } else if (this.mode === 'allpass') {
@@ -452,12 +505,13 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           yTotal += yp;
           y = seriality * yp + (1 - seriality) * y;
         }
-        const yFinal = seriality * y + (1 - seriality) * yTotal / numStages;
-        output[ch][n] = x * (1 - mix) + yFinal * mix;
+        const yFinal = seriality * y + ((1 - seriality) * yTotal) / numStages;
+        // output[ch][n] = x;
+        output[ch][n] = mix(x, yFinal, dryMix);
       }
       this.writeIndex++;
       if (this.writeIndex >= this.buffLen) this.writeIndex = 0;
-      this.phase += 2 * Math.PI / sampleRate;
+      this.phase += (2 * Math.PI) / sampleRate;
     }
     return true;
   }

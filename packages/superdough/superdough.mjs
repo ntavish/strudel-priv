@@ -16,7 +16,7 @@ import {
   gainNode,
   getCompressor,
   getWorklet,
-  webAudioTimeout
+  webAudioTimeout,
 } from './helpers.mjs';
 import { map } from 'nanostores';
 import { logger, errorLogger } from './logger.mjs';
@@ -376,9 +376,29 @@ function scheduleParams(node, params, t, glideMs = 5) {
 }
 
 // Special filters
-function getSFilt(orbit, freq, q, type, att, dec, sus, rel, fenv,
-  stages, spread, damp, drive, stereo, rate, depth, ser, start, end, channels) {
-  let sFilt = orbits[orbit].sFilt
+function getSFilt(
+  orbit,
+  freq,
+  q,
+  type,
+  att,
+  dec,
+  sus,
+  rel,
+  fenv,
+  stages,
+  spread,
+  damp,
+  drive,
+  stereo,
+  rate,
+  depth,
+  ser,
+  start,
+  end,
+  channels,
+) {
+  let sFilt = orbits[orbit].sFilt;
   if (!sFilt) {
     let filter = getWorklet(
       getAudioContext(),
@@ -398,7 +418,7 @@ function getSFilt(orbit, freq, q, type, att, dec, sus, rel, fenv,
       {
         processorOptions: { mode: type },
         outputChannelCount: [2],
-        channelCountMode: 'explicit'
+        channelCountMode: 'explicit',
       },
     );
     connectToDestination(filter, channels);

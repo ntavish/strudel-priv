@@ -165,6 +165,88 @@ export function registerSynthSounds() {
   );
 
   registerSound(
+    'string',
+    (t, value, onended) => {
+      const { duration } = value;
+      const frequency = getFrequencyFromValue(value);
+      const ctx = getAudioContext();
+      const o = getNoiseOscillator('white', t, 2);
+      const comb = getWorklet(
+        ctx,
+        'special-filter-processor',
+        {
+          frequency,
+          q: 0.999,
+          damp: 0, //0.1 + 0.4 * (frequency / 4000),
+          drive: 0,
+          polarity: 1,
+          // stages: 3,
+          stereo: 1,
+          // brightness: 1,
+          position: 0.5,
+          positionMix: 0,
+          brightness: 0,
+        },
+        {
+          mode: 'comb',
+          channelCount: 2,
+          channelCountMode: 'explicit',
+          channelInterpretation: 'speakers',
+          outputChannelCount: [2],
+        },
+      );
+      const disperser = getWorklet(
+        ctx,
+        'special-filter-processor',
+        {
+          frequency,
+          q: 0.5,
+          stages: 3,
+          damp: 0,
+          drive: 0,
+          polarity: 1,
+          stereo: 1,
+          positionMix: 0,
+          brightness: 1,
+        },
+        {
+          mode: 'allpass',
+          channelCount: 2,
+          channelCountMode: 'explicit',
+          channelInterpretation: 'speakers',
+          outputChannelCount: [2],
+        },
+      );
+      const noiseGain = gainNode(0);
+      noiseGain.gain.setValueAtTime(0.05, t);
+      noiseGain.gain.linearRampToValueAtTime(0, t + 0.05);
+      const node = o.node.connect(noiseGain).connect(comb).connect(disperser);
+      const holdEnd = t + 2 * duration;
+      o.stop(t + holdEnd);
+
+      let timeoutNode = webAudioTimeout(
+        ctx,
+        () => {
+          destroyAudioWorkletNode(comb);
+          destroyAudioWorkletNode(disperser);
+          noiseGain.disconnect();
+          onended();
+        },
+        t,
+        holdEnd,
+      );
+
+      return {
+        node,
+        stop: (time) => {
+          timeoutNode.stop(time);
+        },
+      };
+    },
+    { type: 'synth', prebake: true },
+  );
+
+  registerSound(
     'supersaw',
     (begin, value, onended) => {
       const ac = getAudioContext();
@@ -197,6 +279,30 @@ export function registerSynthSounds() {
           outputChannelCount: [2],
         },
       );
+      const comb = getWorklet(
+        ac,
+        'special-filter-processor',
+        {
+          frequency,
+          q: 0.999,
+          damp: 0,
+          drive: 0,
+          polarity: 1,
+          // stages: 3,
+          stereo: 0,
+          brightness: 1,
+          // position: 0.2,
+          // positionMix: 0,
+          // brightness: 0.5,
+        },
+        {
+          mode: 'comb',
+          channelCount: 2,
+          channelCountMode: 'explicit',
+          channelInterpretation: 'speakers',
+          outputChannelCount: [2],
+        },
+      );
 
       const gainAdjustment = 1 / Math.sqrt(voices);
       getPitchEnvelope(o.parameters.get('detune'), value, begin, holdend);
@@ -211,6 +317,7 @@ export function registerSynthSounds() {
         ac,
         () => {
           destroyAudioWorkletNode(o);
+          destroyAudioWorkletNode(comb);
           envGain.disconnect();
           onended();
           fm?.stop();
