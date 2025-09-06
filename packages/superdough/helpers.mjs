@@ -232,12 +232,31 @@ export function getVibratoOscillator(param, value, t) {
 // ConstantSource inherits AudioScheduledSourceNode, which has scheduling abilities
 // a bit of a hack, but it works very well :)
 export function webAudioTimeout(audioContext, onComplete, startTime, stopTime) {
-  const constantNode = audioContext.createConstantSource();
-  constantNode.start(startTime);
-  constantNode.stop(stopTime);
+  const constantNode = new ConstantSourceNode(audioContext);
+
+  // Certain browsers requires audio nodes to be connected in order for their onended events
+  // to fire, so we _mute it_ and then connect it to the destination
+  const zeroGain = gainNode(0);
+  zeroGain.connect(audioContext.destination);
+  constantNode.connect(zeroGain);
+
+  // Schedule the `onComplete` callback to occur at `stopTime`
   constantNode.onended = () => {
+    // Ensure garbage collection
+    try {
+      zeroGain.disconnect();
+    } catch {
+      // pass
+    }
+    try {
+      constantNode.disconnect();
+    } catch {
+      // pass
+    }
     onComplete();
   };
+  constantNode.start(startTime);
+  constantNode.stop(stopTime);
   return constantNode;
 }
 const mod = (freq, range = 1, type = 'sine') => {
@@ -287,7 +306,7 @@ export function applyFM(param, value, begin) {
 
     modulator = fmmod.node;
     stop = fmmod.stop;
-    if (![fmAttack, fmDecay, fmSustain, fmRelease, fmVelocity].find((v) => v !== undefined)) {
+    if (![fmAttack, fmDecay, fmSustain, fmRelease, fmVelocity].some((v) => v !== undefined)) {
       // no envelope by default
       modulator.connect(param);
     } else {
