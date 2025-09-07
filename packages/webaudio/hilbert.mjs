@@ -17,10 +17,9 @@ Best used for visualizing audio signals and their harmonic content. notes than d
  *   history: 0.9
  * })
  * @example
- * // Disable chromatic coloring to use fixed color
+ * // Providing a custom color automatically overrides chromatic coloring
  * note("c a f e").s("sawtooth").hilbertscope({
- *   chromaticColoring: false,
- *   color: "purple"
+ *   color: "red" // This will override chromatic colors
  * })
  * @example  
  * // Multiple scopes with different colors
@@ -438,10 +437,10 @@ function clearScreen(smear = 0, smearRGB = '0,0,0', ctx) {
  * Creates an organic, circular visualization using Hilbert transform analysis
  * @param {AnalyserNode} analyser - Web Audio analyser node
  * @param {Object} options - Configuration options
- * @param {string} [options.color] - Line color (default: theme foreground)
+ * @param {string} [options.color=getTheme().foreground] - Line color (default: theme foreground)
  * @param {number} [options.thickness=2] - Line thickness
  * @param {number} [options.sizeRatio=0.75] - Size relative to screen
- * @param {number} [options.minSize=50] - Minimum size in pixels
+ * @param {number} [options.minSize=200] - Minimum size in pixels
  * @param {number} [options.maxSize=800] - Maximum size in pixels
  * @param {number} [options.opacity=0.8] - Overall opacity
  * @param {number} [options.history=0.25] - Trail persistence (0-1)
@@ -462,7 +461,7 @@ export function drawHilbertScope(
     color = getTheme().foreground,
     thickness = 2,
     sizeRatio = 0.75,
-    minSize = 50,
+    minSize = 200,
     maxSize = 800,
     opacity = 0.8,
     history = 0.25,
@@ -565,7 +564,10 @@ export function drawHilbertScope(
 
   // Determine color based on chromatic coloring setting
   let finalColor = color;
-  if (chromaticColoring && haps && haps.length > 0) {
+
+  // Only use chromatic coloring if the provided color is the default theme color
+  const isUsingDefaultColor = color === getTheme().foreground;
+  if (chromaticColoring && isUsingDefaultColor && haps && haps.length > 0) {
     // Look for note values in current haps
     const noteHap = haps.find((hap) => hap?.value?.note);
     if (noteHap && noteHap.value.note) {
@@ -634,14 +636,14 @@ export function cleanupHilbertScope(id) {
  * @name hilbertscope
  * @memberof Pattern
  * @param {Object} [config={}] - Configuration options
- * @param {string} [config.color] - Line color (default: theme foreground color or pattern color)
+ * @param {string} [config.color=getTheme().foreground] - Line color (default: theme foreground color or pattern color)
  * @param {number} [config.thickness=2] - Line thickness
  * @param {number} [config.sizeRatio=0.75] - Size relative to screen (0-1)
- * @param {number} [config.minSize=50] - Minimum scope size in pixels
- * @param {number} [config.maxSize=1000] - Maximum scope size in pixels
+ * @param {number} [config.minSize=200] - Minimum scope size in pixels
+ * @param {number} [config.maxSize=800] - Maximum scope size in pixels
  * @param {number} [config.opacity=0.8] - Overall opacity (0-1)
  * @param {number} [config.history=0.25] - Trail persistence, higher = longer trails (0-1)
- * @param {number} [config.driftSpeed=1.0] - Movement/drift speed multiplier
+ * @param {number} [config.driftSpeed=0.5] - Movement/drift speed multiplier
  * @param {boolean} [config.glowEnabled=true] - Enable glow effect
  * @param {number} [config.glowIntensity=1] - Glow intensity
  * @param {boolean} [config.chromaticColoring=true] - Enable note-based chromatic coloring
@@ -668,9 +670,13 @@ export function cleanupHilbertScope(id) {
  */
 Pattern.prototype.hilbertscope = function (config = {}) {
   let id = config.id ?? 1;
+
   return this.analyze(id).draw(
     (haps) => {
-      config.color = haps[0]?.value?.color || getTheme().foreground;
+      // Only set color from haps if no explicit color provided
+      if (!('color' in config)) {
+        config.color = haps[0]?.value?.color || getTheme().foreground;
+      }
       config.haps = haps; // Pass haps for note extraction
       drawHilbertScope(analysers[id], config);
     },
