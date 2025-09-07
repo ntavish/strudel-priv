@@ -361,21 +361,19 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
       { name: 'seriality', defaultValue: 1, minValue: 0, maxValue: 1 },
       { name: 'position', defaultValue: 0.2, minValue: 0, maxValue: 0.99 },
       { name: 'positionMix', defaultValue: 0, minValue: 0, maxValue: 1 },
-      { name: 'brightness', defaultValue: 0.5, minValue: 0, maxValue: 1 },
+      { name: 'mode', defaultValue: 0 },
     ];
   }
 
   constructor(options) {
     super();
-    this.mode = options.processorOptions?.mode ?? 'comb';
-    this.maxDelaySec = 0.05;
+    this.maxDelaySec = 2; // 0.1?
     const rawLen = Math.ceil(this.maxDelaySec * sampleRate);
     this.buffLen = 1 << Math.ceil(Math.log2(rawLen + 4));
-    this.mask = this.buffLen - 1;
+    this.mask = this.buffLen - 1; // power of 2 buffer and masking for faster wrapping
     this.buffers = [];
     this.xBuffers = [];
     this.lpState = [];
-    this.hpState = [];
     this.writeIndex = 0;
     this.initialized = false;
     this.phase = 0;
@@ -390,10 +388,6 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
     return mix(y0, y1, f);
   }
 
-  _secToCoef(sec) {
-    return sec <= 0 ? 0 : Math.exp(-1 / (sec * sampleRate));
-  }
-
   process(inputs, outputs, parameters) {
     const input = inputs[0];
     const output = outputs[0];
@@ -402,7 +396,10 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
     const spreadFactor = (2 * Math.PI) / numStages;
     const hasInput = !(input[0] === undefined);
     if (!hasInput) {
-      return false;
+      for (let ch = 0; ch < output.length; ch++) {
+        output[ch].fill(0);
+      }
+      return true;
     }
     // reset if parameters.stages changes
     if (!this.buffers.length || this.buffers[0].length < numStages) this.initialized = false;
@@ -411,12 +408,10 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
         this.buffers[ch] = [];
         this.xBuffers[ch] = [];
         this.lpState[ch] = [];
-        this.hpState[ch] = [];
         for (let s = 0; s < numStages; s++) {
           this.buffers[ch][s] = new Float32Array(this.buffLen);
           this.xBuffers[ch][s] = new Float32Array(this.buffLen);
           this.lpState[ch][s] = 0;
-          this.hpState[ch][s] = 0;
         }
       }
       this.initialized = true;
@@ -424,6 +419,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
 
     for (let n = 0; n < blockSize; n++) {
       const hz = pv(parameters.frequency, n);
+      const mode = pv(parameters.mode, n);
       const fb = pv(parameters.q, n);
       const damp = pv(parameters.damp, n);
       const drive = pv(parameters.drive, n);
@@ -437,13 +433,13 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
       const seriality = pv(parameters.seriality, n);
       const position = pv(parameters.position, n);
       const positionMix = pv(parameters.positionMix, n);
-      const brightness = pv(parameters.brightness, n);
+      const dtScale = mix(1, 0.05 + 0.9 * position, positionMix);
+      const fbScale = mix(1, 0.8 * (1 - position), positionMix);
       for (let ch = 0; ch < numChannels; ch++) {
-        // Softclip with the drive
         const x = input[ch]?.[n] ?? 0;
-        let y;
+        let y = x;
         let yTotal = 0;
-        const stereoDt = 0.15 * stereo * (ch > 0 ? 1 : -1); // offset delay by up to 150ms on each channel
+        const stereoDt = 0.15 * stereo * (ch > 0 ? 1 : -1); // offset delay on each channel
         for (let s = 0; s < numStages; s++) {
           const phaseSpread = this.phase + s * spreadFactor + (ch ? stereo : 0);
           const lfo = depth * Math.sin(phaseSpread * rate);
@@ -452,8 +448,9 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           if (hzTot <= 0) continue;
           const buff = this.buffers[ch][s];
           const xBuff = this.xBuffers[ch][s];
-          const dt = sampleRate / hzTot;
-          const readPos = this.writeIndex - (dt + stereoDt);
+          const dtBase = sampleRate * dtScale / hzTot;
+          const dt = dtBase + stereoDt;
+          const readPos = this.writeIndex - dt;
           const xDelayed = this.interp(xBuff, readPos);
           const delayed = this.interp(buff, readPos);
 
@@ -462,24 +459,17 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           const lpNow = (1 - damp) * delayed + damp * lpPrev;
           this.lpState[ch][s] = lpNow;
 
-          // Highpass to prevent low-end blowups
-          const hpPrev = this.hpState[ch][s];
-          const hpNow = hpPrev + 0.005 * (lpNow - hpPrev);
-          this.hpState[ch][s] = hpNow;
-
-          let loss = mix(lpNow, lpNow - hpNow, brightness);
-          loss = Math.tanh(loss * driveLin);
-          if (y === undefined) {
-            const P = clamp(position * dt, 0, dt - 1);
-            const xPos = 0.5 * (x - this.interp(xBuff, this.writeIndex - P));
-            y = mix(x, xPos, positionMix);
-          }
+          const g = polarity * fb * fbScale;
+          const a = 1 / (1 + g * g); // normalization constant
           let yp;
-          if (this.mode === 'comb') {
-            yp = y + polarity * fb * loss;
-          } else if (this.mode === 'flange') {
-            yp = y + polarity * fb * xDelayed;
-          } else if (this.mode === 'allpass') {
+          if (mode === 0) {
+            // Comb
+            yp = a * y + g * lpNow;
+          } else if (mode === 1) {
+            // Flange
+            yp = a * y + g * xDelayed;
+          } else {
+            // Allpass
             yp = -fb * y + xDelayed + fb * delayed;
           }
           xBuff[this.writeIndex] = y;
@@ -487,9 +477,8 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           yTotal += yp;
           y = seriality * yp + (1 - seriality) * y;
         }
-        let yFinal = seriality * y + ((1 - seriality) * yTotal) / numStages;
-        // softclip with drive
-        yFinal = fast_tanh(driveLin * yFinal);
+        let yFinal = mix(yTotal / numStages, y, seriality);
+        yFinal = driveLin * yFinal;
         output[ch][n] = mix(x, yFinal, dryMix);
       }
       this.writeIndex = (this.writeIndex + 1) & this.mask;

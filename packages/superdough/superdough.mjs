@@ -374,53 +374,54 @@ function scheduleParams(node, params, t, glideMs = 5) {
   }
 }
 
+const sFiltModes = Object.freeze({
+  COMB: 0,
+  FLANGE: 1,
+  ALLPASS: 2,
+});
+const sFiltKeys = Object.keys(sFiltModes);
+
 // Special filters
 function getSFilt(
   orbit,
-  freq,
-  q,
-  type,
-  att,
-  dec,
-  sus,
-  rel,
-  fenv,
-  stages,
-  spread,
-  damp,
-  drive,
-  stereo,
-  rate,
-  depth,
-  ser,
+  params,
   start,
   end,
   channels,
 ) {
   let sFilt = orbits[orbit].sFilt;
-  const params = {
-    frequency: freq,
-    q,
-    stages,
-    spread,
-    damp,
-    drive,
-    stereo,
-    rate,
-    depth,
-    seriality: ser,
-  };
+
+  // Extract some params we need for envelopes
+  const { 
+    frequency,
+    att, dec, sus, rel,
+    mode,
+    fenv,
+    ...filteredParams
+  } = params;
+  filteredParams.frequency = frequency;
+  if (typeof mode === 'string') {
+    const modeUpper = mode.toUpperCase();
+    if (sFiltKeys.includes(modeUpper)) {
+      filteredParams.mode = sFiltModes[mode.toUpperCase()];
+    } else {
+      logger(`[superdough] Special filter mode ${modeUpper} not found. Available options are ${sFiltKeys.join(", ")}. Falling back to comb.`);
+      filteredParams.mode = sFiltModes.COMB;
+    }
+  } else {
+    filteredParams.mode = mode;
+  }
+
   if (!sFilt) {
-    sFilt = getWorklet(getAudioContext(), 'special-filter-processor', params, {
-      processorOptions: { mode: type },
+    sFilt = getWorklet(getAudioContext(), 'special-filter-processor', filteredParams, {
       outputChannelCount: [2],
       channelCountMode: 'explicit',
     });
     connectToDestination(sFilt, channels);
     orbits[orbit].sFilt = sFilt;
   }
-  scheduleParams(sFilt, params, start, 0);
-  setupFilterEnvelope(sFilt, freq, att, dec, sus, rel, fenv, start, end);
+  scheduleParams(sFilt, filteredParams, start, 0);
+  setupFilterEnvelope(sFilt, frequency, att, dec, sus, rel, fenv, start, end);
   return sFilt;
 }
 
@@ -691,6 +692,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     sfrate,
     sfdepth,
     sfser,
+    sfpol,
 
     //phaser
     phaserrate: phaser,
@@ -947,24 +949,28 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   // special filters
   let sFiltNode;
   if (sf > 0) {
+    const sFiltParams = {
+      frequency: sffreq,
+      q: sfq,
+      mode: sftype,
+      stages: sfstages,
+      spread: sfspread,
+      damp: sfdamp,
+      drive: sfdrive,
+      stereo: sfstereo,
+      rate: sfrate,
+      depth: sfdepth,
+      seriality: sfser,
+      polarity: sfpol,
+      att: sfattack,
+      dec: sfdecay,
+      sus: sfsustain,
+      rel: sfrelease,
+      fenv: sfenv,
+    }
     const preSFiltNode = getSFilt(
       orbit,
-      sffreq,
-      sfq,
-      sftype,
-      sfattack,
-      sfdecay,
-      sfsustain,
-      sfrelease,
-      sfenv,
-      sfstages,
-      sfspread,
-      sfdamp,
-      sfdrive,
-      sfstereo,
-      sfrate,
-      sfdepth,
-      sfser,
+      sFiltParams,
       t,
       end,
       orbitChannels,

@@ -178,9 +178,9 @@ export function registerSynthSounds() {
           frequency,
           q: 0.999,
           stereo: 1,
+          mode: 0, // comb
         },
         {
-          mode: 'comb',
           channelCount: 2,
           channelCountMode: 'explicit',
           channelInterpretation: 'speakers',
@@ -195,10 +195,9 @@ export function registerSynthSounds() {
           q: 0.5,
           stages: 3,
           stereo: 1,
-          brightness: 1,
+          mode: 2, // allpass
         },
         {
-          mode: 'allpass',
           channelCount: 2,
           channelCountMode: 'explicit',
           channelInterpretation: 'speakers',
@@ -206,7 +205,7 @@ export function registerSynthSounds() {
         },
       );
       const noiseGain = gainNode(0);
-      noiseGain.gain.setValueAtTime(0.05, t);
+      noiseGain.gain.setValueAtTime(0.2, t);
       noiseGain.gain.linearRampToValueAtTime(0, t + 0.05);
       const node = o.node.connect(noiseGain).connect(comb).connect(disperser);
       const holdEnd = t + 2 * duration;

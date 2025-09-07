@@ -127,7 +127,7 @@ export const { n } = registerControl('n');
  * @example
  * note("60 69 65 64")
  */
-export const { note } = registerControl(['note', 'n']);
+export const { note } = registerControl(['note', 'n', 'velocity']);
 
 /**
  * A pattern of numbers that speed up (or slow down) samples while they play. Currently only supported by osc / superdirt.
@@ -748,16 +748,16 @@ export const { cutoff, ctf, lpf, lp } = registerControl(['cutoff', 'resonance', 
  * Sets the send amount to this orbit's special filter
  *
  * @name sf
- * @param {number | Pattern} amount to send to special filter effect, between 0 and 1
+ * @param {number | Pattern} amount Send amount to special filter effect, between 0 and 1
  *
  */
 export const { sf } = registerControl('sf');
 
 /**
- * Sets the cutoff frequency of a special filter
+ * Sets the frequency of a special filter
  *
  * @name sffreq
- * @param {number | Pattern} special filter frequency
+ * @param {number | Pattern} frequency Frequency of the filter
  *
  */
 export const { sffreq } = registerControl('sffreq');
@@ -766,7 +766,7 @@ export const { sffreq } = registerControl('sffreq');
  * Sets the resonance of a special filter
  *
  * @name sfq
- * @param {number | Pattern} special filter resonance
+ * @param {number | Pattern} q Resonance of the filter
  *
  */
 export const { sfq } = registerControl('sfq');
@@ -775,7 +775,7 @@ export const { sfq } = registerControl('sfq');
  * Sets the type of a special filter (e.g. "comb")
  *
  * @name sftype
- * @param {string | Pattern} special filter type
+ * @param {number | string | Pattern} type Filter type
  *
  */
 export const { sftype } = registerControl('sftype');
@@ -784,7 +784,7 @@ export const { sftype } = registerControl('sftype');
  * Sets the attack of the envelope on a special filter
  *
  * @name sfattack
- * @param {number | Pattern} envelope attack
+ * @param {number | Pattern} attack Attack of the envelope
  * @synonyms sfa
  *
  */
@@ -794,7 +794,7 @@ export const { sfattack, sfa } = registerControl('sfattack', 'sfa');
  * Sets the decay of the envelope on a special filter
  *
  * @name sfdecay
- * @param {number | Pattern} envelope decay
+ * @param {number | Pattern} decay Decay of the envelope
  * @synonyms sfd
  *
  */
@@ -804,7 +804,7 @@ export const { sfdecay, sfd } = registerControl('sfdecay', 'sfd');
  * Sets the sustain of the envelope on a special filter
  *
  * @name sfsustain
- * @param {number | Pattern} envelope sustain
+ * @param {number | Pattern} sustain Sustain of the envelope
  * @synonyms sfs
  *
  */
@@ -814,7 +814,7 @@ export const { sfsustain, sfs } = registerControl('sfsustain', 'sfs');
  * Sets the release of the envelope on a special filter
  *
  * @name sfrelease
- * @param {number | Pattern} envelope sustain
+ * @param {number | Pattern} release Release of the envelope
  *
  */
 export const { sfrelease, sfr } = registerControl('sfrelease', 'sfr');
@@ -823,7 +823,7 @@ export const { sfrelease, sfr } = registerControl('sfrelease', 'sfr');
  * Sets the envelope modulation depth of a special filter
  *
  * @name sfenv
- * @param {number | Pattern} envelope modulation depth
+ * @param {number | Pattern} depth Envelope modulation depth
  *
  */
 export const { sfenv } = registerControl('sfenv');
@@ -832,7 +832,7 @@ export const { sfenv } = registerControl('sfenv');
  * Sets the number of (cascaded) stages of a special filter
  *
  * @name sfstages
- * @param {number | Pattern} number of stages
+ * @param {number | Pattern} stages Number of stages
  *
  */
 export const { sfstages } = registerControl('sfstages');
@@ -841,7 +841,7 @@ export const { sfstages } = registerControl('sfstages');
  * Sets the dampening of a special filter
  *
  * @name sfdamp
- * @param {number | Pattern} dampening
+ * @param {number | Pattern} dampening (Low-pass) dampening of the filter
  *
  */
 export const { sfdamp } = registerControl('sfdamp');
@@ -850,7 +850,7 @@ export const { sfdamp } = registerControl('sfdamp');
  * Sets the drive of a special filter
  *
  * @name sfdrive
- * @param {number | Pattern} drive
+ * @param {number | Pattern} drive Drive of the filter
  *
  */
 export const { sfdrive } = registerControl('sfdrive');
@@ -859,7 +859,7 @@ export const { sfdrive } = registerControl('sfdrive');
  * Sets the spread across frequencies of each stage of a special filter
  *
  * @name sfspread
- * @param {number | Pattern} spread of stage frequencies
+ * @param {number | Pattern} spread Spread of stage frequencies
  *
  */
 export const { sfspread } = registerControl('sfspread');
@@ -868,7 +868,7 @@ export const { sfspread } = registerControl('sfspread');
  * Sets the stereo width of a special filter
  *
  * @name sfstereo
- * @param {number | Pattern} stereo width in range 0 (none) to 1
+ * @param {number | Pattern} width Stereo width in range 0 (none) to 1
  *
  */
 export const { sfstereo } = registerControl('sfstereo');
@@ -877,7 +877,7 @@ export const { sfstereo } = registerControl('sfstereo');
  * Sets the lfo rate of a special filter
  *
  * @name sfrate
- * @param {number | Pattern} lfo rate
+ * @param {number | Pattern} rate Rate of the LFO
  *
  */
 export const { sfrate } = registerControl('sfrate');
@@ -886,7 +886,7 @@ export const { sfrate } = registerControl('sfrate');
  * Sets the lfo depth of a special filter
  *
  * @name sfdepth
- * @param {number | Pattern} lfo depth
+ * @param {number | Pattern} depth Depth of the LFO
  *
  */
 export const { sfdepth } = registerControl('sfdepth');
@@ -896,10 +896,19 @@ export const { sfdepth } = registerControl('sfdepth');
  * parallel voices and serial cascaded filters
  *
  * @name sfser
- * @param {number | Pattern} lfo depth
+ * @param {number | Pattern} seriality Mix between parallel and serial
  *
  */
 export const { sfser } = registerControl('sfser');
+
+/**
+ * Sets the polarity of a special filter
+ *
+ * @name sfpol
+ * @param {number | Pattern} polarity Between -1 and 1
+ *
+ */
+export const { sfpol } = registerControl('sfpol');
 
 /**
  * Sets the lowpass filter envelope modulation depth.
