@@ -369,7 +369,9 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
     super();
     this.mode = options.processorOptions?.mode ?? 'comb';
     this.maxDelaySec = 0.05;
-    this.buffLen = Math.ceil(this.maxDelaySec * sampleRate);
+    const rawLen = Math.ceil(this.maxDelaySec * sampleRate);
+    this.buffLen = 1 << Math.ceil(Math.log2(rawLen + 4));
+    this.mask = this.buffLen - 1;
     this.buffers = [];
     this.xBuffers = [];
     this.lpState = [];
@@ -377,30 +379,15 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
     this.writeIndex = 0;
     this.initialized = false;
     this.phase = 0;
+    this.dPhase = (2 * Math.PI) / sampleRate;
   }
 
-  // 3rd order Lagrange interpolation
-  interp(buff, idxBase, f) {
-  // interp(buff, x) {
-    const y0 = buff[_mod(idxBase, this.buffLen)];
-    const y1 = buff[_mod(idxBase + 1, this.buffLen)];
+  interp(buff, x) {
+    const idxBase = Math.floor(x);
+    const f = x - idxBase;
+    const y0 = buff[idxBase & this.mask];
+    const y1 = buff[(idxBase + 1) & this.mask];
     return mix(y0, y1, f);
-    // const N = this.buffLen;
-    // const i0 = Math.floor(x);
-    // const f = x - i0,
-    //   im1 = _mod(i0 - 1, N),
-    //   i = i0 % N,
-    //   ip1 = (i0 + 1) % N,
-    //   ip2 = (i0 + 2) % N;
-    // const s_m1 = buff[im1],
-    //   s0 = buff[i],
-    //   s1 = buff[ip1],
-    //   s2 = buff[ip2];
-    // const c0 = (-f * (1 - f) * (1 - f)) / 6;
-    // const c1 = 1 - 0.5 * (f * f) - ((1 - f) * (1 - f)) / 6;
-    // const c2 = 0.5 * f * (1 + f) - (f * f * f) / 6;
-    // const c3 = (f * f * (f - 1)) / 6;
-    // return c0 * s_m1 + c1 * s0 + c2 * s1 + c3 * s2;
   }
 
   _secToCoef(sec) {
@@ -412,8 +399,9 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
     const output = outputs[0];
     const numChannels = output.length;
     const numStages = Math.floor(parameters.stages[0]);
+    const spreadFactor = (2 * Math.PI) / numStages;
     const hasInput = !(input[0] === undefined);
-    if (this.initialized && !hasInput) {
+    if (!hasInput) {
       return false;
     }
     // reset if parameters.stages changes
@@ -452,12 +440,12 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
       const brightness = pv(parameters.brightness, n);
       for (let ch = 0; ch < numChannels; ch++) {
         // Softclip with the drive
-        // const x = Math.tanh(driveLin * (input[ch]?.[n] ?? 0));
-        const x = driveLin * (input[ch]?.[n] ?? 0);
+        const x = input[ch]?.[n] ?? 0;
         let y;
         let yTotal = 0;
+        const stereoDt = 0.15 * stereo * (ch > 0 ? 1 : -1); // offset delay by up to 150ms on each channel
         for (let s = 0; s < numStages; s++) {
-          const phaseSpread = this.phase + (2 * Math.PI * s) / numStages + (ch ? stereo : 0);
+          const phaseSpread = this.phase + s * spreadFactor + (ch ? stereo : 0);
           const lfo = depth * Math.sin(phaseSpread * rate);
           const dhz = numStages > 1 ? -spread / 2 + (spread * s) / (numStages - 1) : 0;
           const hzTot = hz + dhz + lfo;
@@ -465,14 +453,9 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           const buff = this.buffers[ch][s];
           const xBuff = this.xBuffers[ch][s];
           const dt = sampleRate / hzTot;
-          const stereoDt = 0.15 * stereo * (ch > 0 ? 1 : -1); // offset delay by up to 150ms on each channel
           const readPos = this.writeIndex - (dt + stereoDt);
-          const base = Math.floor(readPos);
-          const frac = readPos - base;
-          const xDelayed = this.interp(xBuff, base, frac);
-          const delayed = this.interp(buff, base, frac);
-          // const xDelayed = this.interp(xBuff, readPos);
-          // const delayed = this.interp(buff, readPos);
+          const xDelayed = this.interp(xBuff, readPos);
+          const delayed = this.interp(buff, readPos);
 
           // Lowpass the delayed signal
           const lpPrev = this.lpState[ch][s];
@@ -487,10 +470,9 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           let loss = mix(lpNow, lpNow - hpNow, brightness);
           loss = Math.tanh(loss * driveLin);
           if (y === undefined) {
-            // const P = clamp(position * dt, 0, dt - 1);
-            // const xPos = x - this.interp(xBuff, this.writeIndex - P);
-            // y = mix(x, xPos, positionMix);
-            y = x;
+            const P = clamp(position * dt, 0, dt - 1);
+            const xPos = 0.5 * (x - this.interp(xBuff, this.writeIndex - P));
+            y = mix(x, xPos, positionMix);
           }
           let yp;
           if (this.mode === 'comb') {
@@ -505,13 +487,13 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           yTotal += yp;
           y = seriality * yp + (1 - seriality) * y;
         }
-        const yFinal = seriality * y + ((1 - seriality) * yTotal) / numStages;
-        // output[ch][n] = x;
+        let yFinal = seriality * y + ((1 - seriality) * yTotal) / numStages;
+        // softclip with drive
+        yFinal = fast_tanh(driveLin * yFinal);
         output[ch][n] = mix(x, yFinal, dryMix);
       }
-      this.writeIndex++;
-      if (this.writeIndex >= this.buffLen) this.writeIndex = 0;
-      this.phase += (2 * Math.PI) / sampleRate;
+      this.writeIndex = (this.writeIndex + 1) & this.mask;
+      this.phase += this.dPhase;
     }
     return true;
   }
