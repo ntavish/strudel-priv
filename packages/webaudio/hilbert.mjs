@@ -2,6 +2,10 @@
 hilbert.mjs - Hilbert Scope Visualization for Strudel
 Copyright (C) 2025 Strudel contributors
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details. You should have received a copy  * @example
+
+---
+Best used for visualizing audio signals and their harmonic content. notes than drums.
+
  * // Basic usage with automatic chromatic coloring
  * note("c a f e").s("sawtooth").hilbertscope()
  * @example
@@ -24,6 +28,8 @@ This program is free software: you can redistribute it and/or modify it under th
  *   note("c e g").s("sawtooth").hilbertscope({id: 1, color: "red"}),
  *   note("f a c").s("sine").hilbertscope({id: 2, color: "blue"})
  * ) General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * 
+ * 
 */
 
 import { Pattern } from '@strudel/core';
@@ -382,9 +388,9 @@ function initializeHilbertScope(id, config, canvasWidth, canvasHeight) {
     }
   }
 
-  // Initialize position (center, top half)
+  // Initialize position (center of canvas)
   state.x = canvasWidth / 2;
-  state.y = canvasHeight * 0.25; // 25% from top
+  state.y = canvasHeight / 2; // Center vertically
 
   // Create swap canvas for trail effect
   state.swapCanvas = document.createElement('canvas');
@@ -527,11 +533,12 @@ export function drawHilbertScope(
   // Update position with drift
   const driftAmount = (config.driftSpeed / 60) * 0.1; // Convert to pixels per frame
   state.x += (Math.random() - 0.5) * driftAmount;
-  state.y += (Math.random() - 0.7) * driftAmount; // Bias upward
+  state.y += (Math.random() - 0.5) * driftAmount; // Balanced drift
 
-  // Keep within bounds (favor top half)
-  state.x = mathClamp(state.x, 50, canvasWidth - 50);
-  state.y = mathClamp(state.y, 50, canvasHeight * 0.5);
+  // Keep within bounds (centered)
+  const margin = 50;
+  state.x = mathClamp(state.x, margin, canvasWidth - margin);
+  state.y = mathClamp(state.y, margin, canvasHeight - margin);
 
   // Smooth radius transitions
   state.currentRadius += (state.targetRadius - state.currentRadius) * 0.1;

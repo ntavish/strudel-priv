@@ -140,3 +140,10 @@ registerWidget('_spectrum', (id, options = {}, pat) => {
   const ctx = getCanvasWidget(id, options).getContext('2d');
   return pat.spectrum({ ...options, ctx, id });
 });
+
+registerWidget('_hilbertscope', (id, options = {}, pat) => {
+  let _size = options.size || 100;
+  options = { width: _size * 2, height: _size * 1.25, sizeRatio: 0.9, minSize: 400, ...options, size: _size / 5 };
+  const ctx = getCanvasWidget(id, options).getContext('2d');
+  return pat.hilbertscope({ ...options, ctx, id });
+});
