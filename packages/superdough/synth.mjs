@@ -177,15 +177,7 @@ export function registerSynthSounds() {
         {
           frequency,
           q: 0.999,
-          damp: 0, //0.1 + 0.4 * (frequency / 4000),
-          drive: 0,
-          polarity: 1,
-          // stages: 3,
           stereo: 1,
-          // brightness: 1,
-          position: 0.5,
-          positionMix: 0,
-          brightness: 0,
         },
         {
           mode: 'comb',
@@ -202,11 +194,7 @@ export function registerSynthSounds() {
           frequency,
           q: 0.5,
           stages: 3,
-          damp: 0,
-          drive: 0,
-          polarity: 1,
           stereo: 1,
-          positionMix: 0,
           brightness: 1,
         },
         {
@@ -279,30 +267,6 @@ export function registerSynthSounds() {
           outputChannelCount: [2],
         },
       );
-      const comb = getWorklet(
-        ac,
-        'special-filter-processor',
-        {
-          frequency,
-          q: 0.999,
-          damp: 0,
-          drive: 0,
-          polarity: 1,
-          // stages: 3,
-          stereo: 0,
-          brightness: 1,
-          // position: 0.2,
-          // positionMix: 0,
-          // brightness: 0.5,
-        },
-        {
-          mode: 'comb',
-          channelCount: 2,
-          channelCountMode: 'explicit',
-          channelInterpretation: 'speakers',
-          outputChannelCount: [2],
-        },
-      );
 
       const gainAdjustment = 1 / Math.sqrt(voices);
       getPitchEnvelope(o.parameters.get('detune'), value, begin, holdend);
@@ -317,7 +281,6 @@ export function registerSynthSounds() {
         ac,
         () => {
           destroyAudioWorkletNode(o);
-          destroyAudioWorkletNode(comb);
           envGain.disconnect();
           onended();
           fm?.stop();

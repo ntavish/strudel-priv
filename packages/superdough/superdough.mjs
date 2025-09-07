@@ -354,23 +354,22 @@ function getDelay(orbit, delaytime, delayfeedback, t) {
 
 function scheduleParams(node, params, t, glideMs = 5) {
   const ac = getAudioContext();
-  const when = Math.max(t ?? ac.currentTime, ac.currentTime);
+  const now = ac.currentTime;
+  const T = Math.max(t ?? now, now);
 
   for (const [name, value] of Object.entries(params)) {
     if (value == null) continue;
     const p = node.parameters?.get(name);
     if (!p) continue;
-
-    // de-zipper
-    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(when);
-    else p.cancelScheduledValues(when);
+    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(T);
+    else p.cancelScheduledValues(T);
 
     if (glideMs > 0) {
       // anchor at current value then ramp
-      p.setValueAtTime(p.value ?? p.defaultValue ?? 0, when);
-      p.linearRampToValueAtTime(value, when + glideMs / 1000);
+      p.setValueAtTime(p.value ?? p.defaultValue ?? 0, T);
+      p.linearRampToValueAtTime(value, T + glideMs / 1000);
     } else {
-      p.setValueAtTime(value, when);
+      p.setValueAtTime(value, T);
     }
   }
 }
@@ -399,45 +398,28 @@ function getSFilt(
   channels,
 ) {
   let sFilt = orbits[orbit].sFilt;
-  if (!sFilt) {
-    let filter = getWorklet(
-      getAudioContext(),
-      'special-filter-processor',
-      {
-        frequency: freq,
-        q: q,
-        stages: stages,
-        spread: spread,
-        damp: damp,
-        drive: drive,
-        stereo: stereo,
-        rate: rate,
-        depth: depth,
-        seriality: ser,
-      },
-      {
-        processorOptions: { mode: type },
-        outputChannelCount: [2],
-        channelCountMode: 'explicit',
-      },
-    );
-    connectToDestination(filter, channels);
-    orbits[orbit].sFilt = filter;
-    sFilt = filter;
-  }
   const params = {
     frequency: freq,
-    q: q,
-    stages: stages,
-    spread: spread,
-    damp: damp,
-    drive: drive,
-    stereo: stereo,
-    rate: rate,
-    depth: depth,
+    q,
+    stages,
+    spread,
+    damp,
+    drive,
+    stereo,
+    rate,
+    depth,
     seriality: ser,
   };
-  scheduleParams(sFilt, params, start, 0); // was 0.5
+  if (!sFilt) {
+    sFilt = getWorklet(getAudioContext(), 'special-filter-processor', params, {
+      processorOptions: { mode: type },
+      outputChannelCount: [2],
+      channelCountMode: 'explicit',
+    });
+    connectToDestination(sFilt, channels);
+    orbits[orbit].sFilt = sFilt;
+  }
+  scheduleParams(sFilt, params, start, 0);
   setupFilterEnvelope(sFilt, freq, att, dec, sus, rel, fenv, start, end);
   return sFilt;
 }
@@ -959,7 +941,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   }
 
   // last gain
-  let post = gainNode(postgain);
+  const post = gainNode(postgain);
   chain.push(post);
 
   // special filters
