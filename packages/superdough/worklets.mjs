@@ -348,13 +348,13 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       { name: 'frequency', defaultValue: 440, minValue: 8, maxValue: 22050 },
-      { name: 'q', defaultValue: 0.5, minValue: -0.999, maxValue: 0.999 },
+      { name: 'q', defaultValue: 0.5, minValue: 0, maxValue: 0.999 },
       { name: 'damp', defaultValue: 0, minValue: 0, maxValue: 0.9999 },
       { name: 'drive', defaultValue: 0, minValue: -24, maxValue: 24 }, // db
       { name: 'polarity', defaultValue: 1.0, minValue: -1, maxValue: 1 },
       { name: 'mix', defaultValue: 0.5, minValue: 0, maxValue: 1 },
-      { name: 'stages', defaultValue: 1, minValue: 1, maxValue: 32 },
-      { name: 'spread', defaultValue: 10, minValue: 10 },
+      { name: 'stages', defaultValue: 1, minValue: 1 },
+      { name: 'spread', defaultValue: 10, minValue: 0 },
       { name: 'stereo', defaultValue: 0, minValue: 0, maxValue: 1 },
       { name: 'rate', defaultValue: 0.001 },
       { name: 'depth', defaultValue: 0 },
@@ -386,6 +386,19 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
     const y0 = buff[idxBase & this.mask];
     const y1 = buff[(idxBase + 1) & this.mask];
     return mix(y0, y1, f);
+  }
+
+  applyBiquadAllpass(x0, x1, x2, y1, y2, f, q) {
+    const omega = this.dPhase * f;
+    const alpha = Math.sin(omega) / (2 * Math.max(q, 1e-8));
+    const b0 = 1 - alpha,
+      b1 = -2 * Math.cos(omega),
+      b2 = 1 + alpha;
+    return (b0 * x0 + b1 * x1 + b2 * x2 - b1 * y1 - b0 * y2) / b2;
+  }
+
+  samplesFromMs(ms) {
+    return Math.max(0, (ms * sampleRate) / 1000);
   }
 
   process(inputs, outputs, parameters) {
@@ -426,7 +439,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
       const driveLin = Math.pow(10, drive / 20);
       const dryMix = 1;
       const polarity = pv(parameters.polarity, n) >= 0 ? 1 : -1;
-      const spread = pv(parameters.spread, n);
+      const spread = clamp(pv(parameters.spread, n), 0, hz - 1);
       const stereo = pv(parameters.stereo, n);
       const rate = pv(parameters.rate, n);
       const depth = pv(parameters.depth, n);
@@ -441,41 +454,58 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
         let yTotal = 0;
         const stereoDt = 0.15 * stereo * (ch > 0 ? 1 : -1); // offset delay on each channel
         for (let s = 0; s < numStages; s++) {
-          const phaseSpread = this.phase + s * spreadFactor + (ch ? stereo : 0);
+          const phaseSpread = this.phase + s * spreadFactor + (ch && mode <= 2 ? stereo : 0); // don't spread non-delays
           const lfo = depth * Math.sin(phaseSpread * rate);
           const dhz = numStages > 1 ? -spread / 2 + (spread * s) / (numStages - 1) : 0;
           const hzTot = hz + dhz + lfo;
           if (hzTot <= 0) continue;
           const buff = this.buffers[ch][s];
           const xBuff = this.xBuffers[ch][s];
-          const dtBase = (sampleRate * dtScale) / hzTot;
-          const dt = dtBase + stereoDt;
-          const readPos = this.writeIndex - dt;
-          const xDelayed = this.interp(xBuff, readPos);
-          const delayed = this.interp(buff, readPos);
-
-          // Lowpass the delayed signal
-          const lpPrev = this.lpState[ch][s];
-          const lpNow = (1 - damp) * delayed + damp * lpPrev;
-          this.lpState[ch][s] = lpNow;
-
-          const g = polarity * fb * fbScale;
-          const a = 1 / (1 + g * g); // normalization constant
           let yp;
-          if (mode === 0) {
-            // Comb
-            yp = a * y + g * lpNow;
-          } else if (mode === 1) {
-            // Flange
-            yp = a * y + g * xDelayed;
+          if (mode <= 2) {
+            const dtBase = (sampleRate * dtScale) / hzTot;
+            const dt = dtBase + stereoDt;
+            const readPos = this.writeIndex - dt;
+            const xDelayed = this.interp(xBuff, readPos);
+            const delayed = this.interp(buff, readPos);
+
+            // Lowpass the delayed signal
+            const lpPrev = this.lpState[ch][s];
+            const lpNow = (1 - damp) * delayed + damp * lpPrev;
+            this.lpState[ch][s] = lpNow;
+
+            const g = polarity * fb * fbScale;
+            const a = 1 / (1 + g * g); // normalization constant
+            if (mode === 0) {
+              // Comb
+              yp = a * y + g * lpNow;
+            } else if (mode === 1) {
+              // Flange
+              yp = a * y + g * xDelayed;
+            } else {
+              // Allpass
+              yp = -fb * y + xDelayed + fb * delayed;
+            }
           } else {
-            // Allpass
-            yp = -fb * y + xDelayed + fb * delayed;
+            // 2nd order allpass
+            const nIdx1 = (this.writeIndex - 1) & this.mask;
+            const nIdx2 = (this.writeIndex - 2) & this.mask;
+            const x0 = y;
+            const x1 = xBuff[nIdx1];
+            const x2 = xBuff[nIdx2];
+            const y1 = buff[nIdx1];
+            const y2 = buff[nIdx2];
+            yp = this.applyBiquadAllpass(x0, x1, x2, y1, y2, hzTot, fb);
           }
           xBuff[this.writeIndex] = y;
           buff[this.writeIndex] = yp;
           yTotal += yp;
           y = seriality * yp + (1 - seriality) * y;
+        }
+        if (mode === 3) {
+          // Haas effect
+          const offset = this.samplesFromMs(8) * stereo;
+          y = ch > 0 ? y : this.interp(this.buffers[ch][numStages - 1], this.writeIndex - offset);
         }
         let yFinal = mix(yTotal / numStages, y, seriality);
         yFinal = driveLin * yFinal;

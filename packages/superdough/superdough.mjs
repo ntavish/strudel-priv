@@ -379,6 +379,7 @@ const sFiltModes = Object.freeze({
   COMB: 0,
   FLANGE: 1,
   ALLPASS: 2,
+  ALLPASS2: 3,
 });
 const sFiltKeys = Object.keys(sFiltModes);
 
