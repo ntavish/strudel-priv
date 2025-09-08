@@ -502,7 +502,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           yTotal += yp;
           y = seriality * yp + (1 - seriality) * y;
         }
-        if (mode === 3) {
+        if (mode >= 2) {
           // Haas effect
           const offset = this.samplesFromMs(8) * stereo;
           y = ch > 0 ? y : this.interp(this.buffers[ch][numStages - 1], this.writeIndex - offset);
