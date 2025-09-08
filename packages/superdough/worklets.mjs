@@ -365,7 +365,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
     ];
   }
 
-  constructor(options) {
+  constructor() {
     super();
     this.maxDelaySec = 2; // 0.1?
     const rawLen = Math.ceil(this.maxDelaySec * sampleRate);
@@ -448,7 +448,7 @@ class SpecialFilterProcessor extends AudioWorkletProcessor {
           if (hzTot <= 0) continue;
           const buff = this.buffers[ch][s];
           const xBuff = this.xBuffers[ch][s];
-          const dtBase = sampleRate * dtScale / hzTot;
+          const dtBase = (sampleRate * dtScale) / hzTot;
           const dt = dtBase + stereoDt;
           const readPos = this.writeIndex - dt;
           const xDelayed = this.interp(xBuff, readPos);

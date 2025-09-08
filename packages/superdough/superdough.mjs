@@ -358,18 +358,19 @@ function scheduleParams(node, params, t, glideMs = 5) {
   const T = Math.max(t ?? now, now);
 
   for (const [name, value] of Object.entries(params)) {
-    if (value == null) continue;
     const p = node.parameters?.get(name);
     if (!p) continue;
+    const newValue = value ?? p.defaultValue;
+    if (newValue === undefined) continue;
     if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(T);
     else p.cancelScheduledValues(T);
 
     if (glideMs > 0) {
       // anchor at current value then ramp
       p.setValueAtTime(p.value ?? p.defaultValue ?? 0, T);
-      p.linearRampToValueAtTime(value, T + glideMs / 1000);
+      p.linearRampToValueAtTime(newValue, T + glideMs / 1000);
     } else {
-      p.setValueAtTime(value, T);
+      p.setValueAtTime(newValue, T);
     }
   }
 }
@@ -382,30 +383,20 @@ const sFiltModes = Object.freeze({
 const sFiltKeys = Object.keys(sFiltModes);
 
 // Special filters
-function getSFilt(
-  orbit,
-  params,
-  start,
-  end,
-  channels,
-) {
+function getSFilt(orbit, params, start, end, channels) {
   let sFilt = orbits[orbit].sFilt;
 
   // Extract some params we need for envelopes
-  const { 
-    frequency,
-    att, dec, sus, rel,
-    mode,
-    fenv,
-    ...filteredParams
-  } = params;
+  const { frequency, att, dec, sus, rel, mode, fenv, ...filteredParams } = params;
   filteredParams.frequency = frequency;
   if (typeof mode === 'string') {
     const modeUpper = mode.toUpperCase();
     if (sFiltKeys.includes(modeUpper)) {
       filteredParams.mode = sFiltModes[mode.toUpperCase()];
     } else {
-      logger(`[superdough] Special filter mode ${modeUpper} not found. Available options are ${sFiltKeys.join(", ")}. Falling back to comb.`);
+      logger(
+        `[superdough] Special filter mode ${modeUpper} not found. Available options are ${sFiltKeys.join(', ')}. Falling back to COMB.`,
+      );
       filteredParams.mode = sFiltModes.COMB;
     }
   } else {
@@ -967,14 +958,8 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       sus: sfsustain,
       rel: sfrelease,
       fenv: sfenv,
-    }
-    const preSFiltNode = getSFilt(
-      orbit,
-      sFiltParams,
-      t,
-      end,
-      orbitChannels,
-    );
+    };
+    const preSFiltNode = getSFilt(orbit, sFiltParams, t, end, orbitChannels);
     sFiltNode = gainNode(postgain);
     preSFiltNode.connect(sFiltNode);
     const sFiltSend = effectSend(post, preSFiltNode, sf);
