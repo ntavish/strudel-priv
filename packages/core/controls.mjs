@@ -1626,16 +1626,19 @@ export const { scompressor } = registerControl([
   'scompressorAttack',
   'scompressorRelease',
 ]);
+export const { scompressorThresholdBelow } = registerControl('scompressorThresholdBelow');
 export const { scompressorKnee } = registerControl('scompressorKnee');
 export const { scompressorRatio } = registerControl('scompressorRatio');
+export const { scompressorRatioBelow } = registerControl('scompressorRatioBelow');
 export const { scompressorAttack } = registerControl('scompressorAttack');
 export const { scompressorRelease } = registerControl('scompressorRelease');
 export const { scompressorAutomakeup } = registerControl('scompressorAutomakeup');
-export const { scompressorUpward } = registerControl('scompressorUpward');
 export const { scompressorIsLimiter } = registerControl('scompressorIsLimiter');
 export const { scompressorMix } = registerControl('scompressorMix');
 export const { scompressorSidechained } = registerControl('scompressorSidechained');
 export const { scompressorPostgain } = registerControl('scompressorPostgain');
+export const { scompressorTime } = registerControl('scompressorTime');
+export const { scompressorMode } = registerControl('scompressorMode');
 
 /**
  * Limiter. The params are `limiter("threshold:attack:release:lookahead")`

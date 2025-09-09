@@ -349,18 +349,22 @@ class CompressorProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       { name: 'threshold', defaultValue: 0 }, // dB
-      { name: 'attack', defaultValue: 0.003, minValue: 1e-6, maxValue: 1 },
-      { name: 'release', defaultValue: 0.05, minValue: 1e-6, maxValue: 1 },
-      { name: 'lookahead', defaultValue: 0.006, minValue: 0, maxValue: 0.05 },
+      { name: 'thresholdbelow', defaultValue: -1e9 }, // dB
+      { name: 'attack', defaultValue: 0.003, minValue: 1e-6, maxValue: 5 }, // seconds
+      { name: 'release', defaultValue: 0.05, minValue: 1e-6, maxValue: 5 }, // seconds
+      { name: 'lookahead', defaultValue: 0, minValue: 0, maxValue: 0.05 }, // seconds
       { name: 'postgain', defaultValue: 1 }, // linear
-      { name: 'ratio', defaultValue: 4, minValue: 1, maxValue: 100 },
+      { name: 'ratio', defaultValue: 4, minValue: 0.25 },
+      { name: 'ratiobelow', defaultValue: 4, minValue: 0.25 },
       { name: 'knee', defaultValue: 6, minValue: 0, maxValue: 24 },
       { name: 'mix', defaultValue: 0, minValue: 0, maxValue: 1 },
+      { name: 'time', defaultValue: 1, minValue: 0.1, maxValue: 10 }, // scaling of attack, release
       // bools
       { name: 'islimiter', defaultValue: 0 },
       { name: 'sidechained', defaultValue: 0 },
       { name: 'automakeup', defaultValue: 0 },
-      { name: 'upward', defaultValue: 0 },
+      // categorical
+      { name: 'mode', defaultValue: 0 }, // peak, rms
     ];
   }
 
@@ -370,15 +374,22 @@ class CompressorProcessor extends AudioWorkletProcessor {
     this.writePos = 0;
     this.readPos = 0;
     this.delayBuffers = [];
-    this.follower = 0; // gain envelope follower
-    this.avgGain = 0;
-    this.rmsCoef = this._secToCoef(0.03); // 30ms
+    this.rmsCoef = this.secToCoef(0.01); // 10 ms
     this.rms = 0;
-    this.makeupCoef = this._secToCoef(1); // 1s
-    this.gate = 1e-5; // used for preventing silence from pulling down makeup gain
+    this.makeupCoef = this.secToCoef(1); // 1s
+    this.gate = 0.01; // used for preventing silence from pulling down makeup gain
+    this.params = {}; // used for resetting automakeup
+    this.avgGain = {
+      above: 0,
+      below: 0,
+    };
+    this.follower = {
+      above: 0,
+      below: 0,
+    }; // gain envelope follower
   }
 
-  _kneeSmooth(x, knee) {
+  kneeSmooth(x, knee) {
     const halfKnee = 0.5 * knee;
     if (knee <= 0) {
       return Math.max(0, x);
@@ -389,8 +400,33 @@ class CompressorProcessor extends AudioWorkletProcessor {
     }
     return ((x + halfKnee) * (x + halfKnee)) / (2 * knee);
   }
-  _secToCoef(t) {
+
+  secToCoef(t) {
     return Math.exp(-1 / (t * sampleRate));
+  }
+
+  compress(xDB, x, thresh, ratio, knee, attackCoef, releaseCoef, branch = 'above') {
+    const sgnB = branch === 'above' ? 1 : -1; // above triggers when above threshold
+    const d = sgnB * (xDB - thresh);
+    const D = this.kneeSmooth(d, knee);
+    const slope = 1 - 1 / ratio;
+
+    // Smooth the instantaneous gain adjustment
+    let gain = -sgnB * slope * D;
+    const follower = this.follower[branch];
+    const attacking = Math.abs(gain) > Math.abs(follower);
+    const coef = attacking ? attackCoef : releaseCoef;
+    this.follower[branch] = mix(attacking ? gain : 0, follower, coef);
+    gain = this.follower[branch];
+    // Don't allow silence to pull down the averages
+    if (x > this.gate) {
+      this.avgGain[branch] = mix(gain, this.avgGain[branch], this.makeupCoef);
+    }
+    if (this.params.automakeup > 0.5) {
+      // Undo the average gain
+      gain += -this.avgGain[branch];
+    }
+    return gain;
   }
 
   process(inputs, outputs, params) {
@@ -403,24 +439,46 @@ class CompressorProcessor extends AudioWorkletProcessor {
     }
     const blockSize = output[0].length ?? 0;
     for (let n = 0; n < blockSize; n++) {
-      const threshold = pv(params.threshold, n);
-      const attackCoef = this._secToCoef(pv(params.attack, n));
-      const releaseCoef = this._secToCoef(pv(params.release, n));
-      const postGain = pv(params.postgain, n);
-      const mixAmt = pv(params.mix, n);
-      let knee = pv(params.knee, n);
-      let ratio = pv(params.ratio, n);
-      const upward = pv(params.upward, n) > 0.5;
-      const autoMakeup = pv(params.automakeup, n) > 0.5;
-      const isLimiter = pv(params.islimiter, n) > 0.5;
-      const sidechained = pv(params.sidechained, n) > 0.5;
-      if (isLimiter) {
-        ratio = 1e9;
-        knee = 0;
+      for (const k of Object.keys(params)) {
+        const p = pv(params[k], n);
+        if (!['postgain', 'mix'].includes(k)) {
+          // If any internal parameter changed, reset gain tracking
+          if (p !== this.params?.[k]) {
+            this.avgGain = {
+              above: Math.max(this.avgGain.above, 0), // if we were previously subtracting, keep doing that
+              below: Math.max(this.avgGain.below, 0),
+            };
+          }
+        }
+        this.params[k] = p;
       }
-      const delaySamples = Math.floor(pv(params.lookahead, n) * sampleRate);
+      let {
+        attack,
+        release,
+        time,
+        threshold,
+        thresholdbelow,
+        knee,
+        ratio,
+        ratiobelow,
+        postgain,
+        mix: mixAmt,
+        islimiter,
+        lookahead,
+        sidechained,
+        mode,
+      } = this.params;
+      if (islimiter > 0.5) {
+        ratio = ratio ?? 1e9;
+        thresholdbelow = thresholdbelow ?? -1e9;
+        lookahead = lookahead ?? 0.05;
+        knee = knee ?? 0;
+      }
+      const attackCoef = this.secToCoef(attack * time);
+      const releaseCoef = this.secToCoef(release * time);
+      const delaySamples = Math.floor(lookahead * sampleRate);
       this.readPos = _mod(this.writePos - delaySamples, this.bufferSize);
-      const probed = sidechained ? sidechain : input;
+      const probed = sidechained > 0.5 ? sidechain : input;
 
       // Calculate the maximum volume across all channels of the probed input
       // This ensures that all channels are limited jointly and thus there is
@@ -428,32 +486,23 @@ class CompressorProcessor extends AudioWorkletProcessor {
       const magnitude = probed.reduce((max, ch) => Math.max(max, Math.abs(pv(ch, n))), 0);
       this.rms = mix(magnitude * magnitude, this.rms, this.rmsCoef);
       const rms = Math.sqrt(this.rms + 1e-20);
-
-      // When not sidechained we use `magnitude` instead of the smoothed `rms` signal
-      // to add some warmth with light AM distortion (mimicking the WebAudio `compressor`)
-      const target = sidechained ? rms : magnitude;
-      const coef = target > this.follower ? attackCoef : releaseCoef;
-      this.follower = mix(target, this.follower, coef);
-      const sgn = upward ? -1 : 1;
-      const d = sgn * (linToDB(this.follower) - threshold);
-      const D = this._kneeSmooth(d, knee);
-      const slope = 1 - 1 / ratio;
-
-      // Smooth the instantaneous gain adjustment
-      let gain = -sgn * slope * D;
-      if (rms > this.gate) {
-        this.avgGain = mix(gain, this.avgGain, this.makeupCoef);
-      }
-      // Do not apply more makeup than we are reducing
-      const cap = Math.abs(gain);
-      const makeupGain = -Math.sign(this.avgGain) * Math.min(Math.abs(this.avgGain), cap);
-      if (autoMakeup) {
-        gain += makeupGain;
-      }
-      const gainLin = dBToLin(gain);
+      const detector = mode === 0 ? rms : magnitude;
+      const detectorDB = linToDB(detector);
+      const gain = this.compress(detectorDB, detector, threshold, ratio, knee, attackCoef, releaseCoef);
+      const gainBelow = this.compress(
+        detectorDB,
+        detector,
+        thresholdbelow,
+        ratiobelow,
+        knee,
+        attackCoef,
+        releaseCoef,
+        'below',
+      );
+      const gainLin = dBToLin(gain + gainBelow) * postgain;
       for (let ch = 0; ch < numChannels; ch++) {
         this.delayBuffers[ch][this.writePos] = pv(input[ch] ?? [0], n);
-        const wet = this.delayBuffers[ch][this.readPos] * gainLin * postGain;
+        const wet = this.delayBuffers[ch][this.readPos] * gainLin;
         const delayedDry = this.delayBuffers[ch][this.readPos];
         output[ch][n] = mix(delayedDry, wet, mixAmt);
       }
