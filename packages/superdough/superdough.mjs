@@ -499,6 +499,8 @@ function getLimiter(ac, orbit, baseParams, currentTime, channels) {
   return limiter;
 }
 
+const Q_SQRT2 = Math.SQRT1_2;
+
 function getOTT(ac, orbit, params, currentTime) {
   let ott = orbits[orbit].ott;
   if (!ott) {
@@ -506,7 +508,12 @@ function getOTT(ac, orbit, params, currentTime) {
     orbits[orbit].ott = ott;
     const lp1 = new BiquadFilterNode(ac, {
       type: 'lowpass',
-      Q: 1,
+      Q: Q_SQRT2,
+      frequency: 88.3,
+    });
+    const lp12 = new BiquadFilterNode(ac, {
+      type: 'lowpass',
+      Q: Q_SQRT2,
       frequency: 88.3,
     });
     const lowParams = {
@@ -514,58 +521,70 @@ function getOTT(ac, orbit, params, currentTime) {
       threshold: -33.8,
       ratio: 66.7,
       ratiobelow: 4.17,
-      attack: 0.0478,
-      release: 0.282,
-      lookahead: 0,
-      postgain: 3.273, // 10.3dB
-      pregain: 1.82, // 5.2dB
+      attack: 0.002,
+      release: 0.05,
+      postgain: 6,
+      pregain: 2,
       ...params,
     };
     orbits[orbit].ottLow = getWorklet(ac, 'compressor-processor', lowParams, { numberOfInputs: 2 });
     const hp2 = new BiquadFilterNode(ac, {
       type: 'highpass',
-      Q: 1,
+      Q: Q_SQRT2,
+      frequency: 88.3,
+    });
+    const hp22 = new BiquadFilterNode(ac, {
+      type: 'highpass',
+      Q: Q_SQRT2,
       frequency: 88.3,
     });
     const lp2 = new BiquadFilterNode(ac, {
       type: 'lowpass',
-      Q: 1,
+      Q: Q_SQRT2,
+      frequency: 2500,
+    });
+    const lp22 = new BiquadFilterNode(ac, {
+      type: 'lowpass',
+      Q: Q_SQRT2,
       frequency: 2500,
     });
     const midParams = {
-      thresholdbelow: -41.8,
-      threshold: -30.2,
+      thresholdbelow: -40,
+      threshold: -30,
       ratio: 66.7,
-      ratiobelow: 4.17,
-      attack: 0.0224,
-      release: 0.282,
-      lookahead: 0,
-      postgain: 1.928, // 5.7dB
-      pregain: 1.82, // 5.2dB
+      ratiobelow: 4,
+      attack: 0.001,
+      release: 0.05,
+      postgain: 4,
+      pregain: 2,
       ...params,
     };
     orbits[orbit].ottMid = getWorklet(ac, 'compressor-processor', midParams, { numberOfInputs: 2 });
     const hp3 = new BiquadFilterNode(ac, {
       type: 'highpass',
-      Q: 1,
+      Q: Q_SQRT2,
+      frequency: 2500,
+    });
+    const hp32 = new BiquadFilterNode(ac, {
+      type: 'highpass',
+      Q: Q_SQRT2,
       frequency: 2500,
     });
     const highParams = {
-      thresholdbelow: -40.8,
-      threshold: -35.5,
+      thresholdbelow: -40,
+      threshold: -30,
       ratio: 1e9,
-      ratiobelow: 4.17,
-      attack: 0.0135,
-      release: 0.132,
-      lookahead: 0,
-      postgain: 3.273, // 10.3dB
-      pregain: 1.82, // 5.2dB
+      ratiobelow: 4,
+      attack: 0.001,
+      release: 0.02,
+      postgain: 4,
+      pregain: 2,
       ...params,
     };
     orbits[orbit].ottHigh = getWorklet(ac, 'compressor-processor', highParams, { numberOfInputs: 2 });
-    connectToOrbit(ott.connect(lp1).connect(orbits[orbit].ottLow), orbit);
-    connectToOrbit(ott.connect(hp2).connect(lp2).connect(orbits[orbit].ottMid), orbit);
-    connectToOrbit(ott.connect(hp3).connect(orbits[orbit].ottHigh), orbit);
+    connectToOrbit(ott.connect(lp1).connect(lp12).connect(orbits[orbit].ottLow), orbit);
+    connectToOrbit(ott.connect(hp2).connect(hp22).connect(lp2).connect(lp22).connect(orbits[orbit].ottMid), orbit);
+    connectToOrbit(ott.connect(hp3).connect(hp32).connect(orbits[orbit].ottHigh), orbit);
   }
   for (const [name, value] of Object.entries(params)) {
     if (value == null) continue;

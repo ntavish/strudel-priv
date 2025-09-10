@@ -473,7 +473,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
       let detector = mode === 0 ? rms : magnitude;
       const attacking = detector > this.follower;
       const coef = attacking ? attackCoef : releaseCoef;
-      (this.follower = mix(attacking ? detector : 0, this.follower, coef)), 24;
+      this.follower = mix(detector, this.follower, coef);
       detector = this.follower;
       const detectorDB = linToDB(detector);
       const gain = this.getGain(detectorDB, detector, threshold, ratio, knee);
@@ -481,7 +481,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
       const gainLin = dBToLin(gain + gainBelow) * postgain;
       for (let ch = 0; ch < numChannels; ch++) {
         this.delayBuffers[ch][this.writePos] = pv(input[ch] ?? [0], n);
-        const wet = this.delayBuffers[ch][this.readPos] * gainLin;
+        const wet = this.delayBuffers[ch][this.readPos] * pregain * gainLin;
         const delayedDry = this.delayBuffers[ch][this.readPos];
         output[ch][n] = mix(delayedDry, wet, mixAmt);
       }
