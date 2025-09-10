@@ -361,7 +361,6 @@ class CompressorProcessor extends AudioWorkletProcessor {
       { name: 'mix', defaultValue: 0, minValue: 0, maxValue: 1 },
       { name: 'time', defaultValue: 1, minValue: 0.1, maxValue: 10 }, // scaling of attack, release
       // bools
-      { name: 'islimiter', defaultValue: 0 },
       { name: 'sidechained', defaultValue: 0 },
       { name: 'automakeup', defaultValue: 0 },
       // categorical
@@ -384,10 +383,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
       above: 0,
       below: 0,
     };
-    this.follower = {
-      above: 0,
-      below: 0,
-    }; // gain envelope follower
+    this.follower = 0; // envelope follower
   }
 
   kneeSmooth(x, knee) {
@@ -406,19 +402,12 @@ class CompressorProcessor extends AudioWorkletProcessor {
     return Math.exp(-1 / (t * sampleRate));
   }
 
-  getGain(xDB, x, thresh, ratio, knee, attackCoef, releaseCoef, branch = 'above') {
+  getGain(xDB, x, thresh, ratio, knee, branch = 'above') {
     const sgnB = branch === 'above' ? 1 : -1; // above triggers when above threshold
     const d = sgnB * (xDB - thresh);
     const D = this.kneeSmooth(d, knee);
     const slope = 1 - 1 / ratio;
-
-    // Smooth the instantaneous gain adjustment
     let gain = -sgnB * slope * D;
-    const follower = this.follower[branch];
-    const attacking = Math.abs(gain) > Math.abs(follower);
-    const coef = attacking ? attackCoef : releaseCoef;
-    this.follower[branch] = Math.min(mix(attacking ? gain : 0, follower, coef), 24);
-    gain = this.follower[branch];
     // Don't allow silence to pull down the averages
     if (x > this.gate) {
       this.avgGain[branch] = mix(gain, this.avgGain[branch], this.makeupCoef);
@@ -465,17 +454,10 @@ class CompressorProcessor extends AudioWorkletProcessor {
         pregain,
         postgain,
         mix: mixAmt,
-        islimiter,
         lookahead,
         sidechained,
         mode,
       } = this.params;
-      if (islimiter > 0.5) {
-        ratio = ratio ?? 1e9;
-        thresholdbelow = thresholdbelow ?? -1e9;
-        lookahead = lookahead ?? 0.05;
-        knee = knee ?? 0;
-      }
       const attackCoef = this.secToCoef(attack * time);
       const releaseCoef = this.secToCoef(release * time);
       const delaySamples = Math.floor(lookahead * sampleRate);
@@ -483,24 +465,19 @@ class CompressorProcessor extends AudioWorkletProcessor {
       const probed = sidechained > 0.5 ? sidechain : input;
 
       // Calculate the maximum volume across all channels of the probed input
-      // This ensures that all channels are limited jointly and thus there is
+      // This ensures that all channels are compressed jointly and thus there is
       // no wobbling back and forth in, say, stereo
       const magnitude = probed.reduce((max, ch) => Math.max(max, Math.abs(pv(ch, n))), 0) * pregain;
       this.rms = mix(magnitude * magnitude, this.rms, this.rmsCoef);
       const rms = Math.sqrt(this.rms + 1e-20);
-      const detector = mode === 0 ? rms : magnitude;
+      let detector = mode === 0 ? rms : magnitude;
+      const attacking = detector > this.follower;
+      const coef = attacking ? attackCoef : releaseCoef;
+      (this.follower = mix(attacking ? detector : 0, this.follower, coef)), 24;
+      detector = this.follower;
       const detectorDB = linToDB(detector);
-      const gain = this.getGain(detectorDB, detector, threshold, ratio, knee, attackCoef, releaseCoef);
-      const gainBelow = this.getGain(
-        detectorDB,
-        detector,
-        thresholdbelow,
-        ratiobelow,
-        knee,
-        attackCoef,
-        releaseCoef,
-        'below',
-      );
+      const gain = this.getGain(detectorDB, detector, threshold, ratio, knee);
+      const gainBelow = this.getGain(detectorDB, detector, thresholdbelow, ratiobelow, knee, 'below');
       const gainLin = dBToLin(gain + gainBelow) * postgain;
       for (let ch = 0; ch < numChannels; ch++) {
         this.delayBuffers[ch][this.writePos] = pv(input[ch] ?? [0], n);

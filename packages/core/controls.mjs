@@ -1619,13 +1619,11 @@ export const { compressorRelease } = registerControl('compressorRelease');
  * .scompressor("-20:20:10:.002:.02")
  *
  */
-export const { scompressor, sc, scthresh } = registerControl([
-  'scompressor',
-  'scompressorRatio',
-  'scompressorKnee',
-  'scompressorAttack',
-  'scompressorRelease',
-], 'sc', 'scthresh');
+export const { scompressor, sc, scthresh } = registerControl(
+  ['scompressor', 'scompressorRatio', 'scompressorKnee', 'scompressorAttack', 'scompressorRelease'],
+  'sc',
+  'scthresh',
+);
 export const { scompressorThresholdBelow, scthreshb } = registerControl('scompressorThresholdBelow', 'scthreshb');
 export const { scompressorKnee, sck } = registerControl('scompressorKnee', 'sck');
 export const { scompressorRatio, scr } = registerControl('scompressorRatio', 'scr');
@@ -1633,7 +1631,6 @@ export const { scompressorRatioBelow, scrb } = registerControl('scompressorRatio
 export const { scompressorAttack, scatt } = registerControl('scompressorAttack', 'scatt');
 export const { scompressorRelease, screl } = registerControl('scompressorRelease', 'screl');
 export const { scompressorAutomakeup, scam } = registerControl('scompressorAutomakeup', 'scam');
-export const { scompressorIsLimiter, sclim } = registerControl('scompressorIsLimiter', 'sclim');
 export const { scompressorMix, scmix } = registerControl('scompressorMix', 'scmix');
 export const { scompressorSidechained, scside } = registerControl('scompressorSidechained', 'scside');
 export const { scompressorLookahead, sclook } = registerControl('scompressorLookahead', 'sclook');
@@ -1651,7 +1648,11 @@ export const { scompressorMode, scmode } = registerControl('scompressorMode', 's
  * .limiter(-2)
  *
  */
-export const { limiter, lim, limthresh } = registerControl(['limiter', 'limiterAttack', 'limiterRelease', 'limiterLookahead'], 'lim', 'limthresh');
+export const { limiter, lim, limthresh } = registerControl(
+  ['limiter', 'limiterAttack', 'limiterRelease', 'limiterLookahead'],
+  'lim',
+  'limthresh',
+);
 export const { limiterAttack, limatt } = registerControl('limiterAttack', 'limatt');
 export const { limiterRelease, limrel } = registerControl('limiterRelease', 'limrel');
 export const { limiterLookahead, limlook } = registerControl('limiterLookahead', 'limlook');
@@ -1670,6 +1671,7 @@ export const { sidechainhpf } = registerControl('sidechainhpf');
 export const { sidechainbpf } = registerControl('sidechainbpf');
 
 export const { ott } = registerControl(['ott', 'otttime']);
+export const { ottime } = registerControl('otttime');
 
 /**
  * Changes the speed of sample playback, i.e. a cheap way of changing pitch.

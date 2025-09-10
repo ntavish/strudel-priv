@@ -469,10 +469,21 @@ function getReverb(orbit, duration, fade, lp, dim, ir, irspeed, irbegin) {
   return orbits[orbit].reverbNode;
 }
 
-function getLimiter(ac, orbit, params, currentTime, channels) {
-  params.mix = Object.values(params).some((v) => v !== undefined) ? 1 : 0; // turn on if a parameter is provided
-  params.islimiter = true;
-  let limiter = orbits[orbit].limiter
+function getLimiter(ac, orbit, baseParams, currentTime, channels) {
+  const mix = Object.values(baseParams).some((v) => v !== undefined) ? 1 : 0; // turn on if a parameter is provided
+  let params = {
+    mix,
+    attack: 0.001,
+    release: 0.2,
+    ratio: 1e9,
+    thresholdbelow: -1e9,
+    knee: 0,
+    mode: 1, // peak
+  };
+  for (const key of Object.keys(params)) {
+    params[key] = baseParams[key] ?? params[key];
+  }
+  let limiter = orbits[orbit].limiter;
   if (!limiter) {
     limiter = getWorklet(ac, 'compressor-processor', params, { numberOfInputs: 2 });
     orbits[orbit].limiter = limiter;
@@ -506,10 +517,10 @@ function getOTT(ac, orbit, params, currentTime) {
       attack: 0.0478,
       release: 0.282,
       lookahead: 0,
-      postgain: 10.3,
-      pregain: 5.2,
+      postgain: 3.273, // 10.3dB
+      pregain: 1.82, // 5.2dB
       ...params,
-    }
+    };
     orbits[orbit].ottLow = getWorklet(ac, 'compressor-processor', lowParams, { numberOfInputs: 2 });
     const hp2 = new BiquadFilterNode(ac, {
       type: 'highpass',
@@ -529,10 +540,10 @@ function getOTT(ac, orbit, params, currentTime) {
       attack: 0.0224,
       release: 0.282,
       lookahead: 0,
-      postgain: 5.7,
-      pregain: 5.2,
+      postgain: 1.928, // 5.7dB
+      pregain: 1.82, // 5.2dB
       ...params,
-    }
+    };
     orbits[orbit].ottMid = getWorklet(ac, 'compressor-processor', midParams, { numberOfInputs: 2 });
     const hp3 = new BiquadFilterNode(ac, {
       type: 'highpass',
@@ -547,10 +558,10 @@ function getOTT(ac, orbit, params, currentTime) {
       attack: 0.0135,
       release: 0.132,
       lookahead: 0,
-      postgain: 10.3,
-      pregain: 5.2,
+      postgain: 3.273, // 10.3dB
+      pregain: 1.82, // 5.2dB
       ...params,
-    }
+    };
     orbits[orbit].ottHigh = getWorklet(ac, 'compressor-processor', highParams, { numberOfInputs: 2 });
     connectToOrbit(ott.connect(lp1).connect(orbits[orbit].ottLow), orbit);
     connectToOrbit(ott.connect(hp2).connect(lp2).connect(orbits[orbit].ottMid), orbit);
@@ -599,7 +610,11 @@ function setupSidechain(input, targetOrbit, gain, lpf, hpf, bpf) {
     }
     const preGain = gainNode(gain ?? 1);
     let node = input.connect(preGain);
-    const filterParams = [[lpf, 'lowpass'], [hpf, 'highpass'], [bpf, 'bandpass']]
+    const filterParams = [
+      [lpf, 'lowpass'],
+      [hpf, 'highpass'],
+      [bpf, 'bandpass'],
+    ];
     for (const [frequency, type] of filterParams) {
       const filter = new BiquadFilterNode(ac, { type, frequency, Q: 1 });
       node = node.connect(filter);
@@ -787,7 +802,6 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     scompressorAttack,
     scompressorRelease,
     scompressorAutomakeup,
-    scompressorIsLimiter,
     scompressorMix,
     scompressorSidechained,
     scompressorPregain,
@@ -1027,7 +1041,6 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     ratio: scompressorRatio,
     ratiobelow: scompressorRatioBelow,
     automakeup: scompressorAutomakeup,
-    islimiter: scompressorIsLimiter,
     time: scompressorTime,
     mix: scompressorMix,
     sidechained: scompressorSidechained,
@@ -1065,14 +1078,12 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     effectSend(post, reverbNode, room);
   }
 
-  if (ott !== undefined) {
-    const ottParams = {
-      mix: ott,
-      time: otttime,
-    }
-    const ottNode = getOTT(ac, orbit, ottParams, t);
-    effectSend(post, ottNode, ott);
-  }
+  const ottParams = {
+    mix: ott,
+    time: otttime,
+  };
+  const ottNode = getOTT(ac, orbit, ottParams, t);
+  effectSend(post, ottNode, 1);
 
   if (dry != null) {
     dry = applyGainCurve(dry);
