@@ -374,9 +374,9 @@ class CompressorProcessor extends AudioWorkletProcessor {
     this.writePos = 0;
     this.readPos = 0;
     this.delayBuffers = [];
-    this.rmsCoef = this.secToCoef(0.01); // 10 ms
+    this.rmsCoef = this.secToCoef(0.015); // 15ms
     this.rms = 0;
-    this.makeupCoef = this.secToCoef(1); // 1s
+    this.makeupCoef = this.secToCoef(0.3); // 300ms
     this.gate = 0.01; // used for preventing silence from pulling down makeup gain
     this.params = {}; // used for resetting automakeup
     this.avgGain = {
@@ -416,7 +416,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
     const follower = this.follower[branch];
     const attacking = Math.abs(gain) > Math.abs(follower);
     const coef = attacking ? attackCoef : releaseCoef;
-    this.follower[branch] = mix(attacking ? gain : 0, follower, coef);
+    this.follower[branch] = Math.min(mix(attacking ? gain : 0, follower, coef), 24);
     gain = this.follower[branch];
     // Don't allow silence to pull down the averages
     if (x > this.gate) {
