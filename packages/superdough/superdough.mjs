@@ -487,6 +487,80 @@ function getLimiter(ac, orbit, params, currentTime, channels) {
   return orbits[orbit].limiter;
 }
 
+function getOTT(ac, params) {
+  const { ott, otttime } = params;
+  // const input = gainNode(5.2);
+  const input = gainNode(1);
+  const lp1 = new BiquadFilterNode(ac, {
+    type: 'lowpass',
+    Q: 1,
+    frequency: 88.3,
+  });
+  const lowParams = {
+    thresholdbelow: -40.8,
+    threshold: -33.8,
+    ratio: 66.7,
+    ratiobelow: 4.17,
+    attack: 0.0478,
+    release: 0.282,
+    lookahead: 0,
+    mix: ott,
+    time: otttime,
+  }
+  const lowComp = getWorklet(ac, 'compressor-processor', lowParams, { numberOfInputs: 2 });
+  // const lowGain = gainNode(10.3);
+  const lowGain = gainNode(1);
+  const hp2 = new BiquadFilterNode(ac, {
+    type: 'highpass',
+    Q: 1,
+    frequency: 88.3,
+  });
+  const lp2 = new BiquadFilterNode(ac, {
+    type: 'lowpass',
+    Q: 1,
+    frequency: 2500,
+  });
+  const midParams = {
+    thresholdbelow: -41.8,
+    threshold: -30.2,
+    ratio: 66.7,
+    ratiobelow: 4.17,
+    attack: 0.0224,
+    release: 0.282,
+    lookahead: 0,
+    mix: ott,
+    time: otttime,
+  }
+  const midComp = getWorklet(ac, 'compressor-processor', midParams, { numberOfInputs: 2 });
+  // const midGain = gainNode(5.7);
+  const midGain = gainNode(1);
+  const hp3 = new BiquadFilterNode(ac, {
+    type: 'highpass',
+    Q: 1,
+    frequency: 2500,
+  });
+  const highParams = {
+    thresholdbelow: -40.8,
+    threshold: -35.5,
+    ratio: 1e9,
+    ratiobelow: 4.17,
+    attack: 0.0135,
+    release: 0.132,
+    lookahead: 0,
+    mix: ott,
+    time: otttime,
+  }
+  const highComp = getWorklet(ac, 'compressor-processor', highParams, { numberOfInputs: 2 });
+  // const highGain = gainNode(10.3);
+  const highGain = gainNode(1);
+  const output = gainNode(1);
+  input.connect(lp1).connect(lowComp).connect(lowGain).connect(output);
+  input.connect(hp2).connect(lp2).connect(midComp).connect(midGain).connect(output);
+  input.connect(hp3).connect(highComp).connect(highGain).connect(output);
+  // Return nodes (for managing with `audioNodes`) and the input/output (for inserting into the chain)
+  return [[input, lp1, lowComp, lowGain, hp2, lp2, midComp, midGain, hp3, highComp, highGain, output], { input, output }];
+}
+
 function getSCompressor(ac, orbit, params, currentTime) {
   if (!orbits[orbit].scompressor) {
     const compressor = getWorklet(ac, 'compressor-processor', params, { numberOfInputs: 2 });
@@ -507,32 +581,24 @@ function getSCompressor(ac, orbit, params, currentTime) {
 function setupSidechain(input, targetOrbit, lpf, hpf, bpf, t, end) {
   const ac = getAudioContext();
   const targetArr = [targetOrbit].flat();
+  const filterNodes = [];
   targetArr.forEach((target) => {
     const compressor = orbits[target].scompressor;
     if (compressor === undefined) {
       errorLogger(new Error(`Sidechain target orbit ${target} does not exist`), 'superdough');
-      return;
+      return filterNodes;
     }
     let node = input;
-    let nextNode;
-    if (lpf !== undefined) {
-      nextNode = createFilter(ac, 'lowpass', lpf, 1, undefined, undefined, undefined, undefined, undefined, t, end);
-      node.connect(nextNode);
-      node = nextNode;
-    }
-    if (hpf !== undefined) {
-      nextNode = createFilter(ac, 'highpass', hpf, 1, undefined, undefined, undefined, undefined, undefined, t, end);
-      node.connect(nextNode);
-      node = nextNode;
-    }
-    if (bpf !== undefined) {
-      nextNode = createFilter(ac, 'bandpass', bpf, 1, undefined, undefined, undefined, undefined, undefined, t, end);
-      node.connect(nextNode);
-      node = nextNode;
+    const filterParams = [[lpf, 'lowpass'], [hpf, 'highpass'], [bpf, 'bandpass']]
+    for (const [frequency, type] of filterParams) {
+      const filter = new BiquadFilterNode({ type, frequency, Q: 1 });
+      node = node.connect(filter);
+      filterNodes.push(filter);
     }
     // Connect input (index 0 of input) to the second input (index 1 of compressor)
     node.connect(compressor, 0, 1);
   });
+  return filterNodes;
 }
 
 export let analysers = {},
@@ -721,6 +787,8 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     sidechainlpf,
     sidechainhpf,
     sidechainbpf,
+    ott,
+    otttime,
   } = value;
 
   delaytime = delaytime ?? cycleToSeconds(delaysync, cps);
@@ -777,7 +845,12 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   } else if (getSound(s)) {
     const { onTrigger } = getSound(s);
     const onEnded = () => {
-      audioNodes.forEach((n) => n?.disconnect());
+      audioNodes.forEach((n) => {
+        try {
+          n?.disconnect();
+        } catch {
+        }
+      });
       activeSoundSources.delete(chainID);
     };
     const soundHandle = await onTrigger(t, value, onEnded);
@@ -906,6 +979,16 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
       getCompressor(ac, compressorThreshold, compressorRatio, compressorKnee, compressorAttack, compressorRelease),
     );
 
+  if (ott !== undefined) {
+    const ottParams = {
+      ott,
+      otttime,
+    }
+    const [ottNodes, io] = getOTT(ac, ottParams);
+    audioNodes.concat(ottNodes);
+    chain.push(io);
+  }
+
   // panning
   if (pan !== undefined) {
     const panner = ac.createStereoPanner();
@@ -954,10 +1037,11 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     postgain: scompressorPostgain,
     mode: scompressorMode,
   };
-  const compressor = getSCompressor(ac, orbit, compressorParams, t);
+  getSCompressor(ac, orbit, compressorParams, t);
 
   if (sidechain) {
-    setupSidechain(post, sidechain, sidechainlpf, sidechainhpf, sidechainbpf, t, end);
+    const filterNodes = setupSidechain(post, sidechain, sidechainlpf, sidechainhpf, sidechainbpf, t, end);
+    audioNodes.concat(filterNodes);
   }
 
   // delay
@@ -992,7 +1076,13 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   }
 
   // connect chain elements together
-  chain.slice(1).reduce((last, current) => last.connect(current), chain[0]);
+  chain.slice(1).reduce((last, current) => {
+    if ('input' in current && 'output' in current) {
+      last.connect(current.input);
+      return current.output;
+    }
+    return last.connect(current)
+  }, chain[0]);
   audioNodes = audioNodes.concat(chain);
 };
 

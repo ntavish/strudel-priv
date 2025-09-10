@@ -352,10 +352,10 @@ class CompressorProcessor extends AudioWorkletProcessor {
       { name: 'thresholdbelow', defaultValue: -1e9 }, // dB
       { name: 'attack', defaultValue: 0.003, minValue: 1e-6, maxValue: 5 }, // seconds
       { name: 'release', defaultValue: 0.05, minValue: 1e-6, maxValue: 5 }, // seconds
-      { name: 'lookahead', defaultValue: 0, minValue: 0, maxValue: 0.05 }, // seconds
+      { name: 'lookahead', defaultValue: 0.006, minValue: 0, maxValue: 0.05 }, // seconds
       { name: 'postgain', defaultValue: 1 }, // linear
       { name: 'ratio', defaultValue: 4, minValue: 0.25 },
-      { name: 'ratiobelow', defaultValue: 4, minValue: 0.25 },
+      { name: 'ratiobelow', defaultValue: 1, minValue: 0.25 },
       { name: 'knee', defaultValue: 6, minValue: 0, maxValue: 24 },
       { name: 'mix', defaultValue: 0, minValue: 0, maxValue: 1 },
       { name: 'time', defaultValue: 1, minValue: 0.1, maxValue: 10 }, // scaling of attack, release
@@ -364,7 +364,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
       { name: 'sidechained', defaultValue: 0 },
       { name: 'automakeup', defaultValue: 0 },
       // categorical
-      { name: 'mode', defaultValue: 0 }, // peak, rms
+      { name: 'mode', defaultValue: 0 }, // rms, peak
     ];
   }
 
