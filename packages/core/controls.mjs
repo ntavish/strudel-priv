@@ -1637,6 +1637,7 @@ export const { scompressorIsLimiter, sclim } = registerControl('scompressorIsLim
 export const { scompressorMix, scmix } = registerControl('scompressorMix', 'scmix');
 export const { scompressorSidechained, scside } = registerControl('scompressorSidechained', 'scside');
 export const { scompressorLookahead, sclook } = registerControl('scompressorLookahead', 'sclook');
+export const { scompressorPregain, scpre } = registerControl('scompressorPregain', 'scpre');
 export const { scompressorPostgain, scpost } = registerControl('scompressorPostgain', 'scpost');
 export const { scompressorTime, sctime } = registerControl('scompressorTime', 'sctime');
 export const { scompressorMode, scmode } = registerControl('scompressorMode', 'scmode');
@@ -1663,6 +1664,7 @@ export const { limiterPostgain, limpost } = registerControl('limiterPostgain', '
  */
 export const { sidechain } = registerControl('sidechain');
 
+export const { sidechaingain } = registerControl('sidechaingain');
 export const { sidechainlpf } = registerControl('sidechainlpf');
 export const { sidechainhpf } = registerControl('sidechainhpf');
 export const { sidechainbpf } = registerControl('sidechainbpf');

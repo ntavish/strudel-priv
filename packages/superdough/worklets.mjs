@@ -353,6 +353,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
       { name: 'attack', defaultValue: 0.003, minValue: 1e-6, maxValue: 5 }, // seconds
       { name: 'release', defaultValue: 0.05, minValue: 1e-6, maxValue: 5 }, // seconds
       { name: 'lookahead', defaultValue: 0.006, minValue: 0, maxValue: 0.05 }, // seconds
+      { name: 'pregain', defaultValue: 1 }, // linear
       { name: 'postgain', defaultValue: 1 }, // linear
       { name: 'ratio', defaultValue: 4, minValue: 0.25 },
       { name: 'ratiobelow', defaultValue: 1, minValue: 0.25 },
@@ -405,7 +406,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
     return Math.exp(-1 / (t * sampleRate));
   }
 
-  compress(xDB, x, thresh, ratio, knee, attackCoef, releaseCoef, branch = 'above') {
+  getGain(xDB, x, thresh, ratio, knee, attackCoef, releaseCoef, branch = 'above') {
     const sgnB = branch === 'above' ? 1 : -1; // above triggers when above threshold
     const d = sgnB * (xDB - thresh);
     const D = this.kneeSmooth(d, knee);
@@ -441,7 +442,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
     for (let n = 0; n < blockSize; n++) {
       for (const k of Object.keys(params)) {
         const p = pv(params[k], n);
-        if (!['postgain', 'mix'].includes(k)) {
+        if (!['pregain', 'postgain', 'mix'].includes(k)) {
           // If any internal parameter changed, reset gain tracking
           if (p !== this.params?.[k]) {
             this.avgGain = {
@@ -461,6 +462,7 @@ class CompressorProcessor extends AudioWorkletProcessor {
         knee,
         ratio,
         ratiobelow,
+        pregain,
         postgain,
         mix: mixAmt,
         islimiter,
@@ -483,13 +485,13 @@ class CompressorProcessor extends AudioWorkletProcessor {
       // Calculate the maximum volume across all channels of the probed input
       // This ensures that all channels are limited jointly and thus there is
       // no wobbling back and forth in, say, stereo
-      const magnitude = probed.reduce((max, ch) => Math.max(max, Math.abs(pv(ch, n))), 0);
+      const magnitude = probed.reduce((max, ch) => Math.max(max, Math.abs(pv(ch, n))), 0) * pregain;
       this.rms = mix(magnitude * magnitude, this.rms, this.rmsCoef);
       const rms = Math.sqrt(this.rms + 1e-20);
       const detector = mode === 0 ? rms : magnitude;
       const detectorDB = linToDB(detector);
-      const gain = this.compress(detectorDB, detector, threshold, ratio, knee, attackCoef, releaseCoef);
-      const gainBelow = this.compress(
+      const gain = this.getGain(detectorDB, detector, threshold, ratio, knee, attackCoef, releaseCoef);
+      const gainBelow = this.getGain(
         detectorDB,
         detector,
         thresholdbelow,
