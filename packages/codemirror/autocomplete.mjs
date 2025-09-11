@@ -155,7 +155,7 @@ function soundHandler(context) {
     const fragment = fragMatch ? fragMatch[1] : inside;
     if (!fragment || fragment.length === 0) return null;
     const soundNames = Object.keys(soundMap.get()).sort();
-    const filteredSounds = soundNames.filter((name) => name.startsWith(fragment));
+  const filteredSounds = soundNames.filter((name) => name.includes(fragment));
     let options = filteredSounds.map((name) => ({ label: name, type: 'sound' }));
     const from = soundContext.to - fragment.length;
     return {
