@@ -117,8 +117,8 @@ const jsdocCompletions = jsdoc.docs
 
 // --- Handler functions for each context ---
 const pitchNames = [
-  'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'Fb', 'F', 'F#', 'Gb',
-  'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B', 'Cb'
+  'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'E#', 'Fb', 'F', 'F#', 'Gb',
+  'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B', 'B#', 'Cb'
 ];
 
 function scalePreColonHandler(context) {
