@@ -114,23 +114,18 @@ const jsdocCompletions = jsdoc.docs
     type: 'function', // https://codemirror.net/docs/ref/#autocomplete.Completion.type
   }));
 
-export const strudelAutocomplete = (context) => {
-  // --- Pitch names for scale key completion ---
-  // Ideally, these should be imported from packages/tonal/tonleiter.mjs
-  // but are duplicated here as they are not exported.
-  const pitchNames = [
-    'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'Fb', 'F', 'F#', 'Gb',
-    'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B', 'Cb'
-  ];
-  
-  // Block fallback completions inside .scale("..."), even before the colon
+
+// --- Handler functions for each context ---
+const pitchNames = [
+  'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'Fb', 'F', 'F#', 'Gb',
+  'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B', 'Cb'
+];
+
+function scalePreColonHandler(context) {
   let scalePreColonContext = context.matchBefore(/\.scale\(\s*['"][^'"]*$/);
   if (scalePreColonContext) {
-    // Only yield completions if a colon is present (handled below)
     if (!scalePreColonContext.text.includes(':')) {
       if (context.explicit) {
-        // Provide pitch completions on explicit request
-        // (Union of sharps and flats from tonleiter.mjs)
         const text = scalePreColonContext.text;
         const match = text.match(/([A-Ga-g][#b]*)?$/);
         const fragment = match ? match[0] : '';
@@ -139,19 +134,17 @@ export const strudelAutocomplete = (context) => {
         const options = filtered.map((p) => ({ label: p, type: 'pitch' }));
         return { from, options };
       } else {
-        // Block fallback completions
         return { from: scalePreColonContext.to, options: [] };
       }
     }
-
-    // (second block removed, handled above)
     if (!scalePreColonContext.text.includes(':')) {
       return { from: scalePreColonContext.to, options: [] };
     }
   }
-  
-  // 1. Check for sound context: s("..."), sound("...")
-  // Trigger after at least one letter is typed after whitespace or bracket inside the quotes
+  return null;
+}
+
+function soundHandler(context) {
   let soundContext = context.matchBefore(/(s|sound)\(\s*['"][^'"]*$/);
   if (soundContext) {
     const text = soundContext.text;
@@ -170,13 +163,13 @@ export const strudelAutocomplete = (context) => {
       options,
     };
   }
+  return null;
+}
 
+function bankHandler(context) {
   let bankMatch = context.matchBefore(/bank\(\s*(['"])?([\w]*)$/);
   if (bankMatch) {
     let banks = bankCompletions();
-    console.log('[autocomplete] Bank context detected:', bankMatch.text);
-    console.log('[autocomplete] soundMap keys:', Object.keys(soundMap.get()));
-    console.log('[autocomplete] bankCompletions:', banks);
     // Extract quote and fragment using regex groups on match.text
     const groups = bankMatch.text.match(/(['"])?([\w]*)$/);
     const quote = groups ? groups[1] : undefined;
@@ -205,19 +198,17 @@ export const strudelAutocomplete = (context) => {
       options,
     };
   }
+  return null;
+}
 
-  // 3. Check for scale context: .scale("..."), only after colon
+function scaleAfterColonHandler(context) {
   let scaleContext = context.matchBefore(/\.scale\(\s*['"][^'"]*:[^'"]*$/);
   if (scaleContext) {
-    // Find the last colon in the text
     const text = scaleContext.text;
     const colonIdx = text.lastIndexOf(':');
     if (colonIdx === -1) return null;
-    // Get the fragment after the colon
     const fragment = text.slice(colonIdx + 1);
-    // Filter scale completions by fragment
     const filteredScales = scaleCompletions.filter((s) => s.label.startsWith(fragment));
-    // Insert colon-form (replace spaces with colons) for completions
     const options = filteredScales.map((s) => ({
       ...s,
       apply: s.label.replace(/\s+/g, ':')
@@ -228,17 +219,34 @@ export const strudelAutocomplete = (context) => {
       options,
     };
   }
+  return null;
+}
 
-  // fallback: original logic
+function fallbackHandler(context) {
   const word = context.matchBefore(/\w*/);
   if (word && word.from === word.to && !context.explicit) return null;
-
   if (word) {
-    console.log('[autocomplete] Default context:', word.text);
     return {
       from: word.from,
       options: jsdocCompletions,
     };
+  }
+  return null;
+}
+
+const handlers = [
+  scalePreColonHandler,
+  soundHandler,
+  bankHandler,
+  scaleAfterColonHandler,
+  // this handler *must* be last
+  fallbackHandler
+];
+
+export const strudelAutocomplete = (context) => {
+  for (const handler of handlers) {
+    const result = handler(context);
+    if (result) return result;
   }
   return null;
 };
