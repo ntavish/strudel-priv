@@ -487,9 +487,9 @@ function getLimiter(ac, orbit, baseParams, currentTime, channels) {
     ratio: 1e9,
     thresholdbelow: -1e9,
     knee: 0,
-    mode: 1, // peak
+    mode: 0,
   };
-  for (const key of Object.keys(params)) {
+  for (const key of Object.keys(baseParams)) {
     params[key] = baseParams[key] ?? params[key];
   }
   let limiter = orbits[orbit].limiter;
