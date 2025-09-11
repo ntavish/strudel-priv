@@ -1672,6 +1672,8 @@ export const { sidechainbpf } = registerControl('sidechainbpf');
 
 export const { ott } = registerControl(['ott', 'otttime']);
 export const { ottime } = registerControl('otttime');
+export const { ottshift } = registerControl('ottshift');
+export const { otttilt } = registerControl('otttilt');
 
 /**
  * Changes the speed of sample playback, i.e. a cheap way of changing pitch.

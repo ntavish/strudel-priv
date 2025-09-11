@@ -469,6 +469,15 @@ function getReverb(orbit, duration, fade, lp, dim, ir, irspeed, irbegin) {
   return orbits[orbit].reverbNode;
 }
 
+function setValueAtTime(node, name, value, t) {
+  const p = node.parameters?.get(name) ?? node[name];
+  const valueWithDefault = value ?? p.defaultValue;
+  if (valueWithDefault === undefined) return;
+  if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(t);
+  else p.cancelScheduledValues(t);
+  p.setValueAtTime(valueWithDefault, t);
+}
+
 function getLimiter(ac, orbit, baseParams, currentTime, channels) {
   const mix = Object.values(baseParams).some((v) => v !== undefined) ? 1 : 0; // turn on if a parameter is provided
   let params = {
@@ -490,18 +499,14 @@ function getLimiter(ac, orbit, baseParams, currentTime, channels) {
     connectToDestination(limiter, channels);
   }
   for (const [name, value] of Object.entries(params)) {
-    if (value == null) continue;
-    const p = limiter.parameters?.get(name);
-    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(currentTime);
-    else p.cancelScheduledValues(currentTime);
-    p.setValueAtTime(value, currentTime);
+    setValueAtTime(limiter, name, value, currentTime);
   }
   return limiter;
 }
 
 const Q_SQRT2 = Math.SQRT1_2;
 
-function getOTT(ac, orbit, params, currentTime) {
+function getOTT(ac, orbit, allParams, currentTime) {
   let ott = orbits[orbit].ott;
   if (!ott) {
     ott = gainNode(1);
@@ -521,11 +526,11 @@ function getOTT(ac, orbit, params, currentTime) {
       threshold: -33.8,
       ratio: 66.7,
       ratiobelow: 4.17,
-      attack: 0.002,
-      release: 0.05,
-      postgain: 6,
-      pregain: 2,
-      ...params,
+      attack: 0.0478,
+      release: 0.282,
+      postgain: 3.2734, // 10.3dB
+      pregain: 1.8197, // 5.2dB
+      mix: 1,
     };
     orbits[orbit].ottLow = getWorklet(ac, 'compressor-processor', lowParams, { numberOfInputs: 2 });
     const hp2 = new BiquadFilterNode(ac, {
@@ -549,15 +554,15 @@ function getOTT(ac, orbit, params, currentTime) {
       frequency: 2500,
     });
     const midParams = {
-      thresholdbelow: -40,
-      threshold: -30,
+      thresholdbelow: -41.8,
+      threshold: -30.2,
       ratio: 66.7,
-      ratiobelow: 4,
-      attack: 0.001,
-      release: 0.05,
-      postgain: 4,
-      pregain: 2,
-      ...params,
+      ratiobelow: 4.17,
+      attack: 0.0224,
+      release: 0.282,
+      postgain: 1.9275, // 5.7dB
+      pregain: 1.8197, // 5.2dB
+      mix: 1,
     };
     orbits[orbit].ottMid = getWorklet(ac, 'compressor-processor', midParams, { numberOfInputs: 2 });
     const hp3 = new BiquadFilterNode(ac, {
@@ -571,30 +576,39 @@ function getOTT(ac, orbit, params, currentTime) {
       frequency: 2500,
     });
     const highParams = {
-      thresholdbelow: -40,
-      threshold: -30,
-      ratio: 1e9,
-      ratiobelow: 4,
-      attack: 0.001,
-      release: 0.02,
-      postgain: 4,
-      pregain: 2,
-      ...params,
+      thresholdbelow: -40.8,
+      threshold: -35.5,
+      ratio: 1e8,
+      ratiobelow: 4.17,
+      attack: 0.0135,
+      release: 0.132,
+      postgain: 3.2734, // 10.3dB
+      pregain: 1.8197, // 5.2dB
+      mix: 1,
     };
     orbits[orbit].ottHigh = getWorklet(ac, 'compressor-processor', highParams, { numberOfInputs: 2 });
     connectToOrbit(ott.connect(lp1).connect(lp12).connect(orbits[orbit].ottLow), orbit);
     connectToOrbit(ott.connect(hp2).connect(hp22).connect(lp2).connect(lp22).connect(orbits[orbit].ottMid), orbit);
     connectToOrbit(ott.connect(hp3).connect(hp32).connect(orbits[orbit].ottHigh), orbit);
   }
+  const { shift = 0, tilt = 0, ...params } = allParams;
+  const o = orbits[orbit];
+  const ottNodes = [o.ottLow, o.ottMid, o.ottHigh];
   for (const [name, value] of Object.entries(params)) {
     if (value == null) continue;
-    const o = orbits[orbit];
-    [o.ottLow, o.ottMid, o.ottHigh].forEach((node) => {
-      const p = node.parameters?.get(name);
-      if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(currentTime);
-      else p.cancelScheduledValues(currentTime);
-      p.setValueAtTime(value, currentTime);
+    ottNodes.forEach((node) => {
+      setValueAtTime(node, name, value, currentTime);
     });
+  }
+  const shiftParams = [
+    { threshold: Math.min(-33.8 + shift - tilt, 0), thresholdbelow: Math.min(-40.8 + shift - tilt, 0) },
+    { threshold: Math.min(-30.2 + shift, 0), thresholdbelow: Math.min(-41.8 + shift, 0) },
+    { threshold: Math.min(-35.5 + shift + tilt, 0), thresholdbelow: Math.min(-40.8 + shift + tilt, 0) },
+  ];
+  for (let i = 0; i < 3; i++) {
+    const ps = shiftParams[i];
+    setValueAtTime(ottNodes[i], 'threshold', ps.threshold, currentTime);
+    setValueAtTime(ottNodes[i], 'thresholdbelow', ps.thresholdbelow, currentTime);
   }
   return ott;
 }
@@ -608,11 +622,7 @@ function getSCompressor(ac, orbit, params, currentTime) {
     scompressor.connect(orbits[orbit].limiter);
   }
   for (const [name, value] of Object.entries(params)) {
-    const p = scompressor.parameters.get(name);
-    let valueWithDefault = value ?? p.defaultValue;
-    if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(currentTime);
-    else p.cancelScheduledValues(currentTime);
-    p.setValueAtTime(valueWithDefault, currentTime);
+    setValueAtTime(scompressor, name, value, currentTime);
   }
   return scompressor;
 }
@@ -834,6 +844,8 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
     sidechainbpf,
     ott,
     otttime,
+    ottshift,
+    otttilt,
   } = value;
 
   delaytime = delaytime ?? cycleToSeconds(delaysync, cps);
@@ -1098,11 +1110,14 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   }
 
   const ottParams = {
-    mix: ott,
     time: otttime,
+    shift: ottshift,
+    tilt: otttilt,
   };
-  const ottNode = getOTT(ac, orbit, ottParams, t);
-  effectSend(post, ottNode, 1);
+  if (ott > 0) {
+    const ottNode = getOTT(ac, orbit, ottParams, t);
+    effectSend(post, ottNode, ott);
+  }
 
   if (dry != null) {
     dry = applyGainCurve(dry);

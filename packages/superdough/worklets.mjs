@@ -383,7 +383,10 @@ class CompressorProcessor extends AudioWorkletProcessor {
       above: 0,
       below: 0,
     };
-    this.follower = 0; // envelope follower
+    this.follower = {
+      above: 0,
+      below: 0,
+    }; // envelope followers
   }
 
   kneeSmooth(x, knee) {
@@ -402,12 +405,15 @@ class CompressorProcessor extends AudioWorkletProcessor {
     return Math.exp(-1 / (t * sampleRate));
   }
 
-  getGain(xDB, x, thresh, ratio, knee, branch = 'above') {
+  getGain(xDB, x, thresh, ratio, knee, att, rel, branch = 'above') {
     const sgnB = branch === 'above' ? 1 : -1; // above triggers when above threshold
     const d = sgnB * (xDB - thresh);
     const D = this.kneeSmooth(d, knee);
     const slope = 1 - 1 / ratio;
     let gain = -sgnB * slope * D;
+    const coef = d > 0 ? att : rel;
+    this.follower[branch] = mix(gain, this.follower[branch], coef);
+    this.gain = this.follower[branch];
     // Don't allow silence to pull down the averages
     if (x > this.gate) {
       this.avgGain[branch] = mix(gain, this.avgGain[branch], this.makeupCoef);
@@ -471,13 +477,18 @@ class CompressorProcessor extends AudioWorkletProcessor {
       this.rms = mix(magnitude * magnitude, this.rms, this.rmsCoef);
       const rms = Math.sqrt(this.rms + 1e-20);
       let detector = mode === 0 ? rms : magnitude;
-      const attacking = detector > this.follower;
-      const coef = attacking ? attackCoef : releaseCoef;
-      this.follower = mix(detector, this.follower, coef);
-      detector = this.follower;
       const detectorDB = linToDB(detector);
-      const gain = this.getGain(detectorDB, detector, threshold, ratio, knee);
-      const gainBelow = this.getGain(detectorDB, detector, thresholdbelow, ratiobelow, knee, 'below');
+      const gain = this.getGain(detectorDB, detector, threshold, ratio, knee, attackCoef, releaseCoef);
+      const gainBelow = this.getGain(
+        detectorDB,
+        detector,
+        thresholdbelow,
+        ratiobelow,
+        knee,
+        attackCoef,
+        releaseCoef,
+        'below',
+      );
       const gainLin = dBToLin(gain + gainBelow) * postgain;
       for (let ch = 0; ch < numChannels; ch++) {
         this.delayBuffers[ch][this.writePos] = pv(input[ch] ?? [0], n);
