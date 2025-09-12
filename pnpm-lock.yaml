@@ -215,9 +215,15 @@ importers:
       '@strudel/transpiler':
         specifier: workspace:*
         version: link:../transpiler
+      '@tonaljs/tonal':
+        specifier: ^4.10.0
+        version: 4.10.0
       nanostores:
         specifier: ^0.11.3
         version: 0.11.3
+      superdough:
+        specifier: workspace:*
+        version: link:../superdough
     devDependencies:
       vite:
         specifier: ^6.0.11
