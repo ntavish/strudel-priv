@@ -12,8 +12,12 @@ function debounce(fn, wait) {
   };
 }
 
-export function useDebounce(callback) {
+export function useDebounce(callback, delay) {
   const ref = useRef;
+  if (delay === undefined) {
+    delay = 1000;
+  }
+  
   useEffect(() => {
     ref.current = callback;
   }, [callback]);
@@ -23,7 +27,7 @@ export function useDebounce(callback) {
       ref.current?.();
     };
 
-    return debounce(func, 1000);
+    return debounce(func, delay);
   }, []);
 
   return debouncedCallback;
