@@ -636,7 +636,7 @@ function _setWorkletParamsAtTime(audioParams, params, time) {
 }
 
 let lfos = {};
-function _connectLFO(params) {
+function _connectLFO(params, nodeTracker) {
   const {
     frequency = 1,
     synced = 0,
@@ -653,10 +653,12 @@ function _connectLFO(params) {
     const ac = getAudioContext();
     lfoNode = getLfo(ac, filteredParams);
     lfos[num] = lfoNode;
+    nodeTracker[`lfo${num}`] = [lfoNode];
   }
   const targets = _getTargetParams(target, param);
   targets.forEach((target) => lfoNode.connect(target));
   _setWorkletParamsAtTime(lfoNode.parameters, Object.entries(filteredParams), begin);
+  return lfoNode;
 }
 
 function _connectEnvelope(params) {
@@ -671,15 +673,16 @@ function _connectEnvelope(params) {
   });
 }
 
-function connectModulators(params, modulatorType) {
+function connectModulators(params, modulatorType, nodeTracker) {
   // We break down params specifying multiple modulators into a set of parameters for
   // a single one
   const individualParams = _splitParams(params);
   if (modulatorType === 'lfo') {
-    individualParams.forEach(_connectLFO);
+    individualParams.map((p) => _connectLFO(p, nodeTracker));
   } else if (modulatorType === 'envelope') {
     individualParams.forEach(_connectEnvelope);
   }
+  return [];
 }
 
 let activeSoundSources = new Map();
@@ -1118,7 +1121,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
   if (lfoTarget !== undefined && lfoParam !== undefined) {
     connectModulators(
       {
-        num: lfoNum,
+        num: lfoNum ?? 1,
         target: lfoTarget,
         param: lfoParam,
         frequency: lfoRate,
@@ -1133,6 +1136,7 @@ export const superdough = async (value, t, hapDuration, cps = 0.5, cycle = 0.5) 
         cps: cps,
       },
       'lfo',
+      nodes,
     );
   }
   if (envTarget !== undefined && envParam !== undefined) {
