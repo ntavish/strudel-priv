@@ -6,8 +6,9 @@ This program is free software: you can redistribute it and/or modify it under th
 
 export const strudelScope = {};
 
-export const evalScope = async (...args) => {
-  const results = await Promise.allSettled(args);
+export const evalScopeWithOptions = async (options) => {
+  const { modules: modulePromises, assignGlobals = false } = options;
+  const results = await Promise.allSettled(modulePromises);
   const modules = results.filter((result) => result.status === 'fulfilled').map((r) => r.value);
   results.forEach((result, i) => {
     if (result.status === 'rejected') {
@@ -19,12 +20,16 @@ export const evalScope = async (...args) => {
   // same error as https://github.com/vitest-dev/vitest/issues/1807 when running this on astro server
   modules.forEach((module) => {
     Object.entries(module).forEach(([name, value]) => {
-      globalThis[name] = value;
+      if (assignGlobals) {
+        globalThis[name] = value;
+      }
       strudelScope[name] = value;
     });
   });
   return modules;
 };
+
+export const evalScope = (...modules) => evalScopeWithOptions({ modules, assignGlobals: true });
 
 function safeEval(str, options = {}) {
   const { wrapExpression = true, wrapAsync = true } = options;

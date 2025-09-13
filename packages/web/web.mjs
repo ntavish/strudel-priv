@@ -5,23 +5,26 @@ export * from '@strudel/transpiler';
 export * from '@strudel/mini';
 export * from '@strudel/tonal';
 export * from '@strudel/webaudio';
-import { Pattern, evalScope, setTime } from '@strudel/core';
+import { Pattern, evalScope, evalScopeWithOptions, setTime, strudelScope } from '@strudel/core';
 import { initAudioOnFirstClick, registerSynthSounds, webaudioRepl } from '@strudel/webaudio';
 // import { registerSoundfonts } from '@strudel/soundfonts';
 import { evaluate as _evaluate, transpiler } from '@strudel/transpiler';
 import { miniAllStrings } from '@strudel/mini';
 
 // init logic
-export async function defaultPrebake() {
-  const loadModules = evalScope(
+export async function defaultPrebake(options = {}) {
+  const { assignGlobals = true } = options;
+  const modules = [
     evalScope,
     import('@strudel/core'),
     import('@strudel/mini'),
     import('@strudel/tonal'),
     import('@strudel/webaudio'),
     { hush, evaluate },
-  );
+  ];
+  const loadModules = evalScopeWithOptions({ assignGlobals, modules });
   await Promise.all([loadModules, registerSynthSounds() /* , registerSoundfonts() */]);
+  return loadModules;
 }
 
 // when this function finishes, everything is initialized
@@ -34,12 +37,16 @@ export function initStrudel(options = {}) {
   const { prebake, ...replOptions } = options;
   repl = webaudioRepl({ ...replOptions, transpiler });
   initDone = (async () => {
-    await defaultPrebake();
+    await defaultPrebake({ assignGlobals: options.global });
     await prebake?.();
     return repl;
   })();
   setTime(() => repl.scheduler.now());
   return initDone;
+}
+
+export function getStrudelScope() {
+  return strudelScope;
 }
 
 window.initStrudel = initStrudel;
