@@ -39,6 +39,7 @@ export function initStrudel(options = {}) {
   initDone = (async () => {
     await defaultPrebake({ assignGlobals: options.global });
     await prebake?.();
+    window.getStrudelScope = getStrudelScope;
     return repl;
   })();
   setTime(() => repl.scheduler.now());
