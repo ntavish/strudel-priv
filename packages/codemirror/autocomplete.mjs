@@ -3,6 +3,7 @@ import { autocompletion } from '@codemirror/autocomplete';
 import { h } from './html';
 import { Scale } from '@tonaljs/tonal';
 import { soundMap } from 'superdough';
+import { complex } from '../tonal/ireal.mjs';
 
 const escapeHtml = (str) => {
   const div = document.createElement('div');
@@ -104,6 +105,23 @@ const modeCompletions = [
   { label: 'duck', type: 'mode' },
   { label: 'root', type: 'mode' },
 ];
+
+// Valid chord symbols from ireal dictionary plus empty string for major triads
+const chordSymbols = ['', ...Object.keys(complex)].sort();
+const chordSymbolCompletions = chordSymbols.map((symbol) => {
+  if (symbol === '') {
+    return {
+      label: 'major',
+      apply: '',
+      type: 'chord-symbol',
+    };
+  }
+  return {
+    label: symbol,
+    apply: symbol,
+    type: 'chord-symbol',
+  };
+});
 
 export const getSynonymDoc = (doc, synonym) => {
   const synonyms = doc.synonyms || [];
@@ -216,7 +234,7 @@ function soundHandler(context) {
   const quoteIdx = Math.max(text.lastIndexOf('"'), text.lastIndexOf("'"));
   if (quoteIdx === -1) return null;
   const inside = text.slice(quoteIdx + 1);
-  const fragMatch = inside.match(/(?:[\s\[\{\(<])([\w]*)$/);
+  const fragMatch = inside.match(/(?:[\s[{(<])([\w]*)$/);
   const fragment = fragMatch ? fragMatch[1] : inside;
   const soundNames = Object.keys(soundMap.get()).sort();
   const filteredSounds = soundNames.filter((name) => name.includes(fragment));
@@ -274,7 +292,7 @@ function modePreColonHandler(context) {
   const quoteIdx = Math.max(text.lastIndexOf('"'), text.lastIndexOf("'"));
   if (quoteIdx === -1) return null;
   const inside = text.slice(quoteIdx + 1);
-  const fragMatch = inside.match(/(?:[\s\[\{\(<])([\w:]*)$/);
+  const fragMatch = inside.match(/(?:[\s[{(<])([\w:]*)$/);
   const fragment = fragMatch ? fragMatch[1] : inside;
   const filteredModes = modeCompletions.filter((m) => m.label.startsWith(fragment));
   const from = modeContext.to - fragment.length;
@@ -301,6 +319,60 @@ function modeAfterColonHandler(context) {
     from,
     options,
   };
+}
+
+function chordHandler(context) {
+  // First check for chord context without quotes - block with empty completions
+  let chordNoQuotesContext = context.matchBefore(/chord\(\s*$/);
+  if (chordNoQuotesContext) {
+    return {
+      from: chordNoQuotesContext.to,
+      options: [],
+    };
+  }
+
+  // Then check for chord context with quotes - provide completions
+  let chordContext = context.matchBefore(/chord\(\s*['"][^'"]*$/);
+  if (!chordContext) return null;
+
+  const text = chordContext.text;
+  const quoteIdx = Math.max(text.lastIndexOf('"'), text.lastIndexOf("'"));
+  if (quoteIdx === -1) return null;
+  const inside = text.slice(quoteIdx + 1);
+
+  // Use same fragment matching as sound/mode for expressions like "<G Am>"
+  const fragMatch = inside.match(/(?:[\s[{(<])([\w#b+^:-]*)$/);
+  const fragment = fragMatch ? fragMatch[1] : inside;
+
+  // Check if fragment contains any pitch name at start (for root + symbol)
+  let rootMatch = null;
+  let symbolFragment = fragment;
+  for (const pitch of pitchNames) {
+    if (fragment.toLowerCase().startsWith(pitch.toLowerCase())) {
+      rootMatch = pitch;
+      symbolFragment = fragment.slice(pitch.length);
+      break;
+    }
+  }
+
+  if (rootMatch) {
+    // We have a root, now complete chord symbols
+    const filteredSymbols = chordSymbolCompletions.filter((s) =>
+      s.label.toLowerCase().startsWith(symbolFragment.toLowerCase()),
+    );
+
+    // Create completions that replace the entire chord, not just the symbol part
+    const options = filteredSymbols;
+
+    const from = chordContext.to - symbolFragment.length;
+    return { from, options };
+  } else {
+    // No root yet, complete with pitch names
+    const filteredPitches = pitchNames.filter((p) => p.toLowerCase().startsWith(fragment.toLowerCase()));
+    const options = filteredPitches.map((p) => ({ label: p, type: 'pitch' }));
+    const from = chordContext.to - fragment.length;
+    return { from, options };
+  }
 }
 
 function scaleAfterColonHandler(context) {
@@ -339,6 +411,7 @@ const handlers = [
   scalePreColonHandler,
   soundHandler,
   bankHandler,
+  chordHandler,
   modePreColonHandler,
   scaleAfterColonHandler,
   modeAfterColonHandler,
@@ -349,7 +422,9 @@ const handlers = [
 export const strudelAutocomplete = (context) => {
   for (const handler of handlers) {
     const result = handler(context);
-    if (result) return result;
+    if (result) {
+      return result;
+    }
   }
   return null;
 };
