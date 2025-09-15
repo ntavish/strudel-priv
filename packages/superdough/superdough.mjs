@@ -113,6 +113,19 @@ export async function aliasBank(...args) {
   }
 }
 
+/**
+ * Register an alias for a sound.
+ * @param {string} original - The original sound name
+ * @param {string} alias - The alias to use for the sound
+ */
+export function soundAlias(original, alias) {
+  if (getSound(original) == null) {
+    logger('soundAlias: original sound not found');
+    return;
+  }
+  soundMap.setKey(alias, getSound(original));
+}
+
 export function getSound(s) {
   if (typeof s !== 'string') {
     console.warn(`getSound: expected string got "${s}". fall back to triangle`);
@@ -196,7 +209,7 @@ export const resetLoadedSounds = () => soundMap.set({});
 let audioContext;
 
 export const setDefaultAudioContext = () => {
-  audioContext = new AudioContext();
+  audioContext = new AudioContext({ latencyHint: 'playback' });
   return audioContext;
 };
 
@@ -212,11 +225,17 @@ export function getAudioContextCurrentTime() {
   return getAudioContext().currentTime;
 }
 
+let externalWorklets = [];
+export function registerWorklet(url) {
+  externalWorklets.push(url);
+}
+
 let workletsLoading;
 function loadWorklets() {
   if (!workletsLoading) {
     const audioCtx = getAudioContext();
-    workletsLoading = audioCtx.audioWorklet.addModule(workletsUrl);
+    const allWorkletURLs = externalWorklets.concat([workletsUrl]);
+    workletsLoading = Promise.all(allWorkletURLs.map((workletURL) => audioCtx.audioWorklet.addModule(workletURL)));
   }
 
   return workletsLoading;
