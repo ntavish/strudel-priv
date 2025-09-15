@@ -1,11 +1,8 @@
-
 import jsdoc from '../../doc.json';
 import { autocompletion } from '@codemirror/autocomplete';
 import { h } from './html';
 import { Scale } from '@tonaljs/tonal';
 import { soundMap } from 'superdough';
-
-
 
 const escapeHtml = (str) => {
   const div = document.createElement('div');
@@ -80,7 +77,6 @@ const isValidDoc = (doc) => {
 const hasExcludedTags = (doc) =>
   ['superdirtOnly', 'noAutocomplete'].some((tag) => doc.tags?.find((t) => t.originalTitle === tag));
 
-
 export function bankCompletions() {
   const soundDict = soundMap.get();
   const banks = new Set();
@@ -88,9 +84,10 @@ export function bankCompletions() {
     const [bank, suffix] = key.split('_');
     if (suffix && bank) banks.add(bank);
   }
-  return Array.from(banks).sort().map((name) => ({ label: name, type: 'bank' }));
+  return Array.from(banks)
+    .sort()
+    .map((name) => ({ label: name, type: 'bank' }));
 }
-
 
 // Attempt to get all scale names from Tonal
 let scaleCompletions = [];
@@ -138,15 +135,43 @@ const jsdocCompletions = (() => {
   return completions;
 })();
 
-
 // --- Handler functions for each context ---
 const pitchNames = [
-  'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'E#', 'Fb', 'F', 'F#', 'Gb',
-  'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B', 'B#', 'Cb'
+  'C',
+  'C#',
+  'Db',
+  'D',
+  'D#',
+  'Eb',
+  'E',
+  'E#',
+  'Fb',
+  'F',
+  'F#',
+  'Gb',
+  'G',
+  'G#',
+  'Ab',
+  'A',
+  'A#',
+  'Bb',
+  'B',
+  'B#',
+  'Cb',
 ];
 
 function scalePreColonHandler(context) {
-  let scalePreColonContext = context.matchBefore(/\.scale\(\s*['"][^'"]*$/);
+  // First check for scale context without quotes - block with empty completions
+  let scaleNoQuotesContext = context.matchBefore(/scale\(\s*$/);
+  if (scaleNoQuotesContext) {
+    return {
+      from: scaleNoQuotesContext.to,
+      options: [],
+    };
+  }
+
+  // Then check for scale context with quotes - provide completions
+  let scalePreColonContext = context.matchBefore(/scale\(\s*['"][^'"]*$/);
   if (scalePreColonContext) {
     if (!scalePreColonContext.text.includes(':')) {
       if (context.explicit) {
@@ -161,89 +186,86 @@ function scalePreColonHandler(context) {
         return { from: scalePreColonContext.to, options: [] };
       }
     }
-    if (!scalePreColonContext.text.includes(':')) {
-      return { from: scalePreColonContext.to, options: [] };
-    }
   }
   return null;
 }
 
 function soundHandler(context) {
-  let soundContext = context.matchBefore(/(s|sound)\(\s*['"][^'"]*$/);
-  if (soundContext) {
-    const text = soundContext.text;
-    const quoteIdx = Math.max(text.lastIndexOf('"'), text.lastIndexOf("'"));
-    if (quoteIdx === -1) return null;
-    const inside = text.slice(quoteIdx + 1);
-    const fragMatch = inside.match(/(?:[\s\[\{\(<])([\w]*)$/);
-    const fragment = fragMatch ? fragMatch[1] : inside;
-    if (!fragment || fragment.length === 0) return null;
-    const soundNames = Object.keys(soundMap.get()).sort();
-  const filteredSounds = soundNames.filter((name) => name.includes(fragment));
-    let options = filteredSounds.map((name) => ({ label: name, type: 'sound' }));
-    const from = soundContext.to - fragment.length;
+  // First check for sound context without quotes - block with empty completions
+  let soundNoQuotesContext = context.matchBefore(/(s|sound)\(\s*$/);
+  if (soundNoQuotesContext) {
     return {
-      from,
-      options,
+      from: soundNoQuotesContext.to,
+      options: [],
     };
   }
-  return null;
+
+  // Then check for sound context with quotes - provide completions
+  let soundContext = context.matchBefore(/(s|sound)\(\s*['"][^'"]*$/);
+  if (!soundContext) return null;
+
+  const text = soundContext.text;
+  const quoteIdx = Math.max(text.lastIndexOf('"'), text.lastIndexOf("'"));
+  if (quoteIdx === -1) return null;
+  const inside = text.slice(quoteIdx + 1);
+  const fragMatch = inside.match(/(?:[\s\[\{\(<])([\w]*)$/);
+  const fragment = fragMatch ? fragMatch[1] : inside;
+  const soundNames = Object.keys(soundMap.get()).sort();
+  const filteredSounds = soundNames.filter((name) => name.includes(fragment));
+  let options = filteredSounds.map((name) => ({ label: name, type: 'sound' }));
+  const from = soundContext.to - fragment.length;
+  return {
+    from,
+    options,
+  };
 }
 
 function bankHandler(context) {
-  let bankMatch = context.matchBefore(/bank\(\s*(['"])?([\w]*)$/);
-  if (bankMatch) {
-    let banks = bankCompletions();
-    // Extract quote and fragment using regex groups on match.text
-    const groups = bankMatch.text.match(/(['"])?([\w]*)$/);
-    const quote = groups ? groups[1] : undefined;
-    const fragment = groups ? groups[2] || '' : '';
-    let from;
-    if (quote) {
-      from = bankMatch.from + bankMatch.text.indexOf(quote) + 1;
-    } else {
-      from = bankMatch.to - fragment.length;
-    }
-    const filteredBanks = banks.filter((b) => b.label.startsWith(fragment));
-    let options;
-    if (!quote) {
-      options = filteredBanks.map((b) => ({ ...b, apply: '"' + b.label + '"' }));
-    } else {
-      const afterCursor = context.state.sliceDoc(bankMatch.to, bankMatch.to + 1);
-      options = filteredBanks.map((b) => {
-        if (afterCursor !== quote) {
-          return { ...b, apply: b.label + quote };
-        }
-        return b;
-      });
-    }
+  // First check for bank context without quotes - block with empty completions
+  let bankNoQuotesContext = context.matchBefore(/bank\(\s*$/);
+  if (bankNoQuotesContext) {
     return {
-      from,
-      options,
+      from: bankNoQuotesContext.to,
+      options: [],
     };
   }
-  return null;
+
+  // Then check for bank context with quotes - provide completions
+  let bankMatch = context.matchBefore(/bank\(\s*['"][^'"]*$/);
+  if (!bankMatch) return null;
+
+  const text = bankMatch.text;
+  const quoteIdx = Math.max(text.lastIndexOf('"'), text.lastIndexOf("'"));
+  if (quoteIdx === -1) return null;
+  const inside = text.slice(quoteIdx + 1);
+  const fragment = inside;
+  let banks = bankCompletions();
+  const filteredBanks = banks.filter((b) => b.label.startsWith(fragment));
+  const from = bankMatch.to - fragment.length;
+  return {
+    from,
+    options: filteredBanks,
+  };
 }
 
 function scaleAfterColonHandler(context) {
-  let scaleContext = context.matchBefore(/\.scale\(\s*['"][^'"]*:[^'"]*$/);
-  if (scaleContext) {
-    const text = scaleContext.text;
-    const colonIdx = text.lastIndexOf(':');
-    if (colonIdx === -1) return null;
-    const fragment = text.slice(colonIdx + 1);
-    const filteredScales = scaleCompletions.filter((s) => s.label.startsWith(fragment));
-    const options = filteredScales.map((s) => ({
-      ...s,
-      apply: s.label.replace(/\s+/g, ':')
-    }));
-    const from = scaleContext.from + colonIdx + 1;
-    return {
-      from,
-      options,
-    };
-  }
-  return null;
+  let scaleContext = context.matchBefore(/scale\(\s*['"][^'"]*:[^'"]*$/);
+  if (!scaleContext) return null;
+
+  const text = scaleContext.text;
+  const colonIdx = text.lastIndexOf(':');
+  if (colonIdx === -1) return null;
+  const fragment = text.slice(colonIdx + 1);
+  const filteredScales = scaleCompletions.filter((s) => s.label.startsWith(fragment));
+  const options = filteredScales.map((s) => ({
+    ...s,
+    apply: s.label.replace(/\s+/g, ':'),
+  }));
+  const from = scaleContext.from + colonIdx + 1;
+  return {
+    from,
+    options,
+  };
 }
 
 function fallbackHandler(context) {
@@ -264,7 +286,7 @@ const handlers = [
   bankHandler,
   scaleAfterColonHandler,
   // this handler *must* be last
-  fallbackHandler
+  fallbackHandler,
 ];
 
 export const strudelAutocomplete = (context) => {
