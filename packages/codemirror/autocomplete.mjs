@@ -97,6 +97,14 @@ try {
   console.warn('[autocomplete] Could not load scale names from Tonal:', e);
 }
 
+// Valid mode values for voicing
+const modeCompletions = [
+  { label: 'below', type: 'mode' },
+  { label: 'above', type: 'mode' },
+  { label: 'duck', type: 'mode' },
+  { label: 'root', type: 'mode' },
+];
+
 export const getSynonymDoc = (doc, synonym) => {
   const synonyms = doc.synonyms || [];
   const docLabel = getDocLabel(doc);
@@ -248,6 +256,53 @@ function bankHandler(context) {
   };
 }
 
+function modePreColonHandler(context) {
+  // First check for mode context without quotes - block with empty completions
+  let modeNoQuotesContext = context.matchBefore(/mode\(\s*$/);
+  if (modeNoQuotesContext) {
+    return {
+      from: modeNoQuotesContext.to,
+      options: [],
+    };
+  }
+
+  // Then check for mode context with quotes - provide completions
+  let modeContext = context.matchBefore(/mode\(\s*['"][^'"]*$/);
+  if (!modeContext) return null;
+
+  const text = modeContext.text;
+  const quoteIdx = Math.max(text.lastIndexOf('"'), text.lastIndexOf("'"));
+  if (quoteIdx === -1) return null;
+  const inside = text.slice(quoteIdx + 1);
+  const fragMatch = inside.match(/(?:[\s\[\{\(<])([\w:]*)$/);
+  const fragment = fragMatch ? fragMatch[1] : inside;
+  const filteredModes = modeCompletions.filter((m) => m.label.startsWith(fragment));
+  const from = modeContext.to - fragment.length;
+  return {
+    from,
+    options: filteredModes,
+  };
+}
+
+function modeAfterColonHandler(context) {
+  let modeContext = context.matchBefore(/mode\(\s*['"][^'"]*:[^'"]*$/);
+  if (!modeContext) return null;
+
+  const text = modeContext.text;
+  const colonIdx = text.lastIndexOf(':');
+  if (colonIdx === -1) return null;
+  const fragment = text.slice(colonIdx + 1);
+
+  // For anchor after colon, we can suggest pitch names
+  const filtered = pitchNames.filter((p) => p.toLowerCase().startsWith(fragment.toLowerCase()));
+  const options = filtered.map((p) => ({ label: p, type: 'pitch' }));
+  const from = modeContext.from + colonIdx + 1;
+  return {
+    from,
+    options,
+  };
+}
+
 function scaleAfterColonHandler(context) {
   let scaleContext = context.matchBefore(/scale\(\s*['"][^'"]*:[^'"]*$/);
   if (!scaleContext) return null;
@@ -284,7 +339,9 @@ const handlers = [
   scalePreColonHandler,
   soundHandler,
   bankHandler,
+  modePreColonHandler,
   scaleAfterColonHandler,
+  modeAfterColonHandler,
   // this handler *must* be last
   fallbackHandler,
 ];
