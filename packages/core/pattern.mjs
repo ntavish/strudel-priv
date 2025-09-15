@@ -2405,7 +2405,7 @@ export const { echoWith, echowith, stutWith, stutwith } = register(
  * s("bd sd").echo(3, 1/6, .8)
  */
 export const echo = register('echo', function (times, time, feedback, pat) {
-  return pat._echoWith(times, time, (pat, i) => pat.gain(Math.pow(feedback, i)));
+  return pat._echoForEach(times, time, (pat, i) => pat.gain(Math.pow(feedback, i)));
 });
 
 /**
@@ -2418,7 +2418,7 @@ export const echo = register('echo', function (times, time, feedback, pat) {
  * s("bd sd").stut(3, .8, 1/6)
  */
 export const stut = register('stut', function (times, feedback, time, pat) {
-  return pat._echoWith(times, time, (pat, i) => pat.gain(Math.pow(feedback, i)));
+  return pat._echoForEach(times, time, (pat, i) => pat.gain(Math.pow(feedback, i)));
 });
 
 export const applyN = register('applyN', function (n, func, p) {

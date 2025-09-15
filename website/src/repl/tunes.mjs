@@ -285,7 +285,7 @@ stack(
  .mul(gain(sine.struct("x*8").add(3/5).mul(2/5).fast(8)))
  .piano()`;
 
-// iter, echo, echoWith
+// iter, echo, echoForEach
 export const undergroundPlumber = `// "Underground plumber"
 // @license CC BY-NC-SA 4.0 https://creativecommons.org/licenses/by-nc-sa/4.0/
 // @by Felix Roos
@@ -307,7 +307,7 @@ stack(
   .cutoff(400).decay(.12).sustain(0)
   ,
   "[g2,[c3 eb3]]".iter(4)
-  .echoWith(4, 1/8, (x,n)=>x.transpose(n*12).gain(Math.pow(.4,n)))
+  .echoForEach(4, 1/8, (x,n)=>x.transpose(n*12).gain(Math.pow(.4,n)))
   .note().layer(h)
   .clip(.1)
 )
@@ -432,7 +432,7 @@ export const festivalOfFingers3 = `// "Festival of fingers 3"
 setcps(1)
 
 n("[-7*3],0,2,6,[8 7]")
-  .echoWith(
+  .echoForEach(
     4, // echo 4 times
     1/4, // 1/4s between echos
     (x,i)=>x
@@ -485,7 +485,7 @@ stack(
   .decay(.1).sustain(0) // make notes short
   .s('triangle') // waveform
   .degradeBy(perlin.range(0,.5)) // randomly controlled random removal :)
-  .echoWith(4,.125,(x,n)=>x.gain(.15*1/(n+1))) // echo notes
+  .echoForEach(4,.125,(x,n)=>x.gain(.15*1/(n+1))) // echo notes
   //.hush()
 )
   .slow(3/2)`;
