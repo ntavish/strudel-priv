@@ -2354,20 +2354,42 @@ export const jux = register('jux', function (func, pat) {
 
 /**
  * Superimpose and offset multiple times, applying the given function each time.
- * @name echoWith
- * @synonyms echowith, stutWith, stutwith
+ * @name echoForEach
  * @param {number} times how many times to repeat
  * @param {number} time cycle offset between iterations
  * @param {function} func function to apply, given the pattern and the iteration index
  * @example
  * "<0 [2 4]>"
  * .echoWith(4, 1/8, (p,n) => p.add(n*2))
- * .scale("C:minor").note()
+ * .n().scale("C:minor")
+ */
+export const { echoForEach } = register(['echoForEach'], function (times, time, func, pat) {
+  return stack(...listRange(0, times - 1).map((i) => func(pat.late(Fraction(time).mul(i)), i)));
+});
+
+/**
+ * Superimpose and offset multiple times, applying the given function each time.
+ * @name echoWith
+ * @synonyms echowith, stutWith, stutwith
+ * @param {number} times how many times to repeat
+ * @param {number} time cycle offset between iterations
+ * @param {function} func function to apply, given the pattern and the iteration index
+ * @example
+ * "<0 [2 4]>".echoWith(4, 1/8, add(2))
+ * .n().scale("C:minor")
  */
 export const { echoWith, echowith, stutWith, stutwith } = register(
   ['echoWith', 'echowith', 'stutWith', 'stutwith'],
   function (times, time, func, pat) {
-    return stack(...listRange(0, times - 1).map((i) => func(pat.late(Fraction(time).mul(i)), i)));
+    if (times < 1) {
+      return silence;
+    }
+    let pats = pat;
+    for (let i = 1; i < times; i++) {
+      pat = func(pat.late(time));
+      pats = pats.stack(pat);
+    }
+    return pats;
   },
 );
 
