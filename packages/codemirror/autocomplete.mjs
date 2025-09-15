@@ -59,11 +59,12 @@ const buildExamples = (examples) =>
   `
     : '';
 
-export const Autocomplete = ({ doc, label }) =>
+export const Autocomplete = (doc) =>
   h`
   <div class="autocomplete-info-container">
     <div class="autocomplete-info-tooltip">
-      <h3 class="autocomplete-info-function-name">${label || getDocLabel(doc)}</h3>
+      <h3 class="autocomplete-info-function-name">${getDocLabel(doc)}</h3>
+      ${doc.synonyms_text ? `<div class="autocomplete-info-function-synonyms">Synonyms: ${doc.synonyms_text}</div>` : ''}
       ${doc.description ? `<div class="autocomplete-info-function-description">${doc.description}</div>` : ''}
       ${buildParamsList(doc.params)}
       ${buildExamples(doc.examples)}
@@ -80,7 +81,6 @@ const hasExcludedTags = (doc) =>
   ['superdirtOnly', 'noAutocomplete'].some((tag) => doc.tags?.find((t) => t.originalTitle === tag));
 
 
-
 export function bankCompletions() {
   const soundDict = soundMap.get();
   const banks = new Set();
@@ -91,10 +91,6 @@ export function bankCompletions() {
   return Array.from(banks).sort().map((name) => ({ label: name, type: 'bank' }));
 }
 
-// Placeholder: Replace with actual logic to get live sound names
-const soundCompletions = [
-  // Example: { label: 'clap', type: 'sound' }, ...
-];
 
 // Attempt to get all scale names from Tonal
 let scaleCompletions = [];
@@ -104,15 +100,43 @@ try {
   console.warn('[autocomplete] Could not load scale names from Tonal:', e);
 }
 
-const jsdocCompletions = jsdoc.docs
-  .filter((doc) => isValidDoc(doc) && !hasExcludedTags(doc))
-  // https://codemirror.net/docs/ref/#autocomplete.Completion
-  .map((doc) => ({
-    label: getDocLabel(doc),
-    // detail: 'xxx', // An optional short piece of information to show (with a different style) after the label.
-    info: () => Autocomplete({ doc }),
-    type: 'function', // https://codemirror.net/docs/ref/#autocomplete.Completion.type
-  }));
+export const getSynonymDoc = (doc, synonym) => {
+  const synonyms = doc.synonyms || [];
+  const docLabel = getDocLabel(doc);
+  // Swap `doc.name` in for `s` in the list of synonyms
+  const synonymsWithDoc = [docLabel, ...synonyms].filter((x) => x && x !== synonym);
+  return {
+    ...doc,
+    name: synonym,
+    longname: synonym,
+    synonyms: synonymsWithDoc,
+    synonyms_text: synonymsWithDoc.join(', '),
+  };
+};
+
+const jsdocCompletions = (() => {
+  const seen = new Set(); // avoid repetition
+  const completions = [];
+  for (const doc of jsdoc.docs) {
+    if (!isValidDoc(doc) || hasExcludedTags(doc)) continue;
+    const docLabel = getDocLabel(doc);
+    // Remove duplicates
+    const synonyms = doc.synonyms || [];
+    let labels = [docLabel, ...synonyms];
+    for (const label of labels) {
+      // https://codemirror.net/docs/ref/#autocomplete.Completion
+      if (label && !seen.has(label)) {
+        seen.add(label);
+        completions.push({
+          label,
+          info: () => Autocomplete(getSynonymDoc(doc, label)),
+          type: 'function', // https://codemirror.net/docs/ref/#autocomplete.Completion.type
+        });
+      }
+    }
+  }
+  return completions;
+})();
 
 
 // --- Handler functions for each context ---
