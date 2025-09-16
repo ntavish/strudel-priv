@@ -91,6 +91,7 @@ export const { s, sound } = registerControl(['s', 'n', 'gain'], 'sound');
  * Define a custom webaudio node to use as a sound source.
  *
  * @name source
+ * @synonyms src
  * @param {function} getSource
  * @synonyms src
  *
@@ -113,7 +114,7 @@ export const { n } = registerControl('n');
  *
  * - a letter (a-g or A-G)
  * - optional accidentals (b or #)
- * - optional octave number (0-9). Defaults to 3
+ * - optional (possibly negative) octave number (0-9). Defaults to 3
  *
  * Examples of valid note names: `c`, `bb`, `Bb`, `f#`, `c3`, `A4`, `Eb2`, `c#5`
  *
@@ -126,6 +127,8 @@ export const { n } = registerControl('n');
  * note("c4 a4 f4 e4")
  * @example
  * note("60 69 65 64")
+ * @example
+ * note("fbb1 a#0 cbbb-1 e##-2").sound("saw")
  */
 export const { note } = registerControl(['note', 'n']);
 
@@ -141,8 +144,8 @@ export const { note } = registerControl(['note', 'n']);
  */
 export const { accelerate } = registerControl('accelerate');
 /**
- *
  * Sets the velocity from 0 to 1. Is multiplied together with gain.
+ *
  * @name velocity
  * @example
  * s("hh*8")
@@ -252,6 +255,20 @@ export const { fmenv } = registerControl('fmenv');
  *
  */
 export const { fmattack } = registerControl('fmattack');
+
+/**
+ * Waveform of the fm modulator
+ *
+ * @name fmwave
+ * @param {number | Pattern} wave waveform
+ * @example
+ * n("0 1 2 3".fast(4)).scale("d:minor").s("sine").fmwave("<sine square sawtooth crackle>").fm(4).fmh(2.01)
+ * @example
+ * n("0 1 2 3".fast(4)).chord("<Dm Am F G>").voicing().s("sawtooth").fmwave("brown").fm(.6)
+ *
+ */
+export const { fmwave } = registerControl('fmwave');
+
 /**
  * Decay time for the FM envelope: seconds until the sustain level is reached after the attack phase.
  *
@@ -295,6 +312,17 @@ export const { fmvelocity } = registerControl('fmvelocity');
  */
 export const { bank } = registerControl('bank');
 
+/**
+ * mix control for the chorus effect
+ *
+ * @name chorus
+ * @param {string | Pattern} chorus mix amount between 0 and 1
+ * @example
+ * note("d d a# a").s("sawtooth").chorus(.5)
+ *
+ */
+export const { chorus } = registerControl('chorus');
+
 // analyser node send amount 0 - 1 (used by scope)
 export const { analyze } = registerControl('analyze');
 // fftSize of analyser
@@ -306,6 +334,7 @@ export const { fft } = registerControl('fft');
  *
  * @name decay
  * @param {number | Pattern} time decay time in seconds
+ * @synonyms dec
  * @example
  * note("c3 e3 f3 g3").decay("<.1 .2 .3 .4>").sustain(0)
  *
@@ -362,7 +391,7 @@ export const { bandf, bpf, bp } = registerControl(['bandf', 'bandq', 'bpenv'], '
 // ['bpq'],
 export const { bandq, bpq } = registerControl('bandq', 'bpq');
 /**
- * a pattern of numbers from 0 to 1. Skips the beginning of each sample, e.g. `0.25` to cut off the first quarter from each sample.
+ * A pattern of numbers from 0 to 1. Skips the beginning of each sample, e.g. `0.25` to cut off the first quarter from each sample.
  *
  * @memberof Pattern
  * @name begin
@@ -423,7 +452,7 @@ export const { loopBegin, loopb } = registerControl('loopBegin', 'loopb');
  */
 export const { loopEnd, loope } = registerControl('loopEnd', 'loope');
 /**
- * bit crusher effect.
+ * Bit crusher effect.
  *
  * @name crush
  * @param {number | Pattern} depth between 1 (for drastic reduction in bit-depth) to 16 (for barely no reduction).
@@ -434,7 +463,7 @@ export const { loopEnd, loope } = registerControl('loopEnd', 'loope');
 // ['clhatdecay'],
 export const { crush } = registerControl('crush');
 /**
- * fake-resampling for lowering the sample rate. Caution: This effect seems to only work in chromium based browsers
+ * Fake-resampling for lowering the sample rate. Caution: This effect seems to only work in chromium based browsers
  *
  * @name coarse
  * @param {number | Pattern} factor 1 for original 2 for half, 3 for a third and so on.
@@ -445,7 +474,7 @@ export const { crush } = registerControl('crush');
 export const { coarse } = registerControl('coarse');
 
 /**
- * modulate the amplitude of a sound with a continuous waveform
+ * Modulate the amplitude of a sound with a continuous waveform
  *
  * @name tremolo
  * @synonyms trem
@@ -457,7 +486,7 @@ export const { coarse } = registerControl('coarse');
 export const { tremolo } = registerControl(['tremolo', 'tremolodepth', 'tremoloskew', 'tremolophase'], 'trem');
 
 /**
- * modulate the amplitude of a sound with a continuous waveform
+ * Modulate the amplitude of a sound with a continuous waveform
  *
  * @name tremolosync
  * @synonyms tremsync
@@ -472,7 +501,7 @@ export const { tremolosync } = registerControl(
 );
 
 /**
- * depth of amplitude modulation
+ * Depth of amplitude modulation
  *
  * @name tremolodepth
  * @synonyms tremdepth
@@ -483,7 +512,7 @@ export const { tremolosync } = registerControl(
  */
 export const { tremolodepth } = registerControl('tremolodepth', 'tremdepth');
 /**
- * alter the shape of the modulation waveform
+ * Alter the shape of the modulation waveform
  *
  * @name tremoloskew
  * @synonyms tremskew
@@ -495,7 +524,7 @@ export const { tremolodepth } = registerControl('tremolodepth', 'tremdepth');
 export const { tremoloskew } = registerControl('tremoloskew', 'tremskew');
 
 /**
- * alter the phase of the modulation waveform
+ * Alter the phase of the modulation waveform
  *
  * @name tremolophase
  * @synonyms tremphase
@@ -507,9 +536,10 @@ export const { tremoloskew } = registerControl('tremoloskew', 'tremskew');
 export const { tremolophase } = registerControl('tremolophase', 'tremphase');
 
 /**
- * shape of amplitude modulation
+ * Shape of amplitude modulation
  *
  * @name tremoloshape
+ * @synonyms tremshape
  * @param {number | Pattern} shape tri | square | sine | saw | ramp
  * @example
  * note("{f g c d}%16").tremsync(4).tremoloshape("<sine tri square>").s("sawtooth")
@@ -517,7 +547,7 @@ export const { tremolophase } = registerControl('tremolophase', 'tremphase');
  */
 export const { tremoloshape } = registerControl('tremoloshape', 'tremshape');
 /**
- * filter overdrive for supported filter types
+ * Filter overdrive for supported filter types
  *
  * @name drive
  * @param {number | Pattern} amount
@@ -525,31 +555,93 @@ export const { tremoloshape } = registerControl('tremoloshape', 'tremshape');
  * note("{f g g c d a a#}%16".sub(17)).s("supersaw").lpenv(8).lpf(150).lpq(.8).ftype('ladder').drive("<.5 4>")
  *
  */
-
-// TODO: SUPRADOUGH implement post orbit "pump" sidechain effect
-// /**
-//  * modulate the amplitude of an orbit to create a "sidechain" like effect
-//  *
-//  * @name pump
-//  * @param {number | Pattern} speed modulation speed in cycles
-//  * @example
-//  * note("{f g c d}%16").s("sawtooth").pump(".25:.75")
-//  *
-//  */
-// export const { pump } = registerControl(['pump', 'pumpdepth']);
-
-// /**
-//  * modulate the amplitude of an orbit to create a "sidechain" like effect
-//  *
-//  * @name pumpdepth
-//  * @param {number | Pattern} depth depth of modulation from 0 to 1
-//  * @example
-//  * note("{f g c d}%16").s("sawtooth").pump(".25").depth("<.25 .5 .75 1>")
-//  *
-//  */
-// export const { pumpdepth } = registerControl('pumpdepth');
-
 export const { drive } = registerControl('drive');
+
+/**
+ * Modulate the amplitude of an orbit to create a "sidechain" like effect.
+ *
+ * Can be applied to multiple orbits with the ':' mininotation, e.g. `duckorbit("2:3")`
+ *
+ * @name duckorbit
+ * @synonyms duck
+ * @param {number | Pattern} orbit target orbit
+ * @example
+ * $: n(run(16)).scale("c:minor:pentatonic").s("sawtooth").delay(.7).orbit(2)
+ * $: s("bd:4!4").beat("0,4,8,11,14",16).duckorbit(2).duckattack(0.2).duckdepth(1)
+ * @example
+ * $: n(run(16)).scale("c:minor:pentatonic").s("sawtooth").delay(.7).orbit(2)
+ * $: s("hh*16").orbit(3)
+ * $: s("bd:4!4").beat("0,4,8,11,14",16).duckorbit("2:3").duckattack(0.2).duckdepth(1)
+ *
+ */
+export const { duck } = registerControl('duckorbit', 'duck');
+
+/**
+ * The amount of ducking applied to target orbit
+ *
+ * Can vary across orbits with the ':' mininotation, e.g. `duckdepth("0.3:0.1")`.
+ * Note: this requires first applying the effect to multiple orbits with e.g. `duckorbit("2:3")`.
+ *
+ * @name duckdepth
+ * @param {number | Pattern} depth depth of modulation from 0 to 1
+ * @example
+ * stack( n(run(8)).scale("c:minor").s("sawtooth").delay(.7).orbit(2), s("bd:4!4").beat("0,4,8,11,14",16).duckorbit(2).duckattack(0.2).duckdepth("<1 .9 .6 0>"))
+ * @example
+ * $: n(run(16)).scale("c:minor:pentatonic").s("sawtooth").delay(.7).orbit(2)
+ * $: s("hh*16").orbit(3)
+ * $: s("bd:4!4").beat("0,4,8,11,14",16).duckorbit("2:3").duckattack(0.2).duckdepth("1:0.5")
+ *
+ */
+export const { duckdepth } = registerControl('duckdepth');
+
+/**
+ * The time required for the ducked signal(s) to reach their lowest volume.
+ * Can be used to prevent clicking or for creative rhythmic effects.
+ *
+ * Can vary across orbits with the ':' mininotation, e.g. `duckonset("0:0.003")`.
+ * Note: this requires first applying the effect to multiple orbits with e.g. `duckorbit("2:3")`.
+ *
+ * @name duckonset
+ * @synonyms duckons
+ *
+ * @param {number | Pattern} time The onset time in seconds
+ * @example
+ * // Clicks
+ * sound: freq("63.2388").s("sine").orbit(2).gain(4)
+ * duckerWithClick: s("bd*4").duckorbit(2).duckattack(0.3).duckonset(0).postgain(0)
+ * @example
+ * // No clicks
+ * sound: freq("63.2388").s("sine").orbit(2).gain(4)
+ * duckerWithoutClick: s("bd*4").duckorbit(2).duckattack(0.3).duckonset(0.01).postgain(0)
+ * @example
+ * // Rhythmic
+ * noise: s("pink").distort("2:1").orbit(4) // used rhythmically with 0.3 onset below
+ * hhat: s("hh*16").orbit(7)
+ * ducker: s("bd*4").bank("tr909").duckorbit("4:7").duckonset("0.3:0.003").duckattack(0.25)
+ *
+ */
+export const { duckonset } = registerControl('duckonset', 'duckons');
+
+/**
+ * The time required for the ducked signal(s) to return to their normal volume.
+ *
+ * Can vary across orbits with the ':' mininotation, e.g. `duckonset("0:0.003")`.
+ * Note: this requires first applying the effect to multiple orbits with e.g. `duckorbit("2:3")`.
+ *
+ * @name duckattack
+ * @synonyms duckatt
+ *
+ * @param {number | Pattern} time The attack time in seconds
+ * @example
+ * sound: n(run(8)).scale("c:minor").s("sawtooth").delay(.7).orbit(2)
+ * ducker: s("bd:4!4").beat("0,4,8,11,14",16).duckorbit(2).duckattack("<0.2 0 0.4>").duckdepth(1)
+ * @example
+ * moreduck: n(run(8)).scale("c:minor").s("sawtooth").delay(.7).orbit(2)
+ * lessduck: s("hh*16").orbit(5)
+ * ducker: s("bd:4!4").beat("0,4,8,11,14",16).duckorbit("2:5").duckattack("0.4:0.1")
+ *
+ */
+export const { duckattack } = registerControl('duckattack', 'duckatt');
 
 /**
  * Create byte beats with custom expressions
@@ -591,7 +683,7 @@ export const { byteBeatStartTime, bbst } = registerControl('byteBeatStartTime', 
 export const { channels, ch } = registerControl('channels', 'ch');
 
 /**
- * controls the pulsewidth of the pulse oscillator
+ * Controls the pulsewidth of the pulse oscillator
  *
  * @name pw
  * @param {number | Pattern} pulsewidth
@@ -603,7 +695,7 @@ export const { channels, ch } = registerControl('channels', 'ch');
 export const { pw } = registerControl(['pw', 'pwrate', 'pwsweep']);
 
 /**
- * controls the lfo rate for the pulsewidth of the pulse oscillator
+ * Controls the lfo rate for the pulsewidth of the pulse oscillator
  *
  * @name pwrate
  * @param {number | Pattern} rate
@@ -615,7 +707,7 @@ export const { pw } = registerControl(['pw', 'pwrate', 'pwsweep']);
 export const { pwrate } = registerControl('pwrate');
 
 /**
- * controls the lfo sweep for the pulsewidth of the pulse oscillator
+ * Controls the lfo sweep for the pulsewidth of the pulse oscillator
  *
  * @name pwsweep
  * @param {number | Pattern} sweep
@@ -656,7 +748,7 @@ export const { phaserrate, ph, phaser } = registerControl(
 export const { phasersweep, phs } = registerControl('phasersweep', 'phs');
 
 /**
- *  The center frequency of the phaser in HZ. Defaults to 1000
+ * The center frequency of the phaser in HZ. Defaults to 1000
  *
  * @name phasercenter
  * @synonyms phc
@@ -673,7 +765,7 @@ export const { phasercenter, phc } = registerControl('phasercenter', 'phc');
  * The amount the signal is affected by the phaser effect. Defaults to 0.75
  *
  * @name phaserdepth
- * @synonyms phd
+ * @synonyms phd, phasdp
  * @param {number | Pattern} depth number between 0 and 1
  * @example
  * n(run(8)).scale("D:pentatonic").s("sawtooth").release(0.5)
@@ -684,7 +776,7 @@ export const { phasercenter, phc } = registerControl('phasercenter', 'phc');
 export const { phaserdepth, phd, phasdp } = registerControl('phaserdepth', 'phd', 'phasdp');
 
 /**
- * choose the channel the pattern is sent to in superdirt
+ * Choose the channel the pattern is sent to in superdirt
  *
  * @name channel
  * @param {number | Pattern} channel channel number
@@ -1070,14 +1162,27 @@ export const { delay } = registerControl(['delay', 'delaytime', 'delayfeedback']
  *
  */
 export const { delayfeedback, delayfb, dfb } = registerControl('delayfeedback', 'delayfb', 'dfb');
+
+/**
+ * Sets the level of the signal that is fed back into the delay.
+ * Caution: Values >= 1 will result in a signal that gets louder and louder! Don't do it
+ *
+ * @name delayfeedback
+ * @param {number | Pattern} feedback between 0 and 1
+ * @synonyms delayfb, dfb
+ * @example
+ * s("bd").delay(.25).delayfeedback("<.25 .5 .75 1>")
+ *
+ */
+export const { delayspeed } = registerControl('delayspeed');
 /**
  * Sets the time of the delay effect.
  *
- * @name delaytime
- * @param {number | Pattern} seconds between 0 and Infinity
+ * @name delayspeed
+ * @param {number | Pattern} delayspeed controls the pitch of the delay feedback
  * @synonyms delayt, dt
  * @example
- * s("bd bd").delay(.25).delaytime("<.125 .25 .5 1>")
+ * note("d d a# a".fast(2)).s("sawtooth").delay(.8).delaytime(1/2).delayspeed("<2 .5 -1 -2>")
  *
  */
 export const { delaytime, delayt, dt } = registerControl('delaytime', 'delayt', 'dt');
@@ -1155,6 +1260,7 @@ export const { dry } = registerControl('dry');
  * Used when using `begin`/`end` or `chop`/`striate` and friends, to change the fade out time of the 'grain' envelope.
  *
  * @name fadeTime
+ * @synonyms fadeOutTime
  * @param {number | Pattern} time between 0 and 1
  * @example
  * s("oh*4").end(.1).fadeTime("<0 .2 .4 .8>").osc()
@@ -1489,6 +1595,29 @@ export const { roomfade, rfade } = registerControl('roomfade', 'rfade');
  *
  */
 export const { ir, iresponse } = registerControl(['ir', 'i'], 'iresponse');
+
+/**
+ * Sets speed of the sample for the impulse response.
+ * @name irspeed
+ * @param {string | Pattern} speed
+ * @example
+ * samples('github:switchangel/pad')
+ * $: s("brk/2").fit().scrub(irand(16).div(16).seg(8)).ir("swpad:4").room(.2).irspeed("<2 1 .5>/2").irbegin(.5).roomsize(.5)
+ *
+ */
+export const { irspeed } = registerControl('irspeed');
+
+/**
+ * Sets the beginning of the IR response sample
+ * @name irbegin
+ * @param {string | Pattern} begin between 0 and 1
+ * @synonyms ir
+ * @example
+ * samples('github:switchangel/pad')
+ * $: s("brk/2").fit().scrub(irand(16).div(16).seg(8)).ir("swpad:4").room(.65).irspeed("-2").irbegin("<0 .5 .75>/2").roomsize(.6)
+ *
+ */
+export const { irbegin } = registerControl('irbegin');
 /**
  * Sets the room size of the reverb, see `room`.
  * When this property is changed, the reverb will be recaculated, so only change this sparsely..
