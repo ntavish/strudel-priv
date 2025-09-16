@@ -78,13 +78,23 @@ export const getSampleBufferSource = async (hapValue, bank, resolveUrl) => {
   const bufferSource = ac.createBufferSource();
   bufferSource.buffer = buffer;
   bufferSource.playbackRate.value = playbackRate;
-
-  const { s, loopBegin = 0, loopEnd = 1, begin = 0, end = 1 } = hapValue;
-
+  const { s, loopBegin = 0, loopEnd = 1, begin, end, beginSeconds, endSeconds } = hapValue;
+  let offset = 0;
+  let endTime = bufferSource.buffer.duration;
   // "The computation of the offset into the sound is performed using the sound buffer's natural sample rate,
   // rather than the current playback rate, so even if the sound is playing at twice its normal speed,
   // the midway point through a 10-second audio buffer is still 5."
-  const offset = begin * bufferSource.buffer.duration;
+  if (begin != null) {
+    offset = begin * bufferSource.buffer.duration;
+  } else if (beginSeconds != null) {
+    offset = beginSeconds;
+  }
+
+  if (end != null) {
+    endTime = end * bufferSource.buffer.duration;
+  } else if (endSeconds != null) {
+    endTime = endSeconds;
+  }
 
   const loop = s.startsWith('wt_') ? 1 : hapValue.loop;
   if (loop) {
@@ -93,7 +103,7 @@ export const getSampleBufferSource = async (hapValue, bank, resolveUrl) => {
     bufferSource.loopEnd = loopEnd * bufferSource.buffer.duration - offset;
   }
   const bufferDuration = bufferSource.buffer.duration / bufferSource.playbackRate.value;
-  const sliceDuration = (end - begin) * bufferDuration;
+  const sliceDuration = (endTime - offset) / bufferSource.playbackRate.value;
   return { bufferSource, offset, bufferDuration, sliceDuration };
 };
 
@@ -347,6 +357,7 @@ export async function onTriggerSample(t, value, onended, bank, resolveUrl) {
     out.disconnect();
     onended();
   };
+
   let envEnd = holdEnd + release + 0.01;
   bufferSource.stop(envEnd);
   const stop = (endTime) => {

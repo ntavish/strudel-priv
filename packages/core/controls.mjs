@@ -414,6 +414,32 @@ export const { begin } = registerControl('begin');
  */
 export const { end } = registerControl('end');
 /**
+ * the offset of the sample buffer in seconds
+ *
+ * @memberof Pattern
+ * @name beginSeconds
+ * @param {number | Pattern} seconds
+ * @example
+ * samples('github:switchangel/pad')
+ * s("swpad!4").clip(1).beginSeconds("2 5 .2 3").fast(2)
+ * @example
+ * samples('github:switchangel/pad')
+ * $: s("swpad!16").beginseconds(time).dec(.1)
+ *
+ */
+export const { beginSeconds, beginseconds } = registerControl('beginSeconds', 'beginseconds');
+/**
+ * The end of the sample buffer in seconds
+ *
+ * @memberof Pattern
+ * @name endSeconds
+ * @param {number | Pattern} seconds
+ * @example
+ * s("bd*2,oh*4").endSeconds("<.1 .05 .2 1>").fast(2)
+ *
+ */
+export const { endSeconds, endseconds } = registerControl('endSeconds', 'endseconds');
+/**
  * Loops the sample.
  * Note that the tempo of the loop is not synced with the cycle tempo.
  * To change the loop region, use loopBegin / loopEnd.
