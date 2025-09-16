@@ -408,12 +408,12 @@ function fallbackHandler(context) {
 }
 
 const handlers = [
-  scalePreColonHandler,
   soundHandler,
   bankHandler,
   chordHandler,
-  modePreColonHandler,
+  scalePreColonHandler,
   scaleAfterColonHandler,
+  modePreColonHandler,
   modeAfterColonHandler,
   // this handler *must* be last
   fallbackHandler,
