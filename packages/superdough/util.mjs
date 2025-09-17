@@ -7,7 +7,7 @@ export const tokenizeNote = (note) => {
   if (typeof note !== 'string') {
     return [];
   }
-  const [pc, acc = '', oct] = note.match(/^([a-gA-G])([#bsf]*)([0-9]*)$/)?.slice(1) || [];
+  const [pc, acc = '', oct] = note.match(/^([a-gA-G])([#bsf]*)(-?[0-9]*)$/)?.slice(1) || [];
   if (!pc) {
     return [];
   }
@@ -71,4 +71,8 @@ export const getSoundIndex = (n, numSounds) => {
 
 export function cycleToSeconds(cycle, cps) {
   return cycle / cps;
+}
+
+export function secondsToCycle(t, cps) {
+  return t * cps;
 }
