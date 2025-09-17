@@ -278,6 +278,15 @@ export class StrudelMirror {
       this.evaluate();
     }
   }
+  async loadFromFile(fileHandle) {
+    const file = await fileHandle.getFile();
+    this.setCode(await file.text());
+  }
+  async saveToFile(fileHandle) {
+    const writable = await fileHandle.createWritable();
+    await writable.write(this.code);
+    await writable.close();
+  }
   flash(ms) {
     flash(this.editor, ms);
   }

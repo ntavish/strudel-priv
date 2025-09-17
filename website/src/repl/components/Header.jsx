@@ -8,7 +8,7 @@ const { BASE_URL } = import.meta.env;
 const baseNoTrailing = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
 
 export function Header({ context, embedded = false }) {
-  const { started, pending, isDirty, activeCode, handleTogglePlay, handleEvaluate, handleShuffle, handleShare } =
+  const { started, pending, isDirty, activeCode, handleTogglePlay, handleEvaluate, handleShuffle, handleSave, handleLoad, handleShare } =
     context;
   const isEmbedded = typeof window !== 'undefined' && (embedded || window.location !== window.parent.location);
   const { isZen, isButtonRowHidden, isCSSAnimationDisabled, fontFamily } = useSettings();
@@ -102,6 +102,33 @@ export function Header({ context, embedded = false }) {
               <span> shuffle</span>
             </button>
           ) */}
+          {/* Save Button */}
+          {window.showSaveFilePicker && !isEmbedded && (
+            <button
+              title="save"
+              className={cx(
+                'cursor-pointer hover:opacity-50 flex items-center space-x-1',
+                !isEmbedded ? 'p-2' : 'px-2',
+              )}
+              onClick={handleSave}
+            >
+              <span>save</span>
+            </button>
+          )}
+          {/* Load Button */}
+          {window.showOpenFilePicker && !isEmbedded && (
+            <button
+              title="load"
+              className={cx(
+                'cursor-pointer hover:opacity-50 flex items-center space-x-1',
+                !isEmbedded ? 'p-2' : 'px-2',
+              )}
+              onClick={handleLoad}
+            >
+              <span>load</span>
+            </button>
+          )}
+          {/* Share Button */}
           {!isEmbedded && (
             <button
               title="share"

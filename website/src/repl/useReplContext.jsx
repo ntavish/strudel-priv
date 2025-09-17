@@ -177,7 +177,7 @@ export function useReplContext() {
   };
 
   const handleTogglePlay = async () => {
-    editorRef.current?.toggle();
+    await editorRef.current?.toggle();
   };
 
   const resetEditor = async () => {
@@ -214,6 +214,39 @@ export function useReplContext() {
     editorRef.current.repl.evaluate(code);
   };
 
+  const handleSave = async () => {
+    if (!editorRef.current?.code) {
+      return;
+    }
+    const opts = {
+      types: [
+        {
+          description: 'Strudel Files',
+          accept: { 'application/strudel': ['.str'] },
+        },
+      ],
+    };
+    const fileHandle = await window.showSaveFilePicker(opts);
+    await editorRef.current?.saveToFile(fileHandle);
+  };
+
+  const handleLoad = async () => {
+    const [fileHandle] = await window.showOpenFilePicker({
+      types: [
+        {
+          description: 'Strudel or JS Files',
+          accept: {
+            'application/strudel': ['.str'],
+            'application/javascript': ['.js'],
+            'text/plain': ['.txt', '.js', '.str'],
+          },
+        },
+      ],
+      multiple: false,
+    });
+    await editorRef.current?.loadFromFile(fileHandle);
+  };
+
   const handleShare = async () => shareCode(replState.code);
   const context = {
     started,
@@ -223,6 +256,8 @@ export function useReplContext() {
     handleTogglePlay,
     handleUpdate,
     handleShuffle,
+    handleSave,
+    handleLoad,
     handleShare,
     handleEvaluate,
     init,
