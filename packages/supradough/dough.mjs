@@ -6,6 +6,7 @@ const PI_DIV_SR = Math.PI / SAMPLE_RATE;
 const ISR = 1 / SAMPLE_RATE;
 
 let gainCurveFunc = (val) => Math.pow(val, 2);
+const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
 
 function applyGainCurve(val) {
   return gainCurveFunc(val);
