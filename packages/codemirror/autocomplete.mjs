@@ -75,7 +75,6 @@ export const Autocomplete = (doc) => {
     if (!a) return;
     // If so, open the corresponding page in the Reference tab
     e.preventDefault();
-    const targetId = a.getAttribute('data-ref');
     setIsPanelOpened(true);
     setTab('reference');
     window.dispatchEvent(new CustomEvent('open-reference', { detail: { id: a.getAttribute('data-ref') } }));
