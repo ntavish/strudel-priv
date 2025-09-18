@@ -186,9 +186,16 @@ const pitchNames = [
   'Cb',
 ];
 
-function scalePreColonHandler(context) {
+// Cached regex patterns for scaleHandler
+const SCALE_NO_QUOTES_REGEX = /scale\(\s*$/;
+const SCALE_AFTER_COLON_REGEX = /scale\(\s*['"][^'"]*:[^'"]*$/;
+const SCALE_PRE_COLON_REGEX = /scale\(\s*['"][^'"]*$/;
+const SCALE_PITCH_MATCH_REGEX = /([A-Ga-g][#b]*)?$/;
+const SCALE_SPACES_TO_COLON_REGEX = /\s+/g;
+
+function scaleHandler(context) {
   // First check for scale context without quotes - block with empty completions
-  let scaleNoQuotesContext = context.matchBefore(/scale\(\s*$/);
+  let scaleNoQuotesContext = context.matchBefore(SCALE_NO_QUOTES_REGEX);
   if (scaleNoQuotesContext) {
     return {
       from: scaleNoQuotesContext.to,
@@ -196,13 +203,33 @@ function scalePreColonHandler(context) {
     };
   }
 
-  // Then check for scale context with quotes - provide completions
-  let scalePreColonContext = context.matchBefore(/scale\(\s*['"][^'"]*$/);
+  // Check for after-colon context first (more specific)
+  let scaleAfterColonContext = context.matchBefore(SCALE_AFTER_COLON_REGEX);
+  if (scaleAfterColonContext) {
+    const text = scaleAfterColonContext.text;
+    const colonIdx = text.lastIndexOf(':');
+    if (colonIdx !== -1) {
+      const fragment = text.slice(colonIdx + 1);
+      const filteredScales = scaleCompletions.filter((s) => s.label.startsWith(fragment));
+      const options = filteredScales.map((s) => ({
+        ...s,
+        apply: s.label.replace(SCALE_SPACES_TO_COLON_REGEX, ':'),
+      }));
+      const from = scaleAfterColonContext.from + colonIdx + 1;
+      return {
+        from,
+        options,
+      };
+    }
+  }
+
+  // Then check for pre-colon context
+  let scalePreColonContext = context.matchBefore(SCALE_PRE_COLON_REGEX);
   if (scalePreColonContext) {
     if (!scalePreColonContext.text.includes(':')) {
       if (context.explicit) {
         const text = scalePreColonContext.text;
-        const match = text.match(/([A-Ga-g][#b]*)?$/);
+        const match = text.match(SCALE_PITCH_MATCH_REGEX);
         const fragment = match ? match[0] : '';
         const filtered = pitchNames.filter((p) => p.toLowerCase().startsWith(fragment.toLowerCase()));
         const from = scalePreColonContext.to - fragment.length;
@@ -216,9 +243,14 @@ function scalePreColonHandler(context) {
   return null;
 }
 
+// Cached regex patterns for soundHandler
+const SOUND_NO_QUOTES_REGEX = /(s|sound)\(\s*$/;
+const SOUND_WITH_QUOTES_REGEX = /(s|sound)\(\s*['"][^'"]*$/;
+const SOUND_FRAGMENT_MATCH_REGEX = /(?:[\s[{(<])([\w]*)$/;
+
 function soundHandler(context) {
   // First check for sound context without quotes - block with empty completions
-  let soundNoQuotesContext = context.matchBefore(/(s|sound)\(\s*$/);
+  let soundNoQuotesContext = context.matchBefore(SOUND_NO_QUOTES_REGEX);
   if (soundNoQuotesContext) {
     return {
       from: soundNoQuotesContext.to,
@@ -227,14 +259,14 @@ function soundHandler(context) {
   }
 
   // Then check for sound context with quotes - provide completions
-  let soundContext = context.matchBefore(/(s|sound)\(\s*['"][^'"]*$/);
+  let soundContext = context.matchBefore(SOUND_WITH_QUOTES_REGEX);
   if (!soundContext) return null;
 
   const text = soundContext.text;
   const quoteIdx = Math.max(text.lastIndexOf('"'), text.lastIndexOf("'"));
   if (quoteIdx === -1) return null;
   const inside = text.slice(quoteIdx + 1);
-  const fragMatch = inside.match(/(?:[\s[{(<])([\w]*)$/);
+  const fragMatch = inside.match(SOUND_FRAGMENT_MATCH_REGEX);
   const fragment = fragMatch ? fragMatch[1] : inside;
   const soundNames = Object.keys(soundMap.get()).sort();
   const filteredSounds = soundNames.filter((name) => name.includes(fragment));
@@ -246,9 +278,13 @@ function soundHandler(context) {
   };
 }
 
+// Cached regex patterns for bankHandler
+const BANK_NO_QUOTES_REGEX = /bank\(\s*$/;
+const BANK_WITH_QUOTES_REGEX = /bank\(\s*['"][^'"]*$/;
+
 function bankHandler(context) {
   // First check for bank context without quotes - block with empty completions
-  let bankNoQuotesContext = context.matchBefore(/bank\(\s*$/);
+  let bankNoQuotesContext = context.matchBefore(BANK_NO_QUOTES_REGEX);
   if (bankNoQuotesContext) {
     return {
       from: bankNoQuotesContext.to,
@@ -257,7 +293,7 @@ function bankHandler(context) {
   }
 
   // Then check for bank context with quotes - provide completions
-  let bankMatch = context.matchBefore(/bank\(\s*['"][^'"]*$/);
+  let bankMatch = context.matchBefore(BANK_WITH_QUOTES_REGEX);
   if (!bankMatch) return null;
 
   const text = bankMatch.text;
@@ -274,9 +310,15 @@ function bankHandler(context) {
   };
 }
 
-function modePreColonHandler(context) {
+// Cached regex patterns for modeHandler
+const MODE_NO_QUOTES_REGEX = /mode\(\s*$/;
+const MODE_AFTER_COLON_REGEX = /mode\(\s*['"][^'"]*:[^'"]*$/;
+const MODE_PRE_COLON_REGEX = /mode\(\s*['"][^'"]*$/;
+const MODE_FRAGMENT_MATCH_REGEX = /(?:[\s[{(<])([\w:]*)$/;
+
+function modeHandler(context) {
   // First check for mode context without quotes - block with empty completions
-  let modeNoQuotesContext = context.matchBefore(/mode\(\s*$/);
+  let modeNoQuotesContext = context.matchBefore(MODE_NO_QUOTES_REGEX);
   if (modeNoQuotesContext) {
     return {
       from: modeNoQuotesContext.to,
@@ -284,15 +326,33 @@ function modePreColonHandler(context) {
     };
   }
 
-  // Then check for mode context with quotes - provide completions
-  let modeContext = context.matchBefore(/mode\(\s*['"][^'"]*$/);
+  // Check for after-colon context first (more specific)
+  let modeAfterColonContext = context.matchBefore(MODE_AFTER_COLON_REGEX);
+  if (modeAfterColonContext) {
+    const text = modeAfterColonContext.text;
+    const colonIdx = text.lastIndexOf(':');
+    if (colonIdx !== -1) {
+      const fragment = text.slice(colonIdx + 1);
+      // For anchor after colon, we can suggest pitch names
+      const filtered = pitchNames.filter((p) => p.toLowerCase().startsWith(fragment.toLowerCase()));
+      const options = filtered.map((p) => ({ label: p, type: 'pitch' }));
+      const from = modeAfterColonContext.from + colonIdx + 1;
+      return {
+        from,
+        options,
+      };
+    }
+  }
+
+  // Then check for pre-colon context
+  let modeContext = context.matchBefore(MODE_PRE_COLON_REGEX);
   if (!modeContext) return null;
 
   const text = modeContext.text;
   const quoteIdx = Math.max(text.lastIndexOf('"'), text.lastIndexOf("'"));
   if (quoteIdx === -1) return null;
   const inside = text.slice(quoteIdx + 1);
-  const fragMatch = inside.match(/(?:[\s[{(<])([\w:]*)$/);
+  const fragMatch = inside.match(MODE_FRAGMENT_MATCH_REGEX);
   const fragment = fragMatch ? fragMatch[1] : inside;
   const filteredModes = modeCompletions.filter((m) => m.label.startsWith(fragment));
   const from = modeContext.to - fragment.length;
@@ -302,28 +362,14 @@ function modePreColonHandler(context) {
   };
 }
 
-function modeAfterColonHandler(context) {
-  let modeContext = context.matchBefore(/mode\(\s*['"][^'"]*:[^'"]*$/);
-  if (!modeContext) return null;
-
-  const text = modeContext.text;
-  const colonIdx = text.lastIndexOf(':');
-  if (colonIdx === -1) return null;
-  const fragment = text.slice(colonIdx + 1);
-
-  // For anchor after colon, we can suggest pitch names
-  const filtered = pitchNames.filter((p) => p.toLowerCase().startsWith(fragment.toLowerCase()));
-  const options = filtered.map((p) => ({ label: p, type: 'pitch' }));
-  const from = modeContext.from + colonIdx + 1;
-  return {
-    from,
-    options,
-  };
-}
+// Cached regex patterns for chordHandler
+const CHORD_NO_QUOTES_REGEX = /chord\(\s*$/;
+const CHORD_WITH_QUOTES_REGEX = /chord\(\s*['"][^'"]*$/;
+const CHORD_FRAGMENT_MATCH_REGEX = /(?:[\s[{(<])([\w#b+^:-]*)$/;
 
 function chordHandler(context) {
   // First check for chord context without quotes - block with empty completions
-  let chordNoQuotesContext = context.matchBefore(/chord\(\s*$/);
+  let chordNoQuotesContext = context.matchBefore(CHORD_NO_QUOTES_REGEX);
   if (chordNoQuotesContext) {
     return {
       from: chordNoQuotesContext.to,
@@ -332,7 +378,7 @@ function chordHandler(context) {
   }
 
   // Then check for chord context with quotes - provide completions
-  let chordContext = context.matchBefore(/chord\(\s*['"][^'"]*$/);
+  let chordContext = context.matchBefore(CHORD_WITH_QUOTES_REGEX);
   if (!chordContext) return null;
 
   const text = chordContext.text;
@@ -341,7 +387,7 @@ function chordHandler(context) {
   const inside = text.slice(quoteIdx + 1);
 
   // Use same fragment matching as sound/mode for expressions like "<G Am>"
-  const fragMatch = inside.match(/(?:[\s[{(<])([\w#b+^:-]*)$/);
+  const fragMatch = inside.match(CHORD_FRAGMENT_MATCH_REGEX);
   const fragment = fragMatch ? fragMatch[1] : inside;
 
   // Check if fragment contains any pitch name at start (for root + symbol)
@@ -375,28 +421,11 @@ function chordHandler(context) {
   }
 }
 
-function scaleAfterColonHandler(context) {
-  let scaleContext = context.matchBefore(/scale\(\s*['"][^'"]*:[^'"]*$/);
-  if (!scaleContext) return null;
-
-  const text = scaleContext.text;
-  const colonIdx = text.lastIndexOf(':');
-  if (colonIdx === -1) return null;
-  const fragment = text.slice(colonIdx + 1);
-  const filteredScales = scaleCompletions.filter((s) => s.label.startsWith(fragment));
-  const options = filteredScales.map((s) => ({
-    ...s,
-    apply: s.label.replace(/\s+/g, ':'),
-  }));
-  const from = scaleContext.from + colonIdx + 1;
-  return {
-    from,
-    options,
-  };
-}
+// Cached regex patterns for fallbackHandler
+const FALLBACK_WORD_REGEX = /\w*/;
 
 function fallbackHandler(context) {
-  const word = context.matchBefore(/\w*/);
+  const word = context.matchBefore(FALLBACK_WORD_REGEX);
   if (word && word.from === word.to && !context.explicit) return null;
   if (word) {
     return {
@@ -411,10 +440,8 @@ const handlers = [
   soundHandler,
   bankHandler,
   chordHandler,
-  scalePreColonHandler,
-  scaleAfterColonHandler,
-  modePreColonHandler,
-  modeAfterColonHandler,
+  scaleHandler,
+  modeHandler,
   // this handler *must* be last
   fallbackHandler,
 ];
